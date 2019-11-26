@@ -2,6 +2,8 @@ package net.akouryy.anscaml
 
 import scala.io.Source
 
+import base._
+
 object AnsCaml {
   val VERSION = "2.0"
 
@@ -13,6 +15,10 @@ object AnsCaml {
       (libCode +: config.inputFiles.map(Source.fromFile(_).mkString)).mkString(";\n")
     }
 
-    println(code)
+    val tokens = syntax.Lexer.lex(code)
+
+    val ast = syntax.Parser.parse(tokens)
+
+    pprinter.pprintln(ast)
   }
 }
