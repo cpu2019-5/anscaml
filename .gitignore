@@ -3,3 +3,6 @@
 
 # sbt
 target/
+
+# IDEA
+/.idea/
