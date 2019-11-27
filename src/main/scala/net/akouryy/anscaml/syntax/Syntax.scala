@@ -11,7 +11,7 @@ object Syntax {
 
   // ASTs
 
-  case object Unit extends Syntax
+  val LitUnit = Tuple(Nil)
 
   case class LitBool(b: Boolean) extends Syntax
 
@@ -21,13 +21,11 @@ object Syntax {
 
   case class Not(s: Syntax) extends Syntax
 
-  case class Neg(s: Syntax) extends Syntax
+  case class BinOpTree[T <: Primitives.IntOrFloat](op: BinOp[T], left: Syntax, right: Syntax)
+    extends Syntax
 
-  case class BinOpTree[T <: IntOrFloat](op: BinOp[T], left: Syntax, right: Syntax) extends Syntax
-
-  case class Fneg(s: Syntax) extends Syntax
-
-  case class CmpOpTree[T <: IntOrFloat](op: CmpOp[T], left: Syntax, right: Syntax) extends Syntax
+  case class CmpOpTree[T <: Primitives.IntOrFloat](op: CmpOp[T], left: Syntax, right: Syntax)
+    extends Syntax
 
   case class If(cond: Syntax, tru: Syntax, fls: Syntax) extends Syntax
 

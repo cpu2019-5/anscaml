@@ -1,17 +1,20 @@
-package net.akouryy.anscaml.syntax
+package net.akouryy.anscaml
+package syntax
 
-import net.akouryy.anscaml.base.IntOrFloat
+import base._
 
-sealed abstract class CmpOp[IF <: IntOrFloat](fn: (IF#T, IF#T) => Boolean)
+sealed abstract class CmpOp[IF <: Primitives.IntOrFloat](fn: (IF#T, IF#T) => Boolean)(
+  implicit val prim: IF
+)
 
 object CmpOp {
 
-  case object Eq extends CmpOp[IntOrFloat.Int]((x, y) => x == y)
+  case object Eq extends CmpOp[Primitives.Int]((x, y) => x == y)
 
-  case object Le extends CmpOp[IntOrFloat.Int]((x, y) => x < y)
+  case object Le extends CmpOp[Primitives.Int]((x, y) => x < y)
 
-  case object Feq extends CmpOp[IntOrFloat.Float]((x, y) => x == y)
+  case object Feq extends CmpOp[Primitives.Float]((x, y) => x == y)
 
-  case object Fle extends CmpOp[IntOrFloat.Float]((x, y) => x < y)
+  case object Fle extends CmpOp[Primitives.Float]((x, y) => x < y)
 
 }

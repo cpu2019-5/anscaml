@@ -15,10 +15,18 @@ object AnsCaml {
       (libCode +: config.inputFiles.map(Source.fromFile(_).mkString)).mkString(";\n")
     }
 
+    println("Lexer")
+
     val tokens = syntax.Lexer.lex(code)
+
+    println("Parser")
 
     val ast = syntax.Parser.parse(tokens)
 
-    pprinter.pprintln(ast)
+    println("Typing")
+
+    val constraints = new typ.Constrainer().constrain(ast)
+
+    pprinter.pprintln(constraints)
   }
 }

@@ -20,7 +20,7 @@ object AnsParser extends Parsers {
     override def rest: Reader[Elem] = new LexTokenReader(tokens.tail)
   }
 
-  private[this] def binOpBuilder[T <: IntOrFloat](op: BinOp[T])(l: Syntax, r: Syntax) =
+  private[this] def binOpBuilder[T <: Primitives.IntOrFloat](op: BinOp[T])(l: Syntax, r: Syntax) =
     Syntax.BinOpTree(op, l, r)
 
   private[this] val BinaryOperators =
@@ -66,7 +66,7 @@ object AnsParser extends Parsers {
 
   private[this] def dottableExpr: Parser[Syntax] =
     L_PAREN ~> expr <~ R_PAREN |
-    L_PAREN ~ R_PAREN ^^ { _ => Syntax.Unit } |
+    L_PAREN ~ R_PAREN ^^ { _ => Syntax.LitUnit } |
     L_PAREN ~> repsep(expr, COMMA) <~ R_PAREN ^^ Syntax.Tuple |
     identifier ^^ Syntax.Var |
     acceptPositioned("BOOL", { case BOOL(b) => Syntax.LitBool(b) }) |

@@ -1,5 +1,7 @@
 package net.akouryy.anscaml.base
 
+import net.akouryy.anscaml.typ.Typ
+
 final case class ID(name: String)
 
 object ID {
