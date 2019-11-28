@@ -1,7 +1,6 @@
 package net.akouryy.anscaml
 
 import scala.io.Source
-
 import base._
 
 object AnsCaml {
@@ -11,7 +10,7 @@ object AnsCaml {
     val config = CommandParser.parse(args).getOrElse(???)
 
     val code = {
-      val libCode = if(config.doPrependStandardLibrary) Source.fromResource("lib.tig.ml").mkString else ""
+      val libCode = if (config.doPrependStandardLibrary) Source.fromResource("lib.tig.ml").mkString else ""
       (libCode +: config.inputFiles.map(Source.fromFile(_).mkString)).mkString(";\n")
     }
 
@@ -25,8 +24,8 @@ object AnsCaml {
 
     println("Typing")
 
-    val constraints = new typ.Constrainer().constrain(ast)
+    val astTyped = typ.Typing.solve(ast)
 
-    pprinter.pprintln(constraints)
+    pprinter.pprintln(astTyped, height = 10000)
   }
 }

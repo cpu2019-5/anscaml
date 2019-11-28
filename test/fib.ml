@@ -16,3 +16,6 @@ let rec fib2 n =
   fib3 n 1 0 in
 print_int (fib2 30);
 print_char 10;
+
+let rec f x = x in
+print_char (f 10)

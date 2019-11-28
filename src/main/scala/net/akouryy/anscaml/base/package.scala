@@ -8,6 +8,7 @@ package object base {
       case Nil => pprint.Tree.Literal("Nil")
 
       case typ.Typ.TypVar(v) => pprint.Tree.Literal(s"$$_$v")
+      case typ.Lit.Var(v) => pprint.Tree.Literal(s"@_$v")
     }
   )
 }

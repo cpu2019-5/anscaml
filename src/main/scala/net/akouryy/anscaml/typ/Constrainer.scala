@@ -3,7 +3,6 @@ package typ
 
 import base._
 import syntax._
-import Typ.Lit
 
 class Constrainer {
 
@@ -15,12 +14,12 @@ class Constrainer {
     import Syntax._
 
     tree match {
-      case LitBool(b) => Typ.Bool(Lit.List[Primitives.Bool](Set(b)))
-      case LitInt(i) => Typ.Int(Lit.List[Primitives.Int](Set(i)))
-      case LitFloat(f) => Typ.Float(Lit.List[Primitives.Float](Set(f)))
+      case LitBool(b) => Typ.TBool(Lit.List[Primitives.PBool](Set(b)))
+      case LitInt(i) => Typ.TInt(Lit.List[Primitives.PInt](Set(i)))
+      case LitFloat(f) => Typ.TFloat(Lit.List[Primitives.PFloat](Set(f)))
       case Not(s) =>
         val t = constrainRec(s, typEnv)
-        constraints ::= Typ.Bool(Lit.All()) >:> t
+        constraints ::= Typ.TBool(Lit.All()) >:> t
         Typ.BoolAll
       case BinOpTree(op, sl, sr) =>
         val tl = constrainRec(sl, typEnv)
@@ -82,11 +81,11 @@ class Constrainer {
         val tv = constrainRec(sv, typEnv)
         val elemTyp = Typ.generateTypVar()
         constraints :::= List(ta >:> Typ.Array(elemTyp), Typ.IntAll >:> ti, elemTyp >:> tv)
-        Typ.Unit
+        Typ.TUnit
     }
   }
 
-  def constrain(tree: Syntax): Seq[Constraint] = {
+  def constrain(tree: Syntax): List[Constraint] = {
     constraints = Nil
     constrainRec(tree, Map())
     constraints
@@ -95,11 +94,17 @@ class Constrainer {
 
 object Constrainer {
 
-  sealed trait Constraint
+  sealed trait Constraint {
+    def freeVariables: Set[Typ.TypVar]
+  }
 
-  final case class >:>(t1: Typ, t2: Typ) extends Constraint
+  final case class >:>(t1: Typ, t2: Typ) extends Constraint {
+    override def freeVariables: Set[Typ.TypVar] = t1.freeVariables | t2.freeVariables
+  }
 
-  final case class =:=(t1: Typ, t2: Typ) extends Constraint
+  final case class =:=(t1: Typ, t2: Typ) extends Constraint {
+    override def freeVariables: Set[Typ.TypVar] = t1.freeVariables | t2.freeVariables
+  }
 
   implicit class TypOps(val t1: Typ) extends AnyVal {
     def >:>(t2: Typ): >:> = Constrainer.>:>(t1, t2)
@@ -108,8 +113,8 @@ object Constrainer {
   }
 
   val ExtEnv: Map[ID, Typ.Fun] = Map(
-    ID("print_char") -> Typ.Fun(List(Typ.IntAll), Typ.Unit),
-    ID("read_char") -> Typ.Fun(List(Typ.Unit), Typ.IntAll),
+    ID("print_char") -> Typ.Fun(List(Typ.IntAll), Typ.TUnit),
+    ID("read_char") -> Typ.Fun(List(Typ.TUnit), Typ.IntAll),
     ID("fneg") -> Typ.Fun(List(Typ.FloatAll), Typ.FloatAll),
     ID("fabs") -> Typ.Fun(List(Typ.FloatAll), Typ.FloatAll),
     ID("fsqr") -> Typ.Fun(List(Typ.FloatAll), Typ.FloatAll),

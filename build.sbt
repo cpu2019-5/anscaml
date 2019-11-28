@@ -55,6 +55,14 @@ libraryDependencies ++= Seq(
 // sbt is a bit different, semantically, than vanilla Scala.
 
 scalacOptions ++= Seq(
+  "-encoding", "UTF-8",
+  "-unchecked",
+  "-deprecation",
+  "-Ywarn-dead-code",
+  "-Ywarn-numeric-widen",
+  "-Ywarn-value-discard",
+  "-Ywarn-unused",
+
   "-feature",
   "-language:implicitConversions",
 )

@@ -3,7 +3,27 @@ package syntax
 
 import base._
 
-sealed abstract class Syntax
+sealed trait Syntax {
+
+  import Syntax._
+
+  def recursively(convert: Syntax => Syntax): Syntax = this match {
+    case LitBool(_) | LitInt(_) | LitFloat(_) | Var(_) => this
+    case Not(s) => Not(convert(s))
+    case BinOpTree(op, left, right) => BinOpTree(op, convert(left), convert(right))
+    case CmpOpTree(op, left, right) => CmpOpTree(op, convert(left), convert(right))
+    case If(cond, tru, fls) => If(convert(cond), convert(tru), convert(fls))
+    case Let(entry, bound, kont) => Let(entry, convert(bound), convert(kont))
+    case LetRec(FDef(entry, args, body, noInline), kont) =>
+      LetRec(FDef(entry, args, convert(body), noInline), convert(kont))
+    case Apply(fn, args) => Apply(convert(fn), args.map(convert))
+    case Tuple(elems) => Tuple(elems.map(convert))
+    case LetTuple(elems, bound, kont) => LetTuple(elems, convert(bound), convert(kont))
+    case Array(length, elem) => Array(convert(length), convert(elem))
+    case Get(array, index) => Get(convert(array), convert(index))
+    case Put(array, index, value) => Put(convert(array), convert(index), convert(value))
+  }
+}
 
 object Syntax {
 
@@ -21,10 +41,10 @@ object Syntax {
 
   case class Not(s: Syntax) extends Syntax
 
-  case class BinOpTree[T <: Primitives.IntOrFloat](op: BinOp[T], left: Syntax, right: Syntax)
+  case class BinOpTree[T <: Primitives.IF](op: BinOp[T], left: Syntax, right: Syntax)
     extends Syntax
 
-  case class CmpOpTree[T <: Primitives.IntOrFloat](op: CmpOp[T], left: Syntax, right: Syntax)
+  case class CmpOpTree[T <: Primitives.IF](op: CmpOp[T], left: Syntax, right: Syntax)
     extends Syntax
 
   case class If(cond: Syntax, tru: Syntax, fls: Syntax) extends Syntax
