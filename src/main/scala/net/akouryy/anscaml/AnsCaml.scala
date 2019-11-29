@@ -7,6 +7,8 @@ object AnsCaml {
   val VERSION = "2.0"
 
   def main(args: Array[String]): Unit = {
+    val startTime = System.nanoTime()
+
     val config = CommandParser.parse(args).getOrElse(???)
 
     val code = {
@@ -26,6 +28,12 @@ object AnsCaml {
 
     val astTyped = typ.Typing.solve(ast)
 
-    pprinter.pprintln(astTyped, height = 10000)
+    println("KNorm Converter")
+
+    val kn = knorm.Converter(astTyped)
+
+    pprinter.pprintln(kn, height = 10000)
+
+    println(s"time: ${System.nanoTime() - startTime}ns")
   }
 }

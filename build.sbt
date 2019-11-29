@@ -16,25 +16,18 @@ name := "anscaml"
 organization := "net.akouryy"
 version := "2.0"
 
-// Note, it's not required for you to define these three settings. These are
-// mostly only necessary if you intend to publish your library's binaries on a
-// place like Sonatype or Bintray.
-
-
-// Want to use a published library in your project?
-// You can define other libraries as dependencies in your build like this:
-libraryDependencies += "org.typelevel" %% "cats-core" % "2.0.0"
-// Here, `libraryDependencies` is a set of dependencies, and by using `+=`,
-// we're adding the cats dependency to the set of dependencies that sbt will go
-// and fetch when it starts up.
-// Now, in any Scala file, you can import classes, objects, etc., from cats with
-// a regular import.
+resolvers ++= Seq(
+  Resolver.sonatypeRepo("releases"),
+  Resolver.sonatypeRepo("snapshots")
+)
 
 libraryDependencies ++= Seq(
+  "com.chuusai" %% "shapeless" % "2.3.3",
   "com.lihaoyi" %% "pprint" % "0.5.6",
   "com.github.scopt" %% "scopt" % "4.0.0-RC2",
   "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
 )
+
 
 // TIP: To find the "dependency" that you need to add to the
 // `libraryDependencies` set, which in the above example looks like this:
@@ -65,4 +58,6 @@ scalacOptions ++= Seq(
 
   "-feature",
   "-language:implicitConversions",
+
+  "-Ymacro-debug-lite",
 )
