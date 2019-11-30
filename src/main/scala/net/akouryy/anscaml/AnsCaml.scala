@@ -32,7 +32,9 @@ object AnsCaml {
 
     val kn = knorm.Converter(astTyped)
 
-    pprinter.pprintln(kn, height = 10000)
+    val alpha = knorm.Alpha(kn)
+
+    pprinter.pprintln(alpha, height = 10000)
 
     println(s"time: ${System.nanoTime() - startTime}ns")
   }

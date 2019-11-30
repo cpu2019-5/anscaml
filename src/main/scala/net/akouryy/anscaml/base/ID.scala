@@ -1,6 +1,9 @@
-package net.akouryy.anscaml.base
+package net.akouryy.anscaml
+package base
 
-import net.akouryy.anscaml.typ.Typ
+import typ.Typ
+
+import scala.collection.mutable
 
 final case class ID(name: String)
 
@@ -10,6 +13,14 @@ object ID {
   def generate(): ID = {
     cnt += 1
     ID(s"tmp$cnt")
+  }
+
+  private[this] var cntMap = mutable.Map[ID, Int]()
+
+  def generate(id: ID): ID = {
+    val c = cntMap.getOrElse(id, -1) + 1
+    cntMap(id) = c
+    ID(s"${id.name}__$c")
   }
 }
 

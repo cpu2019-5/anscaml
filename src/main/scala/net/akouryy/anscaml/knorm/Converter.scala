@@ -66,7 +66,7 @@ object Converter {
         } yield {
           val (tt, te) = convert(env, tru)
           val (_, fe) = convert(env, fls)
-          (tt, KNorm.IfCmpTree(op, l, r, KNorm(te), KNorm(fe))) // TODO: 型
+          (tt, KNorm.IfCmp(op, l, r, KNorm(te), KNorm(fe))) // TODO: 型
         }
       case If(cond, tru, fls) =>
         convert(env, If(CmpOpTree(CmpOp.Eq, cond, LitBool(false)), fls, tru))
@@ -99,7 +99,7 @@ object Converter {
       case Tuple(es) =>
         for (xs <- insertMulti(es)) yield (
           Typ.Tuple(xs.map(env.getOrElse(_, Typ.IntAll))), // TODO
-          KNorm.Tuple(xs)
+          KNorm.KTuple(xs)
         )
       case LetTuple(elems, bound, kont) =>
         for (x <- insert(convert(env, bound))) yield {

@@ -59,5 +59,5 @@ scalacOptions ++= Seq(
   "-feature",
   "-language:implicitConversions",
 
-  "-Ymacro-debug-lite",
+  // "-Ymacro-debug-lite",
 )
