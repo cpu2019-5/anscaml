@@ -13,6 +13,7 @@ class TypFolder {
 
   def apply(kn: KNorm): KNorm = {
     println("[KNorm TypFolder] Start")
+    typEnv.clear()
     fold(kn)
   }
 
@@ -35,7 +36,7 @@ class TypFolder {
           case Some(Typ.TInt(Lit.List(s))) if s.sizeIs >= 2 =>
             println(s"[KNorm TypFolder] fold ${fn.name} for $arg in {${s.mkString(",")}}")
             // TODO: 二分探索?
-            s.foldLeft[Option[KNorm.Raw]](None) {
+            s.foldLeft[Option[KNorm.KRaw]](None) {
               case (None, lit) =>
                 val a = ID.generate(arg)
                 Some(Let(

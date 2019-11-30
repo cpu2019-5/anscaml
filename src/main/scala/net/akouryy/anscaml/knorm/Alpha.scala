@@ -10,9 +10,10 @@ object Alpha {
   def apply(kn: KNorm): KNorm = convert(kn, Map())
 
   /**
+    * @note Inliner からアクセスするため private[knorm]
     * @param env 旧IDから新IDへのマップ
     */
-  private[this] def convert(kn: KNorm, env: Map[ID, ID]): KNorm = {
+  private[knorm] def convert(kn: KNorm, env: Map[ID, ID]): KNorm = {
     @annotation.unused def apply(_k: KNorm): Nothing = ???
 
     def find(id: ID) = env.getOrElse(id, id)

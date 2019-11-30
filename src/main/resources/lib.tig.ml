@@ -1,6 +1,6 @@
-let rec __Stdlib_print_int_pos i =
+let rec stdlib_print_int_pos i =
   if i <> 0 then (
-    __Stdlib_print_int_pos (i / 10);
+    stdlib_print_int_pos (i / 10);
     print_char (48 + (i % 10))
   ) else () in
 
@@ -14,7 +14,7 @@ let rec print_int i =
     let abs =
       if i < 0 then (print_char 45; 0 - i) (* '-' *)
       else i in
-    __Stdlib_print_int_pos abs in
+    stdlib_print_int_pos abs in
 
 let rec fequal x y = x =. y in
 let rec fless x y = x <. y in
@@ -33,7 +33,7 @@ let rec sqrt x =
   r *. x in
 
 (*
-  三角関数(mincaml__kcos,mincaml__ksin,cos,sin,atan): fdlibm, msunを移植
+  三角関数(stdlib_kcos,stdlib_ksin,cos,sin,atan): fdlibm, msunを移植
   http://www.netlib.org/fdlibm/k_cos.c
   http://www.netlib.org/fdlibm/k_sin.c
   http://www.netlib.org/fdlibm/s_cos.c
@@ -47,8 +47,8 @@ let rec sqrt x =
   is preserved.
   ====================================================
 *)
-let rec mincaml__kcos x y =
-  if x <. 0.0 then mincaml__kcos (0.0 -. x) (0.0 -. y) else
+let rec stdlib_kcos x y =
+  if x <. 0.0 then stdlib_kcos (0.0 -. x) (0.0 -. y) else
   if x <. 0.000000007450580596923828 (* 2^-27 *) then 1.0 else
   let c1 =  0.0416666666666666019037 in
   let c2 = -0.00138888888888741095749 in
@@ -62,8 +62,8 @@ let rec mincaml__kcos x y =
   let hz = 0.5 *. z -. qx in
   let a = 1.0 -. qx in
   a -. (hz -. (z *. r -. x *. y)) in
-let rec mincaml__ksin x y iy0 =
-  if x <. 0.0 then 0.0 -. mincaml__ksin (0.0 -. x) (0.0 -. y) iy0 else
+let rec stdlib_ksin x y iy0 =
+  if x <. 0.0 then 0.0 -. stdlib_ksin (0.0 -. x) (0.0 -. y) iy0 else
   if x <. 0.000000007450580596923828 (* 2^-27 *) then x else
   let s1 = -0.166666666666666324348 in
   let s2 =  0.00833333333332248946124 in
@@ -81,35 +81,35 @@ let rec cos [@no_inline] x =
   let pi2 = pi *. 2.0 in
   let piq = pi *. 0.25 in
   let x = fabs x in
-  if x <. piq then mincaml__kcos x 0.0 else
+  if x <. piq then stdlib_kcos x 0.0 else
   let y = x -. (floor (x /. pi2)) *. pi2 in
   if y <. piq then
-    mincaml__kcos y 0.0 (* TODO: y[1] *)
+    stdlib_kcos y 0.0 (* TODO: y[1] *)
   else if y <. piq *. 3.0 then
-    0.0 -. mincaml__ksin (y -. piq *. 2.0) 0.0 false
+    0.0 -. stdlib_ksin (y -. piq *. 2.0) 0.0 false
   else if y <. piq *. 5.0 then
-    0.0 -. mincaml__kcos (y -. piq *. 4.0) 0.0
+    0.0 -. stdlib_kcos (y -. piq *. 4.0) 0.0
   else if y <. piq *. 7.0 then
-    mincaml__ksin (y -. piq *. 6.0) 0.0 false
+    stdlib_ksin (y -. piq *. 6.0) 0.0 false
   else
-    mincaml__kcos (y -. piq *. 8.0) 0.0 in
+    stdlib_kcos (y -. piq *. 8.0) 0.0 in
 let rec sin [@no_inline] x =
   let pi = 3.141592653589793238462643383279 in
   let pi2 = pi *. 2.0 in
   let piq = pi *. 0.25 in
   if x <. 0.0 then 0.0 -. sin (0.0 -. x) else
-  if x <. piq then mincaml__ksin x 0.0 true else
+  if x <. piq then stdlib_ksin x 0.0 true else
   let y = x -. (floor (x /. pi2)) *. pi2 in
   if y <. piq then
-    mincaml__ksin y 0.0 false
+    stdlib_ksin y 0.0 false
   else if y <. piq *. 3.0 then
-    mincaml__kcos (y -. piq *. 2.0) 0.0
+    stdlib_kcos (y -. piq *. 2.0) 0.0
   else if y <. piq *. 5.0 then
-    0.0 -. mincaml__ksin (y -. piq *. 4.0) 0.0 false
+    0.0 -. stdlib_ksin (y -. piq *. 4.0) 0.0 false
   else if y <. piq *. 7.0 then
-    0.0 -. mincaml__kcos (y -. piq *. 6.0) 0.0
+    0.0 -. stdlib_kcos (y -. piq *. 6.0) 0.0
   else
-    mincaml__ksin (y -. piq *. 8.0) 0.0 false in
+    stdlib_ksin (y -. piq *. 8.0) 0.0 false in
 let rec atan x =
   let hi0 = 0.46364760399 in
   let hi1 = 0.78539812565 in
@@ -147,29 +147,29 @@ let rec atan x =
   else
     hi -. ((x *. (s1 +. s2) -. lo) -. x) in
 
-let rec __Stdlib_int_of_float_rec [@no_inline] f a b =
+let rec stdlib_int_of_float_rec [@no_inline] f a b =
   if b - a = 1
   then a
   else
     let m = a / 2 + b / 2 + (a % 2 + b % 2) / 2 in
     if float_of_int m >. f then
-      __Stdlib_int_of_float_rec f a m
+      stdlib_int_of_float_rec f a m
     else
-      __Stdlib_int_of_float_rec f m b in
+      stdlib_int_of_float_rec f m b in
 
-let rec __Stdlib_int_of_float_pos f =
+let rec stdlib_int_of_float_pos f =
   if f <. 8388608.0 then
     bits_of_float (f +. 8388608.0) - 1258291200 (* 神資料 *)
   else
     (* if f >=. 2147483646.5 then 2147483647 else (* レギュの定義域では絶対false *) *)
-    __Stdlib_int_of_float_rec (f +. 0.5) 0 2147483647 in
+    stdlib_int_of_float_rec (f +. 0.5) 0 2147483647 in
 
 let rec int_of_float f =
   if f <. 0.0 then
     if f =. -2147483648.0 then -2147483648
-    else 0 - (__Stdlib_int_of_float_pos (0.0 -. f))
+    else 0 - (stdlib_int_of_float_pos (0.0 -. f))
   else
-    __Stdlib_int_of_float_pos f in
+    stdlib_int_of_float_pos f in
 
 let rec read_int _ =
   ((read_char () * 256 + read_char ()) * 256 + read_char ()) * 256 + read_char () in

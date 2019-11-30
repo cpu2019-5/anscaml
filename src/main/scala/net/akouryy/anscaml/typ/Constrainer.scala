@@ -44,7 +44,9 @@ class Constrainer {
         constraints ::= tv >:> tb
         tk
       case Var(v) =>
-        typEnv.get(v) orElse ExtEnv.get(v) getOrElse ???
+        typEnv.get(v) orElse ExtEnv.get(v) getOrElse {
+          throw new Exception(s"variable '${v.name}' is not defined")
+        }
       case LetRec(FDef(Entry(f, tf), args, sb, _), sk) =>
         val tb = constrainRec(sb, typEnv + (f -> tf) ++ args.map(a => a.name -> a.typ))
         val tk = constrainRec(sk, typEnv + (f -> tf))

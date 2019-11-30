@@ -18,6 +18,9 @@ print_int (fib2 30);
 print_char 10;
 
 let rec f x = x in
-let rec g x = f x in
+let rec g x = f x * 16 in
 print_char (g 10);
-print_char (g 11)
+print_char (g 11);
+
+let rec g2 x = f x * 16 in
+print_char (g2 (read_char ()))

@@ -6,7 +6,7 @@ import syntax.{BinOp, CmpOp, Syntax}
 import typ.Typ
 
 object Converter {
-  type TypedK = (Typ, KNorm.Raw)
+  type TypedK = (Typ, KNorm.KRaw)
 
   final case class Mapper[A, B, C](map: (A => B) => C) {
     val flatMap: map.type = map

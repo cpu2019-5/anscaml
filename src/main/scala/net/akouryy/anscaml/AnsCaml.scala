@@ -6,10 +6,12 @@ import base._
 object AnsCaml {
   val VERSION = "2.0"
 
+  var config: CommandParser.Config = _
+
   def main(args: Array[String]): Unit = {
     val startTime = System.nanoTime()
 
-    val config = CommandParser.parse(args).getOrElse(???)
+    config = CommandParser.parse(args).getOrElse(???)
 
     val code = {
       val libCode = if (config.doPrependStandardLibrary) Source.fromResource("lib.tig.ml").mkString else ""

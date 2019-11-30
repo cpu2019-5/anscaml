@@ -20,7 +20,7 @@ object ID {
   def generate(id: ID): ID = {
     val c = cntMap.getOrElse(id, -1) + 1
     cntMap(id) = c
-    ID(s"${id.name}__$c")
+    ID(s"${id.name}_$c")
   }
 }
 

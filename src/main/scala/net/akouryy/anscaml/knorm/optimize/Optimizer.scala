@@ -6,7 +6,7 @@ object Optimizer {
     var kNorm = kNorm0
     for (i <- 0 until iterationCount) {
       println(s"[KOptimize] iteration $i")
-      val k = new TypFolder()(Assoc(kNorm))
+      val k = new PeepHole()(Eliminator(new Inliner()(new TypFolder()(Assoc(kNorm)))))
       if (k == kNorm) return kNorm
       kNorm = k
     }

@@ -11,7 +11,7 @@ import LexToken._
   */
 object Lexer extends RegexParsers {
 
-  final case class LexException(msg: String, next: Input) extends Exception
+  final case class LexException(msg: String, next: scala.util.parsing.input.Position)
 
   private[this] def comment: Parser[_] =
     "(*" ~ rep(
@@ -31,7 +31,7 @@ object Lexer extends RegexParsers {
     """[+-]?(0|[1-9]\d*)\.\d+([eE][+-]?\d+)?\b""".r ^^ (f => FLOAT(f.toFloat))
 
   private[this] def ident =
-    """[a-z_][a-zA-Z0-9_]*\b""".r ^^ (str => IDENT(ID(str))) |
+    """[a-z]([a-z0-9]|_[a-z])*\b""".r ^^ (str => IDENT(ID(str))) |
     "_" ^^ (_ => IDENT(ID.generate()))
 
   private[this] def others =
@@ -80,6 +80,7 @@ object Lexer extends RegexParsers {
   def lex(code: String): List[LexToken.Positioned] =
     parse(tokens, code) match {
       case Success(result, _) => result
-      case NoSuccess(message, next) => throw LexException(message, next)
+      case NoSuccess(message, next) =>
+        throw new RuntimeException(LexException(message, next.pos).toString)
     }
 }
