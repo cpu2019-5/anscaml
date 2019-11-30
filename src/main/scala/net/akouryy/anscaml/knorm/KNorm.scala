@@ -22,10 +22,6 @@ object KNorm {
 
   final case class BinOpTree[T <: Primitives.IF](op: BinOp[T], left: ID, right: ID) extends Raw
 
-  final case class IfCmp[T <: Primitives.IF](
-    op: CmpOp[T], left: ID, right: ID, tru: KNorm, fls: KNorm
-  ) extends Raw
-
   final case class Var(v: ID) extends Raw
 
   final case class App(fn: ID, args: List[ID]) extends Raw
@@ -39,6 +35,10 @@ object KNorm {
   final case class ExtArray(array: ID) extends Raw
 
   final case class ExtFunApp(fn: ID, args: List[ID]) extends Raw
+
+  final case class IfCmp[T <: Primitives.IF](
+    op: CmpOp[T], left: ID, right: ID, tru: KNorm, fls: KNorm
+  ) extends Raw
 
   final case class Let(entry: Entry, bound: KNorm, kont: KNorm) extends Raw
 

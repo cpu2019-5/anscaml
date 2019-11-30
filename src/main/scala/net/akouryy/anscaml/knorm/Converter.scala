@@ -70,15 +70,15 @@ object Converter {
         }
       case If(cond, tru, fls) =>
         convert(env, If(CmpOpTree(CmpOp.Eq, cond, LitBool(false)), fls, tru))
-      case Let(entry @ Entry(x, t), bound, kont) =>
+      case Let(entry, bound, kont) =>
         val (_, be) = convert(env, bound)
-        val (kt, ke) = convert(env + (x -> t), kont)
+        val (kt, ke) = convert(env + entry.toPair, kont)
         (kt, KNorm.Let(entry, KNorm(be), KNorm(ke)))
       case Var(x) =>
         (env(x), KNorm.Var(x)) // TODO?: external function
-      case LetRec(FDef(entry @ Entry(fn, typ), args, body, noInline), kont) =>
-        val envWithFn = env + (fn -> typ)
-        val (_, be) = convert(envWithFn ++ args.map { case Entry(n, t) => (n, t) }, body)
+      case LetRec(FDef(entry, args, body, noInline), kont) =>
+        val envWithFn = env + entry.toPair
+        val (_, be) = convert(envWithFn ++ args.map(_.toPair), body)
         val (kt, ke) = convert(envWithFn, kont)
         (kt, KNorm.LetRec(KNorm.FDef(entry, args, KNorm(be), noInline), KNorm(ke)))
       case Apply(Var(fn), args) if !(env contains fn) =>
@@ -106,7 +106,7 @@ object Converter {
           if (elems.isEmpty) {
             convert(env, kont) // xは副作用のために束縛されるが使用はされない
           } else {
-            val (kt, ke) = convert(env ++ elems.map { case Entry(n, t) => (n, t) }, kont)
+            val (kt, ke) = convert(env ++ elems.map(_.toPair), kont)
             (kt, KNorm.LetTuple(elems, x, KNorm(ke)))
           }
         }

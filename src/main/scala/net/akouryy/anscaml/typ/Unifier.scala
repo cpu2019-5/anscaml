@@ -54,8 +54,8 @@ object Unifier {
   def unify(tcr: List[TypConstraint]): TypSubst = {
     val er = new Exterior().exterior(tcr)
     val boolSubst = new Interior().interior(er.boolCrs, 1, Lit.Var.count)
-    val intSubst = new Interior().interior(er.intCrs, 1, Lit.Var.count)
-    val floatSubst = new Interior().interior(er.floatCrs, 1, Lit.Var.count)
+    val intSubst = new Interior().interior(er.intCrs, 2, Lit.Var.count)
+    val floatSubst = new Interior().interior(er.floatCrs, 2, Lit.Var.count)
 
     floatSubst * (intSubst * (boolSubst * er.tsb))
   }

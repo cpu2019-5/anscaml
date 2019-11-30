@@ -16,25 +16,27 @@ object AnsCaml {
       (libCode +: config.inputFiles.map(Source.fromFile(_).mkString)).mkString(";\n")
     }
 
-    println("Lexer")
+    println("[Lexer] start")
 
     val tokens = syntax.Lexer.lex(code)
 
-    println("Parser")
+    println("[Parser] start")
 
     val ast = syntax.Parser.parse(tokens)
 
-    println("Typing")
+    println("[Typing] start")
 
     val astTyped = typ.Typing.solve(ast)
 
-    println("KNorm Converter")
+    println("[KNorm Converter] start")
 
     val kn = knorm.Converter(astTyped)
 
     val alpha = knorm.Alpha(kn)
 
-    pprinter.pprintln(alpha, height = 10000)
+    val ko = knorm.optimize.Optimizer(config.optimizationCount, alpha)
+
+    pprinter.pprintln(ko, height = 10000)
 
     println(s"time: ${System.nanoTime() - startTime}ns")
   }

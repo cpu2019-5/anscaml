@@ -24,7 +24,9 @@ object ID {
   }
 }
 
-final case class Entry(name: ID, typ: Typ)
+final case class Entry(name: ID, typ: Typ) {
+  def toPair: (ID, Typ) = Entry.unapply(this).get
+}
 
 object Entry {
   def generate(): Entry = generate(ID.generate())
