@@ -103,8 +103,12 @@ object Converter {
         )
       case LetTuple(elems, bound, kont) =>
         for (x <- insert(convert(env, bound))) yield {
-          val (kt, ke) = convert(env ++ elems.map { case Entry(n, t) => (n, t) }, kont)
-          (kt, KNorm.LetTuple(elems, x, KNorm(ke)))
+          if (elems.isEmpty) {
+            convert(env, kont) // xは副作用のために束縛されるが使用はされない
+          } else {
+            val (kt, ke) = convert(env ++ elems.map { case Entry(n, t) => (n, t) }, kont)
+            (kt, KNorm.LetTuple(elems, x, KNorm(ke)))
+          }
         }
       case Array(length, elem) =>
         for {

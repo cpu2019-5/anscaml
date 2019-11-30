@@ -78,9 +78,10 @@ object AnsParser extends Parsers {
       case a ~ is => is.foldLeft(a)(Syntax.Get)
     }
 
-  private[syntax] def expr =
-    rep1sep(semiableExpr, SEMICOLON) <~ opt(SEMICOLON) ^^ {
-      _.reduceLeft((b, c) => Syntax.LetTuple(Nil, b, c))
+  private[syntax] def expr: Parser[Syntax] =
+    semiableExpr ~ opt(SEMICOLON ~! opt(expr)) ^^ {
+      case l ~ (None | Some(_ ~ None)) => l
+      case l ~ Some(_ ~ Some(r)) => Syntax.LetTuple(Nil, l, r)
     }
 
   /**
@@ -114,7 +115,7 @@ object AnsParser extends Parsers {
     binaryExpr(0)
 
   private[this] def binaryExpr(pred: Int): Parser[Syntax] =
-    if(pred >= 3) applyExpr
+    if (pred >= 3) applyExpr
     else
       binaryExpr(pred + 1) ~ rep(
         BinaryOperators(pred).map { case (k, v) => k ^^^ v }.reduceLeft(_ | _) ~
@@ -133,12 +134,13 @@ object AnsParser extends Parsers {
 
 object Parser {
 
-  final case class ParseException(msg: String, next: AnsParser.Input) extends Exception
+  final case class ParseException(detail: String, next: AnsParser.Input)
 
   def parse(tokens: List[LexToken.Positioned]): Syntax = {
     AnsParser.expr(new AnsParser.LexTokenReader(tokens)) match {
       case AnsParser.Success(result, _) => result
-      case AnsParser.NoSuccess(message, next) => throw ParseException(message, next)
+      case AnsParser.NoSuccess(message, next) =>
+        throw new RuntimeException(ParseException(message, next).toString)
     }
   }
 }
