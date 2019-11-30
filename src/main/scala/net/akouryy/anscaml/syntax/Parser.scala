@@ -20,7 +20,7 @@ object AnsParser extends Parsers {
     override def rest: Reader[Elem] = new LexTokenReader(tokens.tail)
   }
 
-  private[this] def binOpBuilder[T <: Primitives.IF](op: BinOp[T])(l: Syntax, r: Syntax) =
+  private[this] def binOpBuilder(op: BinOp)(l: Syntax, r: Syntax) =
     Syntax.BinOpTree(op, l, r)
 
   private[this] val BinaryOperators =

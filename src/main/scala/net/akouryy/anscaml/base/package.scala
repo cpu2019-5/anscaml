@@ -1,6 +1,7 @@
 package net.akouryy.anscaml
 
-import typ.{Typ, Lit}
+import syntax.{BinOp, CmpOp}
+import typ.{Lit, Typ}
 
 package object base {
   val pprinter: pprint.PPrinter = pprint.copy(
@@ -15,6 +16,9 @@ package object base {
         case Typ.IntAll => pprint.Tree.Lazy(_ => Iterator(s"TIntAll"))
         case Typ.FloatAll => pprint.Tree.Lazy(_ => Iterator(s"TFloatAll"))
         case Lit.Var(v) => pprint.Tree.Literal(s"@_$v")
+
+        case op: BinOp => pprint.Tree.Lazy(_ => Iterator(op.toString))
+        case op: CmpOp => pprint.Tree.Lazy(_ => Iterator(op.toString))
 
         case Entry(name, typ) =>
           pprint.Tree.Apply("Entry", Iterator(

@@ -54,9 +54,9 @@ object Converter {
           x <- insert(convert(env, left))
           y <- insert(convert(env, right))
         } yield {
-          (op.prim.typ, KNorm.BinOpTree(op, x, y))
+          (op.retTyp, KNorm.BinOpTree(op, x, y))
         }
-      case cmp: CmpOpTree[_] => /* Ifで拾われなかった場合 */
+      case cmp: CmpOpTree => /* Ifで拾われなかった場合 */
         convert(env, If(cmp, LitBool(true), LitBool(false)))
       case If(Not(cond), tru, fls) => convert(env, If(cond, fls, tru))
       case If(CmpOpTree(op, left, right), tru, fls) =>

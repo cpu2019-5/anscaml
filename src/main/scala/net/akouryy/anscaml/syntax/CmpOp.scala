@@ -1,20 +1,39 @@
 package net.akouryy.anscaml
 package syntax
 
-import base._
+import typ.Typ
 
-sealed abstract class CmpOp[IF <: Primitives.IF](val fn: (IF#T, IF#T) => Boolean)(
-  implicit val prim: IF
-)
+sealed trait CmpOp {
+  val lhsTyp: Typ
+  val rhsTyp: Typ
+}
 
 object CmpOp {
 
-  case object Eq extends CmpOp[Primitives.PInt]((x, y) => x == y)
+  sealed abstract case class II(val fn: (Int, Int) => Boolean) extends CmpOp {
+    override val lhsTyp: Typ = Typ.IntAll
+    override val rhsTyp: Typ = Typ.IntAll
+  }
 
-  case object Le extends CmpOp[Primitives.PInt]((x, y) => x < y)
+  sealed abstract case class FF(val fn: (Float, Float) => Boolean) extends CmpOp {
+    override val lhsTyp: Typ = Typ.FloatAll
+    override val rhsTyp: Typ = Typ.FloatAll
+  }
 
-  case object Feq extends CmpOp[Primitives.PFloat]((x, y) => x == y)
+  object Eq extends II((x, y) => x == y) {
+    override def toString = "Eq"
+  }
 
-  case object Fle extends CmpOp[Primitives.PFloat]((x, y) => x < y)
+  object Le extends II((x, y) => x < y) {
+    override def toString = "Le"
+  }
+
+  object Feq extends FF((x, y) => x == y) {
+    override def toString = "Feq"
+  }
+
+  object Fle extends FF((x, y) => x < y) {
+    override def toString = "Fle"
+  }
 
 }

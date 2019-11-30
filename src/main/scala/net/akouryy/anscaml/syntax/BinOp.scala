@@ -1,36 +1,70 @@
 package net.akouryy.anscaml
 package syntax
 
-import base._
+import typ.Typ
 
-sealed abstract class BinOp[IF <: Primitives.IF](val fn: (IF#T, IF#T) => IF#T)(
-  implicit val prim: IF
-) {
-  //  val prim: Primitives.IntOrFloat = primRaw
+sealed trait BinOp {
+  val lhsTyp: Typ
+  val rhsTyp: Typ
+  val retTyp: Typ
 }
 
 object BinOp {
 
-  case object Add extends BinOp[Primitives.PInt]((x, y) => x + y)
+  sealed abstract case class III(fn: (Int, Int) => Int) extends BinOp {
+    override val lhsTyp: Typ = Typ.IntAll
+    override val rhsTyp: Typ = Typ.IntAll
+    override val retTyp: Typ = Typ.IntAll
+  }
 
-  case object Sub extends BinOp[Primitives.PInt]((x, y) => x - y)
+  sealed abstract case class FFF(fn: (Float, Float) => Float) extends BinOp {
+    override val lhsTyp: Typ = Typ.FloatAll
+    override val rhsTyp: Typ = Typ.FloatAll
+    override val retTyp: Typ = Typ.FloatAll
+  }
 
-  case object Mul extends BinOp[Primitives.PInt]((x, y) => x * y)
+  object Add extends III((x, y) => x + y) {
+    override def toString = "Add"
+  }
 
-  case object Div extends BinOp[Primitives.PInt]((x, y) => x / y)
+  object Sub extends III((x, y) => x - y) {
+    override def toString = "Sub"
+  }
 
-  case object Mod extends BinOp[Primitives.PInt]((x, y) => x % y)
+  object Mul extends III((x, y) => x * y) {
+    override def toString = "Mul"
+  }
 
-  case object Shl extends BinOp[Primitives.PInt]((x, y) => x << y)
+  object Div extends III((x, y) => x / y) {
+    override def toString = "Div"
+  }
 
-  case object Shr extends BinOp[Primitives.PInt]((x, y) => x >> y)
+  object Mod extends III((x, y) => x % y) {
+    override def toString = "Mod"
+  }
 
-  case object Fadd extends BinOp[Primitives.PFloat]((x, y) => x + y)
+  object Shl extends III((x, y) => x << y) {
+    override def toString = "Shl"
+  }
 
-  case object Fsub extends BinOp[Primitives.PFloat]((x, y) => x - y)
+  object Shr extends III((x, y) => x >> y) {
+    override def toString = "Shr"
+  }
 
-  case object Fmul extends BinOp[Primitives.PFloat]((x, y) => x * y)
+  object Fadd extends FFF((x, y) => x + y) {
+    override def toString = "Fadd"
+  }
 
-  case object Fdiv extends BinOp[Primitives.PFloat]((x, y) => x / y)
+  object Fsub extends FFF((x, y) => x - y) {
+    override def toString = "Fsub"
+  }
+
+  object Fmul extends FFF((x, y) => x * y) {
+    override def toString = "Fmul"
+  }
+
+  object Fdiv extends FFF((x, y) => x / y) {
+    override def toString = "Fdiv"
+  }
 
 }

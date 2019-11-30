@@ -29,7 +29,7 @@ object KNorm {
 
   final case class KFloat(f: Float) extends KRaw
 
-  final case class BinOpTree[T <: Primitives.IF](op: BinOp[T], left: ID, right: ID) extends KRaw
+  final case class BinOpTree(op: BinOp, left: ID, right: ID) extends KRaw
 
   final case class Var(v: ID) extends KRaw
 
@@ -45,9 +45,7 @@ object KNorm {
 
   final case class ExtFunApp(fn: ID, args: List[ID]) extends KRaw
 
-  final case class IfCmp[T <: Primitives.IF](
-    op: CmpOp[T], left: ID, right: ID, tru: KNorm, fls: KNorm
-  ) extends KRaw
+  final case class IfCmp(op: CmpOp, left: ID, right: ID, tru: KNorm, fls: KNorm) extends KRaw
 
   final case class Let(entry: Entry, bound: KNorm, kont: KNorm) extends KRaw
 

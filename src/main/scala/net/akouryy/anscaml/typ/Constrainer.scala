@@ -24,12 +24,12 @@ class Constrainer {
       case BinOpTree(op, sl, sr) =>
         val tl = constrainRec(sl, typEnv)
         val tr = constrainRec(sr, typEnv)
-        constraints :::= List(op.prim.typ >:> tl, op.prim.typ >:> tr)
-        op.prim.typ
+        constraints :::= List(op.lhsTyp >:> tl, op.rhsTyp >:> tr)
+        op.retTyp
       case CmpOpTree(op, sl, sr) =>
         val tl = constrainRec(sl, typEnv)
         val tr = constrainRec(sr, typEnv)
-        constraints :::= List(op.prim.typ >:> tl, op.prim.typ >:> tr)
+        constraints :::= List(op.lhsTyp >:> tl, op.rhsTyp >:> tr)
         Typ.BoolAll
       case If(sc, st, sf) =>
         val tc = constrainRec(sc, typEnv)

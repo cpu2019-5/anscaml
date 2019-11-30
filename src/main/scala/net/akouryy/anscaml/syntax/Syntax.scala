@@ -41,11 +41,9 @@ object Syntax {
 
   case class Not(s: Syntax) extends Syntax
 
-  case class BinOpTree[T <: Primitives.IF](op: BinOp[T], left: Syntax, right: Syntax)
-    extends Syntax
+  case class BinOpTree(op: BinOp, left: Syntax, right: Syntax) extends Syntax
 
-  case class CmpOpTree[T <: Primitives.IF](op: CmpOp[T], left: Syntax, right: Syntax)
-    extends Syntax
+  case class CmpOpTree(op: CmpOp, left: Syntax, right: Syntax) extends Syntax
 
   case class If(cond: Syntax, tru: Syntax, fls: Syntax) extends Syntax
 
