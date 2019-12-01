@@ -40,12 +40,13 @@ class Inliner {
     case LetTuple(elems, bound, kont) =>
       kn.copy(raw = LetTuple(elems, bound, embed(scopeFn, kont)))
     case LetRec(fDef @ FDef(Entry(name, _), _, body, noInline), kont) =>
-      if (!noInline && size(body) <= AnsCaml.config.inlineLimit) {
-        bodyEnv += name -> fDef
+      if (!noInline && size(body) <= AnsCaml.config.inlineLimit) { // TODO: sizeIs
+        bodyEnv(name) = fDef
       }
       kn.copy(raw = LetRec(fDef.copy(body = embed(name, body)), embed(scopeFn, kont)))
 
     case App(fn, args) if bodyEnv contains fn =>
+      println(s"[KNorm Inliner] ${fn.name} in ${scopeFn.name}")
       val fDef = bodyEnv(fn)
       val body = Alpha.convert(fDef.body, fDef.args.map(_.name).zip(args).toMap)
       KNorm(

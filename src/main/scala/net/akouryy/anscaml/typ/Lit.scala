@@ -25,7 +25,7 @@ sealed trait Lit[T <: Primitives.IFB] {
 
 object Lit {
 
-  final case class Var[T <: Primitives.IFB](i: scala.Int) extends Lit[T]
+  final case class Var[T <: Primitives.IFB](i: Int) extends Lit[T]
 
   final case class List[T <: Primitives.IFB](literals: Set[T#T]) extends Lit[T]
 

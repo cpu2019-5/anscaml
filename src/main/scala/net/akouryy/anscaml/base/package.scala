@@ -24,8 +24,14 @@ package object base {
           pprint.Tree.Apply("Entry", Iterator(
             pprint.Tree.Infix(pprinter.treeify(name.name), ":", pprinter.treeify(typ))
           ))
-      }) orElse knorm.PPrinter.handle(pprinter),
+      }) orElse syntax.PPrinter.handle(pprinter) orElse knorm.PPrinter.handle(pprinter),
 
     defaultWidth = 130,
   )
+
+  implicit class RichList[A](val list: List[A]) extends AnyVal {
+    def zipMap[B, C](that: IterableOnce[B])(fn: (A, B) => C): List[C] =
+      list.zip(that).map(fn.tupled)
+  }
+
 }

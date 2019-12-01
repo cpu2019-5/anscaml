@@ -7,12 +7,12 @@ let rec stdlib_print_int_pos i =
 let rec print_int i =
   if i = 0 then
     print_char 48 (* '0' *)
-  else if i = -2147483648 then (* cannot calc abs properly *)
+  else if i = (-1) - 2147483647 then (* cannot calc abs properly *)
     print_char 45; print_char 50; print_char 49; print_char 52; print_char 55; print_char 52;
     print_char 56; print_char 51; print_char 54; print_char 52; print_char 56;
   else
     let abs =
-      if i < 0 then (print_char 45; 0 - i) (* '-' *)
+      if i < 0 then (print_char 45; (-i)) (* '-' *)
       else i in
     stdlib_print_int_pos abs in
 
@@ -21,7 +21,7 @@ let rec fless x y = x <. y in
 let rec fispos x = x >. 0.0 in
 let rec fisneg x = x <. 0.0 in
 let rec fiszero x = x =. 0.0 in
-let rec xor a b = a <> b in
+let rec xor a b = if a then not b else b in
 
 (* http://takashiijiri.com/study/miscs/fastsqrt.html *)
 let rec sqrt x =
@@ -166,8 +166,8 @@ let rec stdlib_int_of_float_pos f =
 
 let rec int_of_float f =
   if f <. 0.0 then
-    if f =. -2147483648.0 then -2147483648
-    else 0 - (stdlib_int_of_float_pos (0.0 -. f))
+    if f =. -2147483648.0 then (-1) - 2147483647
+    else (-stdlib_int_of_float_pos (0.0 -. f))
   else
     stdlib_int_of_float_pos f in
 

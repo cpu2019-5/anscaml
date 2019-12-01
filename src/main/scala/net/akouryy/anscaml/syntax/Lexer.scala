@@ -2,7 +2,6 @@ package net.akouryy.anscaml
 package syntax
 
 import scala.util.parsing.combinator.RegexParsers
-
 import base.ID
 import LexToken._
 
@@ -11,7 +10,7 @@ import LexToken._
   */
 object Lexer extends RegexParsers {
 
-  final case class LexException(msg: String, next: scala.util.parsing.input.Position)
+  final case class LexException(msg: String, next: String /*scala.util.parsing.input.Position*/)
 
   private[this] def comment: Parser[_] =
     "(*" ~ rep(
@@ -25,13 +24,13 @@ object Lexer extends RegexParsers {
     w("true") ^^^ BOOL(true) | w("false") ^^^ BOOL(false)
 
   private[this] def int =
-    """[+-]?(0|[1-9]\d*)\b""".r ^^ (i => INT(i.toInt))
+    """(0|[1-9]\d*)\b""".r ^^ (i => INT(i.toInt))
 
   private[this] def float =
     """[+-]?(0|[1-9]\d*)\.\d+([eE][+-]?\d+)?\b""".r ^^ (f => FLOAT(f.toFloat))
 
   private[this] def ident =
-    """[a-z]([a-z0-9]|_[a-z])*\b""".r ^^ (str => IDENT(ID(str))) |
+    """[a-z][a-z0-9_]*\b""".r ^^ (str => IDENT(ID(str))) |
     "_" ^^ (_ => IDENT(ID.generate()))
 
   private[this] def others =
@@ -41,7 +40,6 @@ object Lexer extends RegexParsers {
     w("let") ^^^ LET |
     w("in") ^^^ IN |
     w("rec") ^^^ REC |
-    w("create_array") ^^^ ARRAY_CREATE /* [TODO] no ad hoc */ |
     "[@no_inline]" ^^^ NO_INLINE |
     "(" ^^^ L_PAREN |
     ")" ^^^ R_PAREN |
@@ -78,9 +76,9 @@ object Lexer extends RegexParsers {
     )) ^^ (_.flatten)
 
   def lex(code: String): List[LexToken.Positioned] =
-    parse(tokens, code) match {
-      case Success(result, _) => result
+    parseAll(tokens, code) match {
+      case Success(result, _) => result :+ new Positioned(EOF)
       case NoSuccess(message, next) =>
-        throw new RuntimeException(LexException(message, next.pos).toString)
+        throw new RuntimeException(LexException(message, next.toString).toString)
     }
 }

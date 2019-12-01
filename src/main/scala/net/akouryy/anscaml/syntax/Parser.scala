@@ -10,6 +10,23 @@ import scala.util.parsing.input.{NoPosition, Position, Reader}
 object AnsParser extends Parsers {
   override type Elem = LexToken.Positioned
 
+  private[this] implicit class ToWrapped(val name: String) extends AnyVal {
+    def !!![T](p: Parser[T]): Parser[T] = {
+      /*new Parser[T] {
+        override def apply(in: Input): ParseResult[T] = {
+          val first = in.first
+          val pos = in.pos
+          // val offset = in.offset
+          val t = p(in)
+          println(name + " for token " + first +
+                  " at position " + pos + " offset - " + " returns " + t)
+          t
+        }
+      }*/
+      p
+    }
+  }
+
   class LexTokenReader(tokens: List[Elem]) extends Reader[Elem] {
     override def first: Elem = tokens.head
 
@@ -73,13 +90,14 @@ object AnsParser extends Parsers {
     acceptPositioned("INT", { case INT(i) => Syntax.LitInt(i) }) |
     acceptPositioned("FLOAT", { case FLOAT(f) => Syntax.LitFloat(f) })
 
+  /** 関数の引数になれる式 */
   private[this] def simpleExpr =
     dottableExpr ~ rep(DOT ~ L_PAREN ~> expr <~ R_PAREN) ^^ {
       case a ~ is => is.foldLeft(a)(Syntax.Get)
     }
 
-  private[syntax] def expr: Parser[Syntax] =
-    semiableExpr ~ opt(SEMICOLON ~! opt(expr)) ^^ {
+  private[this] def expr: Parser[Syntax] =
+    "expr" !!! semiableExpr ~ opt(SEMICOLON ~ opt(expr)) ^^ {
       case l ~ (None | Some(_ ~ None)) => l
       case l ~ Some(_ ~ Some(r)) => Syntax.LetTuple(Nil, l, r)
     }
@@ -93,29 +111,32 @@ object AnsParser extends Parsers {
     IF ~> expr ~ (THEN ~> expr) ~ (ELSE ~> semiableExpr) ^^ { case i ~ t ~ f =>
       Syntax.If(i, t, f)
     } |
-    LET ~> identifier ~ (EQUAL ~> expr) ~ (IN ~> expr) ^^ { case id ~ bound ~ kont =>
+    LET ~> identifier ~ (EQUAL ~> expr) ~ IN ~! expr ^^ { case id ~ bound ~ _ ~ kont =>
       Syntax.Let(Entry.generate(id), bound, kont)
     } |
-    LET ~ REC ~> identifier ~ opt(NO_INLINE) ~ rep1(identifier) ~ (EQUAL ~> expr) ~ (IN ~> expr) ^^ {
-      case id ~ noInline ~ args ~ bound ~ kont =>
+    LET ~ REC ~> identifier ~ opt(NO_INLINE) ~ rep1(identifier) ~ (EQUAL ~> expr) ~ IN ~! expr ^^ {
+      case id ~ noInline ~ args ~ bound ~ _ ~ kont =>
         Syntax.LetRec(
           Syntax.FDef(Entry.generate(id), args.map(Entry.generate), bound, noInline.nonEmpty),
           kont,
         )
     } |
-    LET ~ L_PAREN ~> rep1sep(identifier, COMMA) ~ (R_PAREN ~> EQUAL ~> expr) ~ (IN ~> expr) ^^ {
-      case elems ~ bound ~ kont => Syntax.LetTuple(elems.map(Entry.generate), bound, kont)
+    LET ~ L_PAREN ~> rep1sep(identifier, COMMA) ~ (R_PAREN ~> EQUAL ~> expr) ~ IN ~! expr ^^ {
+      case elems ~ bound ~ _ ~ kont => Syntax.LetTuple(elems.map(Entry.generate), bound, kont)
     } |
     putExpr
 
   private[this] def putExpr: Parser[Syntax] =
-    simpleExpr ~ (DOT ~> L_PAREN ~> expr <~ R_PAREN <~ ASSIGN) ~ putExpr ^^ { case a ~ i ~ v =>
-      Syntax.Put(a, i, v)
+    simpleExpr ~ ASSIGN ~ semiableExpr ^^ {
+      case Syntax.Get(array, index) ~ _ ~ v =>
+        Syntax.Put(array, index, v)
+      case expr ~ _ ~ _ =>
+        throw new RuntimeException(s"cannot assign to $expr")
     } |
     binaryExpr(0)
 
   private[this] def binaryExpr(pred: Int): Parser[Syntax] =
-    if (pred >= 3) applyExpr
+    if (pred >= 3) unaryExpr
     else
       binaryExpr(pred + 1) ~ rep(
         BinaryOperators(pred).map { case (k, v) => k ^^^ v }.reduceLeft(_ | _) ~
@@ -125,11 +146,21 @@ object AnsParser extends Parsers {
           opTerms.foldLeft(term0) { case (acc, op ~ term) => op(acc, term) }
       }
 
+  private[this] def unaryExpr =
+    MINUS ~> applyExpr ^^ {
+      Syntax.BinOpTree(BinOp.Sub, Syntax.LitInt(0), _)
+    } |
+    applyExpr
+
   private[this] def applyExpr =
     simpleExpr ~ rep(simpleExpr) ^^ {
       case expr ~ Nil => expr
+      case Syntax.Var(ID("not")) ~ List(arg) => Syntax.Not(arg)
+      case Syntax.Var(ID("create_array")) ~ List(len, elem) => Syntax.Array(len, elem)
       case fn ~ args => Syntax.Apply(fn, args)
     }
+
+  private[syntax] def program: Parser[Syntax] = expr <~ EOF
 }
 
 object Parser {
@@ -137,10 +168,10 @@ object Parser {
   final case class ParseException(detail: String, next: AnsParser.Input)
 
   def parse(tokens: List[LexToken.Positioned]): Syntax = {
-    AnsParser.expr(new AnsParser.LexTokenReader(tokens)) match {
+    AnsParser.program(new AnsParser.LexTokenReader(tokens)) match {
       case AnsParser.Success(result, _) => result
-      case AnsParser.NoSuccess(message, next) =>
-        throw new RuntimeException(ParseException(message, next).toString)
+      case err @ AnsParser.NoSuccess(message, next) =>
+        throw new RuntimeException(err.toString)
     }
   }
 }

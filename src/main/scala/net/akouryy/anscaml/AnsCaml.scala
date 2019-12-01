@@ -38,7 +38,9 @@ object AnsCaml {
 
     val ko = knorm.optimize.Optimizer(config.optimizationCount, alpha)
 
-    pprinter.pprintln(ko, height = 10000)
+    val dbg = new java.io.PrintWriter("../dbg.txt")
+    pprinter.tokenize(ko, height = 100000).foreach(x => dbg.write(x.toString))
+    dbg.close()
 
     println(s"time: ${System.nanoTime() - startTime}ns")
   }

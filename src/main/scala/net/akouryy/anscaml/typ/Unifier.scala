@@ -104,6 +104,8 @@ object Unifier {
         ???
       }
 
+      // println(s"$v -> $typ")
+
       val tsb = new TypSubst(mutable.Map(v -> typ))
 
       for (ref @ ORef(Some((x, y))) <- varCrRefs(v)) {
@@ -161,17 +163,17 @@ object Unifier {
                 ref := None
                 typCrs = rest
                 floatCrs ::= l1 >%> l2
-              case (Typ.Fun(as1, r1), Typ.Fun(as2, r2)) if as1.sizeCompare(as2) == 0 =>
+              case (Typ.TFun(as1, r1), Typ.TFun(as2, r2)) if as1.sizeCompare(as2) == 0 =>
                 ref := None
                 typCrs = rest
                 extendTypCrs(sameRelation(r1, r2) :: as1.zip(as2).map {
                   case (a1, a2) => sameRelation(a2, a1) // 反変
                 })
-              case (Typ.Tuple(es1), Typ.Tuple(es2)) if es1.sizeCompare(es2) == 0 =>
+              case (Typ.TTuple(es1), Typ.TTuple(es2)) if es1.sizeCompare(es2) == 0 =>
                 ref := None
                 typCrs = rest
                 extendTypCrs(es1.zip(es2).map { case (e1, e2) => sameRelation(e1, e2) })
-              case (Typ.Array(e1), Typ.Array(e2)) =>
+              case (Typ.TArray(e1), Typ.TArray(e2)) =>
                 ref := None
                 typCrs = rest
                 extendTypCrs(List(e1 =:= e2)) // 非変
@@ -183,7 +185,7 @@ object Unifier {
                 exteriorVar(v, t.withNewVars())
               case (v: Typ.TypVar, t) =>
                 exteriorVar(v, t.withNewVars())
-              case _ => ???
+              case _ => throw new RuntimeException(s"$t1 $sameRelation $t2")
             }
         }
       }

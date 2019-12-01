@@ -19,7 +19,7 @@ object Primitives {
   type PBool = PBool.type
 
   case object PInt extends Primitives with IF {
-    type T = scala.Int
+    type T = Int
 
     val typ: Typ.Prim[PInt] = Typ.IntAll
 
@@ -27,7 +27,7 @@ object Primitives {
   }
 
   case object PFloat extends Primitives with IF {
-    type T = scala.Float
+    type T = Float
 
     val typ: Typ.Prim[PFloat] = Typ.FloatAll
     implicit val floatSingleton: PFloat = this

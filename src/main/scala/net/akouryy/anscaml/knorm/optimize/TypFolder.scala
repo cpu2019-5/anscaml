@@ -9,6 +9,7 @@ import KNorm._
 import scala.collection.mutable
 
 class TypFolder {
+  private[this] val fnEnv = mutable.Map[ID, FDef]()
   private[this] val typEnv = mutable.Map[ID, Typ]()
 
   def apply(kn: KNorm): KNorm = {
@@ -27,28 +28,31 @@ class TypFolder {
       case LetTuple(elems, bound, kont) =>
         typEnv ++= elems.map(_.toPair)
         LetTuple(elems, bound, fold(kont))
-      case LetRec(FDef(entry, args, body, noInline), kont) =>
+      case LetRec(fDef @ FDef(entry, args, body, noInline), kont) =>
         typEnv ++= entry.toPair :: args.map(_.toPair)
+        if (!noInline) fnEnv(entry.name) = fDef
         LetRec(FDef(entry, args, fold(body), noInline), fold(kont))
 
       case App(fn, List(arg)) =>
-        typEnv.get(arg) match {
-          case Some(Typ.TInt(Lit.List(s))) if s.sizeIs >= 2 =>
-            println(s"[KNorm TypFolder] fold ${fn.name} for $arg in {${s.mkString(",")}}")
+        (fnEnv.get(fn), typEnv.get(arg)) match {
+          case (Some(fDef), Some(Typ.TInt(Lit.List(s)))) /*if s.sizeIs >= 2*/ =>
+            println(s"[KNorm TypFolder] fold ${fn.name} for ${arg.name} in {${s.mkString(",")}}")
             // TODO: 二分探索?
             s.foldLeft[Option[KNorm.KRaw]](None) {
               case (None, lit) =>
                 val a = ID.generate(arg)
+                val body = Alpha.convert(fDef.body, Map(fDef.args(0).name -> a))
                 Some(Let(
                   Entry(a, Typ.TInt(Lit.List[Primitives.PInt](Set(lit)))),
                   KNorm(KInt(lit)),
                   KNorm(
-                    Commented(s"[KNorm TypFolder] fold ${fn.name}($arg = $lit)"),
-                    App(fn, List(a))
+                    body.comment :+ s"[KNorm TypFolder] fold ${fn.name}($arg = $lit)",
+                    body.raw
                   )
                 ))
               case (Some(otherApplies), lit) =>
                 val a = ID.generate(arg)
+                val body = Alpha.convert(fDef.body, Map(fDef.args(0).name -> a))
                 Some(Let(
                   Entry(a, Typ.TInt(Lit.List[Primitives.PInt](Set(lit)))),
                   KNorm(KInt(lit)),
@@ -56,7 +60,7 @@ class TypFolder {
                     Commented(s"[KNorm TypFolder] fold ${fn.name}($arg = $lit)"),
                     IfCmp(
                       syntax.CmpOp.Eq, arg, a,
-                      KNorm(App(fn, List(a))),
+                      body,
                       KNorm(otherApplies)
                     )
                   )

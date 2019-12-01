@@ -9,7 +9,9 @@ sealed trait LexToken
 
 object LexToken {
 
-  class Positioned(val token: LexToken) extends Positional
+  class Positioned(val token: LexToken) extends Positional {
+    override def toString: String = s"[$pos]$token"
+  }
 
   final case class BOOL(b: Boolean) extends LexToken
 
@@ -76,8 +78,6 @@ object LexToken {
   case object NO_INLINE extends LexToken
 
   case object COMMA extends LexToken
-
-  case object ARRAY_CREATE extends LexToken
 
   case object DOT extends LexToken
 

@@ -50,39 +50,39 @@ class Constrainer {
       case LetRec(FDef(Entry(f, tf), args, sb, _), sk) =>
         val tb = constrainRec(sb, typEnv + (f -> tf) ++ args.map(a => a.name -> a.typ))
         val tk = constrainRec(sk, typEnv + (f -> tf))
-        constraints ::= tf >:> Typ.Fun(args.map(_.typ), tb)
+        constraints ::= tf >:> Typ.TFun(args.map(_.typ), tb)
         tk
       case Apply(sf, sas) =>
         val tf = constrainRec(sf, typEnv)
         val tas = sas.map(constrainRec(_, typEnv))
         val resultTyp = Typ.generateTypVar()
-        constraints ::= Typ.Fun(tas, resultTyp) >:> tf
+        constraints ::= Typ.TFun(tas, resultTyp) >:> tf
         resultTyp
       case Tuple(ses) =>
-        Typ.Tuple(ses.map(constrainRec(_, typEnv)))
+        Typ.TTuple(ses.map(constrainRec(_, typEnv)))
       case LetTuple(elems, sb, sk) =>
         val tb = constrainRec(sb, typEnv)
         val tk = constrainRec(sk, typEnv ++ elems.map(e => e.name -> e.typ))
-        constraints ::= Typ.Tuple(elems.map(_.typ)) >:> tb
+        constraints ::= Typ.TTuple(elems.map(_.typ)) >:> tb
         tk
       case Array(sl, se) =>
         val tl = constrainRec(sl, typEnv)
         val te = constrainRec(se, typEnv)
         val elemTyp = Typ.generateTypVar()
         constraints :::= List(elemTyp >:> te, Typ.IntAll >:> tl)
-        Typ.Array(elemTyp)
+        Typ.TArray(elemTyp)
       case Get(sa, si) =>
         val ta = constrainRec(sa, typEnv)
         val ti = constrainRec(si, typEnv)
         val elemTyp = Typ.generateTypVar()
-        constraints :::= List(Typ.Array(elemTyp) >:> ta, Typ.IntAll >:> ti)
+        constraints :::= List(Typ.TArray(elemTyp) >:> ta, Typ.IntAll >:> ti)
         elemTyp
       case Put(sa, si, sv) =>
         val ta = constrainRec(sa, typEnv)
         val ti = constrainRec(si, typEnv)
         val tv = constrainRec(sv, typEnv)
         val elemTyp = Typ.generateTypVar()
-        constraints :::= List(ta >:> Typ.Array(elemTyp), Typ.IntAll >:> ti, elemTyp >:> tv)
+        constraints :::= List(ta >:> Typ.TArray(elemTyp), Typ.IntAll >:> ti, elemTyp >:> tv)
         Typ.TUnit
     }
   }
@@ -114,16 +114,16 @@ object Constrainer {
     def =:=(t2: Typ): =:= = Constrainer.=:=(t1, t2)
   }
 
-  val ExtEnv: Map[ID, Typ.Fun] = Map(
-    ID("print_char") -> Typ.Fun(List(Typ.IntAll), Typ.TUnit),
-    ID("read_char") -> Typ.Fun(List(Typ.TUnit), Typ.IntAll),
-    ID("fneg") -> Typ.Fun(List(Typ.FloatAll), Typ.FloatAll),
-    ID("fabs") -> Typ.Fun(List(Typ.FloatAll), Typ.FloatAll),
-    ID("fsqr") -> Typ.Fun(List(Typ.FloatAll), Typ.FloatAll),
-    ID("fhalf") -> Typ.Fun(List(Typ.FloatAll), Typ.FloatAll),
-    ID("floor") -> Typ.Fun(List(Typ.FloatAll), Typ.FloatAll),
-    ID("float_of_int") -> Typ.Fun(List(Typ.IntAll), Typ.FloatAll),
-    ID("bits_of_float") -> Typ.Fun(List(Typ.FloatAll), Typ.IntAll),
-    ID("float_of_bits") -> Typ.Fun(List(Typ.IntAll), Typ.FloatAll),
+  val ExtEnv: Map[ID, Typ.TFun] = Map(
+    ID("print_char") -> Typ.TFun(List(Typ.IntAll), Typ.TUnit),
+    ID("read_char") -> Typ.TFun(List(Typ.TUnit), Typ.IntAll),
+    ID("fneg") -> Typ.TFun(List(Typ.FloatAll), Typ.FloatAll),
+    ID("fabs") -> Typ.TFun(List(Typ.FloatAll), Typ.FloatAll),
+    ID("fsqr") -> Typ.TFun(List(Typ.FloatAll), Typ.FloatAll),
+    ID("fhalf") -> Typ.TFun(List(Typ.FloatAll), Typ.FloatAll),
+    ID("floor") -> Typ.TFun(List(Typ.FloatAll), Typ.FloatAll),
+    ID("float_of_int") -> Typ.TFun(List(Typ.IntAll), Typ.FloatAll),
+    ID("bits_of_float") -> Typ.TFun(List(Typ.FloatAll), Typ.IntAll),
+    ID("float_of_bits") -> Typ.TFun(List(Typ.IntAll), Typ.FloatAll),
   )
 }
