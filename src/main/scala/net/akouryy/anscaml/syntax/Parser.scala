@@ -81,6 +81,9 @@ object AnsParser extends Parsers {
   private[this] def identifier =
     acceptPositioned("IDENT", { case IDENT(id) => id })
 
+  private[this] def annotation =
+    acceptPositioned("ANNOT", { case ANNOT(annot) => annot })
+
   private[this] def dottableExpr: Parser[Syntax] =
     L_PAREN ~> expr <~ R_PAREN |
     L_PAREN ~ R_PAREN ^^ { _ => Syntax.LitUnit } |
@@ -114,10 +117,10 @@ object AnsParser extends Parsers {
     LET ~> identifier ~ (EQUAL ~> expr) ~ IN ~! expr ^^ { case id ~ bound ~ _ ~ kont =>
       Syntax.Let(Entry.generate(id), bound, kont)
     } |
-    LET ~ REC ~> identifier ~ opt(NO_INLINE) ~ rep1(identifier) ~ (EQUAL ~> expr) ~ IN ~! expr ^^ {
-      case id ~ noInline ~ args ~ bound ~ _ ~ kont =>
+    LET ~ REC ~> identifier ~ rep(annotation) ~ rep1(identifier) ~ (EQUAL ~> expr) ~ IN ~! expr ^^ {
+      case id ~ annot ~ args ~ bound ~ _ ~ kont =>
         Syntax.LetRec(
-          Syntax.FDef(Entry.generate(id), args.map(Entry.generate), bound, noInline.nonEmpty),
+          Syntax.FDef(Entry.generate(id), args.map(Entry.generate), bound, annot.toSet),
           kont,
         )
     } |
@@ -170,7 +173,7 @@ object Parser {
   def parse(tokens: List[LexToken.Positioned]): Syntax = {
     AnsParser.program(new AnsParser.LexTokenReader(tokens)) match {
       case AnsParser.Success(result, _) => result
-      case err @ AnsParser.NoSuccess(message, next) =>
+      case err @ AnsParser.NoSuccess(_, _) =>
         throw new RuntimeException(err.toString)
     }
   }

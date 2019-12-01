@@ -1,10 +1,10 @@
-let rec stdlib_print_int_pos i =
+let rec stdlib_print_int_pos [@typ_fold] i =
   if i <> 0 then (
     stdlib_print_int_pos (i / 10);
     print_char (48 + (i % 10))
   ) else () in
 
-let rec print_int i =
+let rec print_int [@typ_fold] i =
   if i = 0 then
     print_char 48 (* '0' *)
   else if i = (-1) - 2147483647 then (* cannot calc abs properly *)

@@ -21,6 +21,8 @@ object LexToken {
 
   final case class IDENT(id: ID) extends LexToken
 
+  final case class ANNOT(annot: String) extends LexToken
+
   case object PLUS extends LexToken
 
   case object MINUS extends LexToken
@@ -74,8 +76,6 @@ object LexToken {
   case object IN extends LexToken
 
   case object REC extends LexToken
-
-  case object NO_INLINE extends LexToken
 
   case object COMMA extends LexToken
 

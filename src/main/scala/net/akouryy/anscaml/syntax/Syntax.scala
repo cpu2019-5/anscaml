@@ -27,7 +27,7 @@ sealed trait Syntax {
 
 object Syntax {
 
-  case class FDef(entry: Entry, args: List[Entry], body: Syntax, noInline: Boolean)
+  case class FDef(entry: Entry, args: List[Entry], body: Syntax, annot: Set[String])
 
   // ASTs
 

@@ -3,6 +3,7 @@ package knorm
 package optimize
 
 import base._
+import syntax.Annot
 import typ.{Lit, Typ}
 import KNorm._
 
@@ -28,10 +29,10 @@ class TypFolder {
       case LetTuple(elems, bound, kont) =>
         typEnv ++= elems.map(_.toPair)
         LetTuple(elems, bound, fold(kont))
-      case LetRec(fDef @ FDef(entry, args, body, noInline), kont) =>
+      case LetRec(fDef @ FDef(entry, args, body, annot), kont) =>
         typEnv ++= entry.toPair :: args.map(_.toPair)
-        if (!noInline) fnEnv(entry.name) = fDef
-        LetRec(FDef(entry, args, fold(body), noInline), fold(kont))
+        if (annot.contains(Annot.TypFold)) fnEnv(entry.name) = fDef
+        LetRec(FDef(entry, args, fold(body), annot), fold(kont))
 
       case App(fn, List(arg)) =>
         (fnEnv.get(fn), typEnv.get(arg)) match {

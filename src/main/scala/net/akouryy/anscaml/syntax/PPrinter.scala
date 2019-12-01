@@ -15,7 +15,7 @@ object PPrinter {
     final case class BTuple(elems: List[Entry], bound: Syntax) extends Binding
 
     final case class BRec(
-      entry: Entry, args: List[Entry], noInline: Boolean, bound: Syntax,
+      entry: Entry, args: List[Entry], annot: Set[String], bound: Syntax,
     ) extends Binding
 
     def unapply(x: Any): Option[(Binding, Syntax)] = {
@@ -23,8 +23,8 @@ object PPrinter {
       x match {
         case Let(entry, bound, kont) => Some(Bind(entry, bound), kont)
         case LetTuple(elems, bound, kont) => Some(BTuple(elems, bound), kont)
-        case LetRec(FDef(entry, args, body, noInline), kont) =>
-          Some(BRec(entry, args, noInline, body), kont)
+        case LetRec(FDef(entry, args, body, annot), kont) =>
+          Some(BRec(entry, args, annot, body), kont)
         case _ => None
       }
     }

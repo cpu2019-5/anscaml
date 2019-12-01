@@ -33,6 +33,9 @@ object Lexer extends RegexParsers {
     """[a-z][a-z0-9_]*\b""".r ^^ (str => IDENT(ID(str))) |
     "_" ^^ (_ => IDENT(ID.generate()))
 
+  private[this] def annot =
+    Annot.Annotations.map(x => s"[@$x]" ^^^ ANNOT(x)).reduce(_ | _)
+
   private[this] def others =
     w("if") ^^^ IF |
     w("then") ^^^ THEN |
@@ -40,7 +43,6 @@ object Lexer extends RegexParsers {
     w("let") ^^^ LET |
     w("in") ^^^ IN |
     w("rec") ^^^ REC |
-    "[@no_inline]" ^^^ NO_INLINE |
     "(" ^^^ L_PAREN |
     ")" ^^^ R_PAREN |
     "," ^^^ COMMA |
@@ -72,7 +74,8 @@ object Lexer extends RegexParsers {
   private[this] def tokens =
     phrase(rep1(
       comment ^^^ None |
-      positioned((bool | float | int | others | ident) ^^ (new LexToken.Positioned(_))) ^^ (Some(_))
+      positioned((bool | float | int | others | ident | annot) ^^ (new LexToken.Positioned(_)))
+      ^^ (Some(_))
     )) ^^ (_.flatten)
 
   def lex(code: String): List[LexToken.Positioned] =

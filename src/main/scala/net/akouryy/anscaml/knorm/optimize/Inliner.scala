@@ -3,6 +3,7 @@ package knorm
 package optimize
 
 import base._
+import syntax.Annot
 import KNorm._
 
 import scala.collection.mutable
@@ -39,8 +40,9 @@ class Inliner {
       kn.copy(raw = Let(entry, embed(scopeFn, bound), embed(scopeFn, kont)))
     case LetTuple(elems, bound, kont) =>
       kn.copy(raw = LetTuple(elems, bound, embed(scopeFn, kont)))
-    case LetRec(fDef @ FDef(Entry(name, _), _, body, noInline), kont) =>
-      if (!noInline && size(body) <= AnsCaml.config.inlineLimit) { // TODO: sizeIs
+    case LetRec(fDef @ FDef(Entry(name, _), _, body, annot), kont) =>
+      if (!annot.contains(Annot.NoInline) && size(body) <= AnsCaml.config.inlineLimit) {
+        // TODO: sizeIs
         bodyEnv(name) = fDef
       }
       kn.copy(raw = LetRec(fDef.copy(body = embed(name, body)), embed(scopeFn, kont)))

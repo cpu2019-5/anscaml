@@ -16,7 +16,7 @@ object PPrinter {
 
     final case class BindingRec(
       comment: Comment,
-      entry: Entry, args: List[Entry], /*noInline: Boolean,*/
+      entry: Entry, args: List[Entry], annot: Set[String],
       bound: KNorm,
     ) extends LetLike
 
@@ -25,8 +25,8 @@ object PPrinter {
       x match {
         case KNorm(cmt, Let(entry, bound, kont)) => Some(Binding(cmt, entry, bound), kont)
         case KNorm(cmt, LetTuple(elems, bound, kont)) => Some(BindingTuple(cmt, elems, bound), kont)
-        case KNorm(cmt, LetRec(FDef(entry, args, body, _noInline), kont)) =>
-          Some(BindingRec(cmt, entry, args, body), kont)
+        case KNorm(cmt, LetRec(FDef(entry, args, body, annot), kont)) =>
+          Some(BindingRec(cmt, entry, args, annot, body), kont)
         case _ => None
       }
     }

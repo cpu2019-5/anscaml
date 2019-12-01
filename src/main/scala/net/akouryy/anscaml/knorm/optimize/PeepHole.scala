@@ -3,9 +3,9 @@ package knorm
 package optimize
 
 import base._
+import syntax.{BinOp, CmpOp}
 import typ.{Lit, Typ}
 import KNorm._
-import net.akouryy.anscaml.syntax.{BinOp, CmpOp}
 
 import scala.collection.mutable
 
@@ -88,7 +88,7 @@ class PeepHole {
           case KFloat(f) => Typ.FloatList(f)
           case _ => typ
         }
-        norm.copy(raw = Let(Entry(name, typ), boundOpt, optimize(kont)))
+        norm.copy(raw = Let(Entry(name, newTyp), boundOpt, optimize(kont)))
       case LetTuple(elems, bound, kont) =>
         // 面倒なのでenvは更新しない
         norm.copy(raw = LetTuple(elems, bound, optimize(kont)))

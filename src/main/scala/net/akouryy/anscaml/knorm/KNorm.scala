@@ -12,7 +12,7 @@ object KNorm {
 
   def apply(raw: KNorm.KRaw): KNorm = KNorm(NoComment, raw)
 
-  final case class FDef(entry: Entry, args: List[Entry], body: KNorm, noInline: Boolean)
+  final case class FDef(entry: Entry, args: List[Entry], body: KNorm, annot: Set[String])
 
   sealed trait KRaw {
     def mayHaveEffect: Boolean = this match {
