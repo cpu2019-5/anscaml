@@ -28,7 +28,7 @@ class Inliner {
   private[this] val bodyEnv = mutable.Map[ID, FDef]()
 
   def apply(kn: KNorm): KNorm = {
-    println("[KNorm Inliner] Start")
+    println("[KOptimize Inliner] Start")
     bodyEnv.clear()
     embed(ID("AnsMain"), kn)
   }
@@ -48,11 +48,11 @@ class Inliner {
       kn.copy(raw = LetRec(fDef.copy(body = embed(name, body)), embed(scopeFn, kont)))
 
     case Apply(fn, args) if bodyEnv contains fn =>
-      println(s"[KNorm Inliner] ${fn.name} in ${scopeFn.name}")
+      // println(s"[KOptimize Inliner] ${fn.name} in ${scopeFn.name}")
       val fDef = bodyEnv(fn)
       val body = Alpha.convert(fDef.body, fDef.args.map(_.name).zip(args).toMap)
       KNorm(
-        kn.comment + body.comment :+ s"[KNorm Inliner] ${fn.name} in ${scopeFn.name}",
+        kn.comment + body.comment :+ s"[KO Inliner] ${fn.name} in ${scopeFn.name}",
         body.raw
       )
     case _ => kn

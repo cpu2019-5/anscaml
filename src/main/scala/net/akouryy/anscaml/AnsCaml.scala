@@ -18,19 +18,11 @@ object AnsCaml {
       (libCode +: config.inputFiles.map(Source.fromFile(_).mkString)).mkString(";\n")
     }
 
-    println("[Lexer] start")
-
     val tokens = syntax.Lexer.lex(code)
-
-    println("[Parser] start")
 
     val ast = syntax.Parser.parse(tokens)
 
-    println("[Typing] start")
-
     val astTyped = typ.Typing.solve(ast)
-
-    println("[KNorm Converter] start")
 
     val kn = knorm.Converter(astTyped)
 
@@ -38,10 +30,10 @@ object AnsCaml {
 
     val ko = knorm.optimize.Optimizer(config.optimizationCount, alpha)
 
-    val cl = new knorm.Closurify()(ko)
+    val cl = new knorm.Closer()(ko)
 
     val dbg = new java.io.PrintWriter("../dbg.txt")
-    pprinter.tokenize(cl, height = 100000).foreach(x => dbg.write(x.toString))
+    PPrinter.writeTo(dbg, cl)
     dbg.close()
 
     val t = System.nanoTime() - startTime

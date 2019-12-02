@@ -13,7 +13,7 @@ class PeepHole {
   private[this] val env = mutable.Map[ID, KRaw]()
 
   def apply(norm: KNorm): KNorm = {
-    println("[KNorm PeepHole] Start")
+    println("[KOptimize PeepHole] Start")
     env.clear()
     optimize(norm)
   }
@@ -25,7 +25,7 @@ class PeepHole {
     )
 
     def addCmtNorm(msg: String, norm2: KNorm) = KNorm(
-      norm2.comment :+ s"[KNorm PeepHole] $msg",
+      norm2.comment :+ s"[KO PeepHole] $msg",
       norm2.raw
     )
 

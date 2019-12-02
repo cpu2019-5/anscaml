@@ -7,7 +7,7 @@ import KNorm._
 
 object Eliminator {
   def apply(kn: KNorm): KNorm = {
-    println("[KNorm Eliminator] Start")
+    println("[KOptimize Eliminator] Start")
     elim(kn)._1
   }
 

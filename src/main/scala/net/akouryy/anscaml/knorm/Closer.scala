@@ -6,9 +6,9 @@ import KNorm._
 
 import scala.collection.mutable
 
-class Closurify {
+class Closer {
   private[this] val directFunctions = mutable.Set[ID]()
-  private[this] var globalConstsRev = List[(Entry, KClosure)]()
+  private[this] var globalConstsRev = List[(Entry, KClosed)]()
   private[this] val globalConstNames = mutable.Set[ID]()
   private[this] var globalFunctionsRev = List[CFDef]()
 
@@ -18,12 +18,12 @@ class Closurify {
 
   private[this] case object Global extends Scope
 
-  def apply(kn: KNorm): (List[(Entry, KClosure)], List[CFDef], KClosure) = {
-    println("[KNorm Closurify] Start")
+  def apply(kn: KNorm): (List[(Entry, KClosed)], List[CFDef], KClosed) = {
+    println("[KNorm Closer] Start")
     directFunctions.clear()
     globalConstsRev = Nil
     globalConstNames.clear()
-    val cl = closure(kn, Global)
+    val cl = close(kn, Global)
     (globalConstsRev.reverse, globalFunctionsRev.reverse, cl)
   }
 
@@ -50,31 +50,31 @@ class Closurify {
     }
   }
 
-  private[this] def closure(norm: KNorm, scope: Scope): KClosure =
+  private[this] def close(norm: KNorm, scope: Scope): KClosed =
     norm.raw match {
-      case raw: KCRaw => KClosure(norm.comment, raw)
+      case raw: KCRaw => KClosed(norm.comment, raw)
       case Apply(fn, args) =>
         if (directFunctions contains fn) {
-          KClosure(norm.comment, ApplyDirect(LabelID(fn.name), args))
+          KClosed(norm.comment, ApplyDirect(LabelID(fn.name), args))
         } else {
-          KClosure(norm.comment, ApplyClosure(fn, args))
+          KClosed(norm.comment, ApplyClosure(fn, args))
         }
       case ApplyExternal(fn, args) =>
-        KClosure(norm.comment, ApplyDirect(LabelID(s"$$ext_${fn.name}"), args))
+        KClosed(norm.comment, ApplyDirect(LabelID(s"$$ext_${fn.name}"), args))
       case IfCmp(op, left, right, tru, fls) =>
-        KClosure(norm.comment, CIfCmp(op, left, right, closure(tru, Local), closure(fls, Local)))
+        KClosed(norm.comment, CIfCmp(op, left, right, close(tru, Local), close(fls, Local)))
       case Let(entry, bound, kont) =>
         if (scope == Global && !bound.raw.mayHaveEffect) {
-          println(s"[Closurify] no mutate: ${entry.name}")
-          globalConstsRev ::= (entry, closure(bound, Local))
+          println(s"[KNorm Closer] no mutate: ${entry.name}")
+          globalConstsRev ::= (entry, close(bound, Local))
           globalConstNames += entry.name
-          closure(kont, Global)
+          close(kont, Global)
         } else {
-          if (scope == Global) println(s"[Closurify] may mutate: ${entry.name}")
-          KClosure(norm.comment, CLet(entry, closure(bound, Local), closure(kont, Local)))
+          if (scope == Global) println(s"[KNorm Closer] may mutate: ${entry.name}")
+          KClosed(norm.comment, CLet(entry, close(bound, Local), close(kont, Local)))
         }
       case LetTuple(elems, bound, kont) =>
-        KClosure(norm.comment, CLetTuple(elems, bound, closure(kont, scope)))
+        KClosed(norm.comment, CLetTuple(elems, bound, close(kont, scope)))
       case LetRec(FDef(entry @ Entry(id @ ID(name), _), args, body, _), kont) =>
         val bodyFVs = (
           indirectFVs(body, Set(id)) -- args.map(_.name).toSet -- globalConstNames
@@ -83,16 +83,16 @@ class Closurify {
           directFunctions += id
         }
         val kontFVs = indirectFVs(kont, Set()) -- globalConstNames
-        val bodyKC = closure(body, Local)
-        val kontKC = closure(kont, scope)
+        val bodyKC = close(body, Local)
+        val kontKC = close(kont, scope)
         globalFunctionsRev ::= CFDef(entry, args, bodyFVs, bodyKC)
 
         if (kontFVs contains id) {
           // kontでこの関数のクロージャを用いる
-          println(s"[Closurify] closure for ${name} with fvs $bodyFVs")
-          KClosure(norm.comment, CLetClosure(entry, LabelID(name), bodyFVs, kontKC))
+          println(s"[KNorm Closer] closure for $name with fvs $bodyFVs")
+          KClosed(norm.comment, CLetClosure(entry, LabelID(name), bodyFVs, kontKC))
         } else {
-          println(s"[Closurify] no closure for ${name}")
+          // println(s"[KNorm Closer] no closure for $name")
           kontKC
         }
     }

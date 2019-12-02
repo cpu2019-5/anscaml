@@ -14,9 +14,9 @@ object KNorm {
 
   final case class FDef(entry: Entry, args: List[Entry], body: KNorm, annot: Set[String])
 
-  final case class CFDef(entry: Entry, args: List[Entry], fvs: List[ID], body: KClosure)
+  final case class CFDef(entry: Entry, args: List[Entry], fvs: List[ID], body: KClosed)
 
-  final case class KClosure(comment: Comment, closure: KCRaw)
+  final case class KClosed(comment: Comment, closure: KCRaw)
 
   sealed trait KRaw {
     def mayHaveEffect: Boolean = this match {
@@ -64,14 +64,14 @@ object KNorm {
 
   final case class LetRec(fDef: KNorm.FDef, kont: KNorm) extends KRaw
 
-  final case class CIfCmp(op: CmpOp, left: ID, right: ID, tru: KClosure, fls: KClosure)
+  final case class CIfCmp(op: CmpOp, left: ID, right: ID, tru: KClosed, fls: KClosed)
     extends KCRaw
 
-  final case class CLet(entry: Entry, bound: KClosure, kont: KClosure) extends KCRaw
+  final case class CLet(entry: Entry, bound: KClosed, kont: KClosed) extends KCRaw
 
-  final case class CLetTuple(elems: List[Entry], bound: ID, kont: KClosure) extends KCRaw
+  final case class CLetTuple(elems: List[Entry], bound: ID, kont: KClosed) extends KCRaw
 
-  final case class CLetClosure(entry: Entry, fn: LabelID, captured: List[ID], kont: KClosure)
+  final case class CLetClosure(entry: Entry, fn: LabelID, captured: List[ID], kont: KClosed)
     extends KCRaw
 
 }

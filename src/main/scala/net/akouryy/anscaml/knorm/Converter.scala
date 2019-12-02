@@ -85,7 +85,7 @@ object Converter {
           try {
             (tt | ft, KNorm.IfCmp(op, l, r, KNorm(te), KNorm(fe)))
           } catch {
-            case e: NotImplementedError => pprinter.pprintln(te); pprinter.pprintln(fe); throw e
+            case e: NotImplementedError => PPrinter.pprintln(te); PPrinter.pprintln(fe); throw e
           }
         }
       case If(cond, tru, fls) =>
@@ -162,5 +162,8 @@ object Converter {
     }
   }
 
-  def apply(ast: Syntax): KNorm = KNorm(convert(Map(), ast)._2)
+  def apply(ast: Syntax): KNorm = {
+    println("[KNorm Converter] start")
+    KNorm(convert(Map(), ast)._2)
+  }
 }
