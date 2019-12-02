@@ -34,7 +34,7 @@ class TypFolder {
         if (annot.contains(Annot.TypFold)) fnEnv(entry.name) = fDef
         LetRec(FDef(entry, args, fold(body), annot), fold(kont))
 
-      case App(fn, List(arg)) =>
+      case Apply(fn, List(arg)) =>
         (fnEnv.get(fn), typEnv.get(arg)) match {
           case (Some(fDef), Some(Typ.TInt(Lit.List(s)))) /*if s.sizeIs >= 2*/ =>
             println(s"[KNorm TypFolder] fold ${fn.name} for ${arg.name} in {${s.mkString(",")}}")

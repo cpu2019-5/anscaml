@@ -21,16 +21,17 @@ object Alpha {
     KNorm(
       kn.comment,
       kn.raw match {
-        case KInt(_) | KFloat(_) | ExtArray(_) => kn.raw
+        case KInt(_) | KFloat(_) => kn.raw
         case BinOpTree(op, left, right) => BinOpTree(op, find(left), find(right))
         case IfCmp(op, left, right, tru, fls) =>
           IfCmp(op, find(left), find(right), convert(tru, env), convert(fls, env))
         case Var(v) => Var(find(v))
-        case App(fn, args) => App(find(fn), args.map(find))
+        case Apply(fn, args) => Apply(find(fn), args.map(find))
         case KTuple(elems) => KTuple(elems.map(find))
+        case Array(len, elem) => Array(find(len), find(elem))
         case Get(array, index) => Get(find(array), find(index))
         case Put(array, index, value) => Put(find(array), find(index), find(value))
-        case ExtFunApp(fn, args) => ExtFunApp(fn, args.map(find))
+        case ApplyExternal(fn, args) => ApplyExternal(fn, args.map(find))
         case Let(Entry(v, typ), bound, kont) =>
           val v2 = ID.generate(v)
           Let(Entry(v2, typ), convert(bound, env), convert(kont, env + (v -> v2)))

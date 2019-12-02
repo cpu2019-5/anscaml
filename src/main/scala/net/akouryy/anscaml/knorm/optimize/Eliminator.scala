@@ -44,14 +44,15 @@ object Eliminator {
       }
 
     case _ => (kn, kn.raw match {
-      case KInt(_) | KFloat(_) | ExtArray(_) => Set()
+      case KInt(_) | KFloat(_) => Set()
       case BinOpTree(_, left, right) => Set(left, right)
       case Var(v) => Set(v)
-      case App(fn, args) => (fn :: args).toSet
+      case Apply(fn, args) => (fn :: args).toSet
       case KTuple(elems) => elems.toSet
+      case Array(array, index) => Set(array, index)
       case Get(array, index) => Set(array, index)
       case Put(array, index, value) => Set(array, index, value)
-      case ExtFunApp(_, args) => args.toSet
+      case ApplyExternal(_, args) => args.toSet
       case _ => ???
     })
 

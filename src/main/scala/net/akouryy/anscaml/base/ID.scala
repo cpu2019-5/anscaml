@@ -27,7 +27,7 @@ object ID {
     ID(s"$$tmp$cnt")
   }
 
-  private[this] var cntMap = mutable.Map[ID, Int]()
+  private[this] val cntMap = mutable.Map[ID, Int]()
 
   def generate(id: ID): ID = {
     val c = cntMap.getOrElse(id, -1) + 1

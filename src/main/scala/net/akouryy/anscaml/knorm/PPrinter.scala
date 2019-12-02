@@ -2,7 +2,7 @@ package net.akouryy.anscaml
 package knorm
 
 import base._
-import net.akouryy.anscaml.knorm.KNorm.IfCmp
+import KNorm._
 
 object PPrinter {
 
@@ -21,7 +21,6 @@ object PPrinter {
     ) extends LetLike
 
     def unapply(x: Any): Option[(LetLike, KNorm)] = {
-      import KNorm._
       x match {
         case KNorm(cmt, Let(entry, bound, kont)) => Some(Binding(cmt, entry, bound), kont)
         case KNorm(cmt, LetTuple(elems, bound, kont)) => Some(BindingTuple(cmt, elems, bound), kont)
@@ -32,12 +31,36 @@ object PPrinter {
     }
   }
 
+  sealed trait CLetLike
+
+  object CLetLike {
+
+    final case class Binding(comment: Comment, entry: Entry, bound: KClosure) extends CLetLike
+
+    final case class BindingTuple(comment: Comment, elems: List[Entry], bound: ID) extends CLetLike
+
+    final case class BindingClosure(
+      comment: Comment,
+      entry: Entry, fn: LabelID, captured: List[ID],
+    ) extends CLetLike
+
+    def unapply(x: Any): Option[(CLetLike, KClosure)] = {
+      x match {
+        case KClosure(cmt, CLet(entry, bound, kont)) => Some((Binding(cmt, entry, bound), kont))
+        case KClosure(cmt, CLetTuple(elems, bound, kont)) =>
+          Some((BindingTuple(cmt, elems, bound), kont))
+        case KClosure(cmt, CLetClosure(entry, fn, captured, kont)) =>
+          Some((BindingClosure(cmt, entry, fn, captured), kont))
+        case _ => None
+      }
+    }
+  }
+
   def handle(pp: => pprint.PPrinter): PartialFunction[Any, pprint.Tree] = {
     {
       case LetLike(binding1, kont1) =>
         var bindingsRev = List(binding1)
         var kont = kont1
-
         while (kont match {
           case LetLike(bindingX, kontX) =>
             kont = kontX
@@ -45,10 +68,21 @@ object PPrinter {
             true
           case _ => false
         }) {}
-
         pprint.Tree.Apply("Let*", (kont :: bindingsRev).map(pp.treeify).reverseIterator)
+      case CLetLike(binding1, kont1) =>
+        var bindingsRev = List(binding1)
+        var kont = kont1
+        while (kont match {
+          case CLetLike(bindingX, kontX) =>
+            kont = kontX
+            bindingsRev ::= bindingX
+            true
+          case _ => false
+        }) {}
+        pprint.Tree.Apply("CLet*", (kont :: bindingsRev).map(pp.treeify).reverseIterator)
 
       case KNorm(NoComment, kn) => pp.treeify(kn)
+      case KClosure(NoComment, kc) => pp.treeify(kc)
 
       case IfCmp(op, ID(left), ID(right), tru, fls) =>
         pprint.Tree.Apply("IfCmp", Iterator(
@@ -56,7 +90,6 @@ object PPrinter {
           pp.treeify(tru),
           pp.treeify(fls),
         ))
-
     }
   }
 }

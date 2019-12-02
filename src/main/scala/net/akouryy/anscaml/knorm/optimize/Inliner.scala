@@ -47,7 +47,7 @@ class Inliner {
       }
       kn.copy(raw = LetRec(fDef.copy(body = embed(name, body)), embed(scopeFn, kont)))
 
-    case App(fn, args) if bodyEnv contains fn =>
+    case Apply(fn, args) if bodyEnv contains fn =>
       println(s"[KNorm Inliner] ${fn.name} in ${scopeFn.name}")
       val fDef = bodyEnv(fn)
       val body = Alpha.convert(fDef.body, fDef.args.map(_.name).zip(args).toMap)

@@ -109,7 +109,7 @@ object Converter {
         for {
           (xs, _) <- insertMulti(args, env)
         } yield {
-          (retTyp, KNorm.ExtFunApp(fn, xs))
+          (retTyp, KNorm.ApplyExternal(fn, xs))
         }
       case Apply(fn, args) =>
         val fnr @ (Typ.TFun(_, retTyp), _) = convert(env, fn): @unchecked
@@ -117,7 +117,7 @@ object Converter {
           (x, env2) <- insert(fnr, env)
           (ys, _) <- insertMulti(args, env2)
         } yield {
-          (retTyp, KNorm.App(x, ys))
+          (retTyp, KNorm.Apply(x, ys))
         }
       case Tuple(es) =>
         for ((xs, env2) <- insertMulti(es, env)) yield (
@@ -140,7 +140,7 @@ object Converter {
         } yield {
           val er @ (et, _) = convert(env2, elem)
           for {(y, _) <- insert(er, env2)} yield {
-            (Typ.TArray(et), KNorm.ExtFunApp(ID("create_array"), List(x, y)))
+            (Typ.TArray(et), KNorm.Array(x, y))
           }
         }
       case Get(array, index) =>
