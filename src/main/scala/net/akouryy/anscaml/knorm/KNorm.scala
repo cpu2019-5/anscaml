@@ -12,11 +12,13 @@ object KNorm {
 
   def apply(raw: KNorm.KRaw): KNorm = KNorm(NoComment, raw)
 
+  final case class KCProgram(gConsts: List[(Entry, KClosed)], fDefs: List[CFDef], main: KClosed)
+
   final case class FDef(entry: Entry, args: List[Entry], body: KNorm, annot: Set[String])
 
   final case class CFDef(entry: Entry, args: List[Entry], fvs: List[ID], body: KClosed)
 
-  final case class KClosed(comment: Comment, closure: KCRaw)
+  final case class KClosed(comment: Comment, raw: KCRaw)
 
   sealed trait KRaw {
     def mayHaveEffect: Boolean = this match {

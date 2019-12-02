@@ -43,13 +43,35 @@ class PeepHole {
             addCmt(s"op-$op", KFloat(fn(x, y)))
           case (BinOp.Mul, _, Some(KInt(y))) if Util.log2(y).nonEmpty =>
             val z = ID.generate(ID(s"${right.name}$$log"))
-            val ans = Util.log2(y).get
+            val log2 = Util.log2(y).get
             addCmt(
               "mul-to-shl",
               Let(
-                Entry(z, Typ.TInt(Lit.List[Primitives.PInt](Set(ans)))),
-                KNorm(KInt(ans)),
+                Entry(z, Typ.TInt(Lit.List[Primitives.PInt](Set(log2)))),
+                KNorm(KInt(log2)),
                 KNorm(BinOpTree(BinOp.Shl, left, z)),
+              ),
+            )
+          case (BinOp.Div, _, Some(KInt(y))) if Util.log2(y).nonEmpty =>
+            val z = ID.generate(ID(s"${right.name}$$log"))
+            val log2 = Util.log2(y).get
+            addCmt(
+              "div-to-shr",
+              Let(
+                Entry(z, Typ.TInt(Lit.List[Primitives.PInt](Set(log2)))),
+                KNorm(KInt(log2)),
+                KNorm(BinOpTree(BinOp.Shr, left, z)),
+              ),
+            )
+          case (BinOp.Mod, _, Some(KInt(y))) if Util.log2(y).nonEmpty =>
+            val z = ID.generate(ID(s"${right.name}$$log"))
+            val log2 = Util.log2(y).get
+            addCmt(
+              "mod-to-land",
+              Let(
+                Entry(z, Typ.TInt(Lit.List[Primitives.PInt](Set(log2 - 1)))),
+                KNorm(KInt(log2 - 1)),
+                KNorm(BinOpTree(BinOp.Land, left, z)),
               ),
             )
           case _ => norm

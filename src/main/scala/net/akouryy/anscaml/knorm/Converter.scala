@@ -8,13 +8,6 @@ import typ.{Lit, Typ}
 object Converter {
   type TypedK = (Typ, KNorm.KRaw)
 
-  final case class Mapper[A, B, C](map: (A => B) => C) {
-    val flatMap: map.type = map
-    val andThen: map.type = map
-
-    def withFilter(@annotation.unused _x: A => Boolean): this.type = this
-  }
-
   private[this] def insert(tk: TypedK, env: Map[ID, Typ]) =
     Mapper[(ID, Map[ID, Typ]), TypedK, TypedK](kont =>
       tk match {

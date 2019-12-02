@@ -8,14 +8,19 @@ import scala.collection.mutable
 final case class ID(name: String)
 
 object ID {
-  private[this] def suffix(c0: Int) = {
+  /**
+    * `0...26 -> A..Z, 26...26^2+26 -> Aa..Zz, 26^2+26...26^3+26^2+26 -> Aaa..Zzz`
+    */
+  def suffix(c0: Int): String = {
     assert(c0 >= 0)
     var c = c0
+    var doNext = true
     val res = new StringBuilder
-    while (c > 0) {
-      val start = if (c >= 26) 'a' else 'A'
+    while (doNext) {
+      doNext = c >= 26
+      val start = if (doNext) 'a' else 'A'
       res += (start + c % 26).toChar
-      c /= 26
+      c = c / 26 - 1
     }
     res.reverseInPlace().toString
   }

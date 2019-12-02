@@ -25,15 +25,17 @@ object PPrinter {
           pprint.Tree.Apply("Entry", Iterator(
             pprint.Tree.Infix(pprinter.treeify(name.name), ":", pprinter.treeify(typ))
           ))
-      }) orElse syntax.PPrinter.handle(pprinter) orElse knorm.PPrinter.handle(pprinter),
+      }) orElse syntax.PPrinter.handle(pprinter) orElse knorm.PPrinter.handle(pprinter)
+        orElse arch.tig.PPrinter.handle(pprinter),
 
     defaultWidth = 130,
   )
 
   def writeTo(writer: java.io.PrintWriter, value: Any): Unit = {
-    for (str <- pprinter.tokenize(value)) {
+    for (str <- pprinter.tokenize(value, height = 10000)) {
       writer.write(str.toString)
     }
+    writer.println()
   }
 
   def pprintln(x: Any): Unit = pprinter.pprintln(x)

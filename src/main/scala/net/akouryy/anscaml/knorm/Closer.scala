@@ -18,13 +18,13 @@ class Closer {
 
   private[this] case object Global extends Scope
 
-  def apply(kn: KNorm): (List[(Entry, KClosed)], List[CFDef], KClosed) = {
+  def apply(kn: KNorm): KCProgram = {
     println("[KNorm Closer] Start")
     directFunctions.clear()
     globalConstsRev = Nil
     globalConstNames.clear()
     val cl = close(kn, Global)
-    (globalConstsRev.reverse, globalFunctionsRev.reverse, cl)
+    KCProgram(globalConstsRev.reverse, globalFunctionsRev.reverse, cl)
   }
 
   private[this] def indirectFVs(body: KNorm, localFns: Set[ID]): Set[ID] = {

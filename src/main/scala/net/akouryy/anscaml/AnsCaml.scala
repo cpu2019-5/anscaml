@@ -34,6 +34,10 @@ object AnsCaml {
 
     val dbg = new java.io.PrintWriter("../dbg.txt")
     PPrinter.writeTo(dbg, cl)
+
+    val asm = new arch.tig.Specializer()(cl)
+
+    PPrinter.writeTo(dbg, asm)
     dbg.close()
 
     val t = System.nanoTime() - startTime
