@@ -9,9 +9,9 @@ class GraphDrawer {
     res.clear()
     res ++=
     """digraph Program {
-      |graph [fontname = "Monaco", fontsize="10"];
-      |node [shape = box, fontname = "Monaco", fontsize="10"];
-      |edge [fontname = "Monaco", fontsize="10"];
+      |graph [fontname = "Monaco", fontsize = 13, ranksep = 0.5];
+      |node [shape = box, fontname = "Monaco", fontsize = 12];
+      |edge [fontname = "Monaco", fontsize = 12];
       |""".stripMargin
 
     for (f <- p.functions) {

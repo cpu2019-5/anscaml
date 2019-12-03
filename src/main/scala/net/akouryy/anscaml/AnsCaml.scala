@@ -35,6 +35,8 @@ object AnsCaml {
 
     val asm = new arch.tig.Specializer()(cl)
 
+    arch.tig.optimize.Optimizer(config.optimizationCount, asm)
+
     val dbg = new java.io.PrintWriter("../dbg.txt")
     // PPrinter.writeTo(dbg, cl)
     dbg.close()
