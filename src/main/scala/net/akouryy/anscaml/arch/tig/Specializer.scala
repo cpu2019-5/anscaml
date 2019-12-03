@@ -127,7 +127,7 @@ class Specializer {
           case asm.TyUnit => asm.Nop
           case _ => asm.Mv(x)
         })
-      case KNorm.KTuple(Nil) => currentLines += Line(AReg.REG_DUMMY, asm.Nop)
+      case KNorm.KTuple(Nil) => // currentLines += Line(AReg.REG_DUMMY, asm.Nop)
       case KNorm.KTuple(elems) =>
         var i = 0
         for (elem <- elems) {
@@ -190,13 +190,10 @@ class Specializer {
         val l = wrapVar(left)
         val r = wrapVar(right)
         val condJumpIndex = JumpIndex.generate()
-        val mergeJumpIndex = JumpIndex.generate()
         val branchingBlockIndex = currentBlockIndex
-
         // 各分岐先は1つ以上のブロックから構成されるが、その先頭ブロック
         val trueStartBlockIndex = BlockIndex.generate()
         val falseStartBlockIndex = BlockIndex.generate()
-        val kontBlockIndex = BlockIndex.generate()
         val trueDest = AVar.generate(ID.generate().name)
         val falseDest = AVar.generate(ID.generate().name)
 
@@ -217,16 +214,23 @@ class Specializer {
         specializeExpr(trueDest, tru)
         // 真分岐の最後のブロックを登録
         val trueLastBlockIndex = currentBlockIndex
-        currentChart.blocks(trueLastBlockIndex) =
-          asm.Block(trueLastBlockIndex, currentLines.toList, currentInputJumpIndex, mergeJumpIndex)
+        val trueLastBlockLines = currentLines.toList
+        val trueLastBlockInputIndex = currentInputJumpIndex
 
         // 偽分岐
         currentBlockIndex = falseStartBlockIndex
         currentInputJumpIndex = condJumpIndex
         currentLines.clear()
-        specializeExpr(falseDest, tru)
+        specializeExpr(falseDest, fls)
         // 偽分岐の最後のブロックを登録
         val falseLastBlockIndex = currentBlockIndex
+
+        // 双方の分岐先のspecializeが終わった後に後続のIndex生成
+        val mergeJumpIndex = JumpIndex.generate()
+        val kontBlockIndex = BlockIndex.generate()
+
+        currentChart.blocks(trueLastBlockIndex) =
+          asm.Block(trueLastBlockIndex, trueLastBlockLines, trueLastBlockInputIndex, mergeJumpIndex)
         currentChart.blocks(falseLastBlockIndex) =
           asm.Block(falseLastBlockIndex, currentLines.toList, currentInputJumpIndex, mergeJumpIndex)
 

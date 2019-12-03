@@ -10,7 +10,13 @@ final case class Program(gcSize: Int, tyEnv: Map[AVar, Ty], functions: List[FDef
 
 final case class FDef(name: LabelID, args: List[ID], body: Chart, typ: Fn)
 
-final case class BlockIndex(index: Int)
+final case class BlockIndex(index: Int) extends Ordered[BlockIndex] {
+  override def toString: String = s"Block$index"
+
+  // import scala.math.Ordered.orderingToOrdered
+
+  def compare(that: BlockIndex): Int = index compare that.index
+}
 
 object BlockIndex {
   private[this] var cnt = -1
@@ -21,7 +27,13 @@ object BlockIndex {
   }
 }
 
-final case class JumpIndex(index: Int)
+final case class JumpIndex(index: Int) extends Ordered[JumpIndex] {
+  override def toString: String = s"Jump$index"
+
+  // import scala.math.Ordered.orderingToOrdered
+
+  def compare(that: JumpIndex): Int = index compare that.index
+}
 
 object JumpIndex {
   private[this] var cnt = -1
@@ -34,8 +46,8 @@ object JumpIndex {
 
 /** フローチャート。whileやfor構文がないためDAG */
 final class Chart {
-  val blocks: mutable.Map[BlockIndex, Block] = mutable.LinkedHashMap()
-  val jumps: mutable.Map[JumpIndex, Jump] = mutable.LinkedHashMap()
+  val blocks: mutable.SortedMap[BlockIndex, Block] = mutable.SortedMap[BlockIndex, Block]()
+  val jumps: mutable.SortedMap[JumpIndex, Jump] = mutable.SortedMap[JumpIndex, Jump]()
 }
 
 /** 基本ブロック */

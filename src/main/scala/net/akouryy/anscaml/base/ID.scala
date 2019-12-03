@@ -29,7 +29,7 @@ object ID {
 
   def generate(): ID = {
     cnt += 1
-    ID(s"$$tmp$cnt")
+    ID(s"$$t${suffix(cnt)}")
   }
 
   private[this] val cntMap = mutable.Map[ID, Int]()

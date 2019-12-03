@@ -1,7 +1,8 @@
 package net.akouryy.anscaml
 
-import scala.io.Source
 import base._
+
+import scala.io.Source
 
 object AnsCaml {
   val VERSION = "2.0"
@@ -32,13 +33,15 @@ object AnsCaml {
 
     val cl = new knorm.Closer()(ko)
 
-    val dbg = new java.io.PrintWriter("../dbg.txt")
-    PPrinter.writeTo(dbg, cl)
-
     val asm = new arch.tig.Specializer()(cl)
 
-    PPrinter.writeTo(dbg, asm)
+    val dbg = new java.io.PrintWriter("../dbg.txt")
+    // PPrinter.writeTo(dbg, cl)
     dbg.close()
+
+    val dot = new java.io.PrintWriter("../dbg.dot")
+    dot.write(new arch.tig.GraphDrawer()(asm))
+    dot.close()
 
     val t = System.nanoTime() - startTime
     println(s"time: ${t / 1e9}s")

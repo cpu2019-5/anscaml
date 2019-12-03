@@ -11,6 +11,8 @@ sealed trait AID {
 
 final case class AVar(id: ID) extends AID {
   override val idStr: String = id.name
+
+  override def toString: String = id.name
 }
 
 object AVar {
