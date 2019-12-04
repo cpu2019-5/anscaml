@@ -5,7 +5,7 @@ package optimize
 import asm._
 
 /**
-  * ==単独併合除去 (not implemented)==
+  * ==単独併合除去==
   * Mergeジャンプの入力が1つしかない場合上下のブロックを繋いで1つのブロックにする。
   *
   * ==定数分岐除去==
@@ -32,21 +32,43 @@ class JumpFolder {
     }
   }
 
+  private[this] def concatBlock(
+    c: Chart, bi0: BlockIndex, bi2: BlockIndex
+  ): Unit = {
+    val b0 = c.blocks(bi0)
+    val b2 = c.blocks(bi2)
+    c.blocks(bi0) = b0.copy(lines = b0.lines ::: b2.lines, output = b2.output)
+    c.blocks -= bi2
+    c.jumps(b2.output) = c.jumps(b2.output) match {
+      case _: StartFun => ???
+      case j: Return => j.copy(input = bi0)
+      case j: Condition => j.copy(input = bi0)
+      case j: Merge => j.copy(inputs =
+        j.inputs.map { case aid -> bi => aid -> (if (bi == bi2) bi0 else bi) }
+      )
+    }
+  }
+
   def apply(program: Program): Boolean = {
     var changed = false
 
     for (f <- program.functions) {
-      for {
-        Condition(ji1, syntax.CmpOp.Eq, AReg.REG_ZERO, C(i @ (0 | 1)), bi0, tbi2, fbi2)
-          <- f.body.jumps.valuesIterator
-      } {
-        changed = true
-        val toUse = if (i == 0) tbi2 else fbi2
-        val toRemove = if (i == 0) fbi2 else tbi2
+      f.body.jumps.valuesIterator.foreach {
+        case Condition(ji1, syntax.CmpOp.Eq, AReg.REG_ZERO, C(i @ (0 | 1)), bi0, tbi2, fbi2) =>
+          changed = true
+          val toUse = if (i == 0) tbi2 else fbi2
+          val toRemove = if (i == 0) fbi2 else tbi2
 
-        f.body.jumps(ji1) = Merge(ji1, List(AReg.REG_DUMMY -> bi0), AReg.REG_DUMMY, toUse)
+          f.body.jumps -= ji1
+          concatBlock(f.body, bi0, toUse)
 
-        removeBlock(f.body, toRemove)
+          removeBlock(f.body, toRemove)
+
+        case Merge(ji1, List(id0 -> bi0), id2, bi2) if id0 == id2 || id2 == AReg.REG_DUMMY =>
+          f.body.jumps -= ji1
+          concatBlock(f.body, bi0, bi2)
+
+        case _ =>
       }
     }
 
