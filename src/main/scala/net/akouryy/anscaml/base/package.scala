@@ -7,4 +7,8 @@ package object base {
       list.zip(that).map(fn.tupled)
   }
 
+  implicit class RichOption[A](val option: Option[A]) extends AnyVal {
+    def foldX[B](f: A => B, ifEmpty: => B): B = option.fold(ifEmpty)(f)
+  }
+
 }

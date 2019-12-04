@@ -10,6 +10,7 @@ object Optimizer {
       println(s"[TigOptimize] iteration $i")
       val changedER = EarlyReturn(asm)
       val changedMM = MergeMerge(asm)
+      val changedCF = new ImmediateFolder(asm)()
       if (!changedER && !changedMM) return
     }
   }

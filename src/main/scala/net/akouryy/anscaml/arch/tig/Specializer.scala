@@ -1,7 +1,7 @@
 package net.akouryy.anscaml
 package arch.tig
 
-import asm.{AID, AReg, AVar, BlockIndex, JumpIndex, Line, Ty}
+import asm.{AID, AReg, AVar, BlockIndex, C, JumpIndex, Line, Ty, V}
 import base._
 import knorm.KNorm
 import KNorm.{KCProgram, KClosed}
@@ -70,9 +70,9 @@ class Specializer {
           case GCInt(i) => asm.Mvi(i)
           case GCFloat(f) => asm.Fmvi(f)
           case GCArrayImm(addr, _, _) => asm.Mvi(addr)
-          case GCOther(addr, _) => asm.Loadi(AReg.REG_ZERO, addr)
+          case GCOther(addr, _) => asm.Load(AReg.REG_ZERO, C(addr))
         }
-        val x = AVar.generate(vv, "sp_wrap")
+        val x = AVar.generate(vv, "sp")
         tyEnv(x) = ty
         currentLines += Line(x, line)
         x
@@ -134,7 +134,7 @@ class Specializer {
           val e = wrapVar(elem)
           if (tyEnv(e) != asm.TyUnit) {
             i += 1
-            currentLines += Line(AReg.REG_DUMMY, asm.Storei(AReg.REG_HEAP, i, e))
+            currentLines += Line(AReg.REG_DUMMY, asm.Store(AReg.REG_HEAP, C(i), e))
           }
         }
         currentLines ++= Seq(
@@ -144,19 +144,19 @@ class Specializer {
       case KNorm.Array(len, elem) =>
         val l = wrapVar(len)
         val e = wrapVar(elem)
-        currentLines += Line(dest, asm.NewArray(l, e))
+        currentLines += Line(dest, asm.NewArray(V(l), e))
       case KNorm.Get(array, index) =>
         val a = wrapVar(array)
         val i = wrapVar(index)
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
-          currentLines += Line(dest, asm.Load(a, i))
+          currentLines += Line(dest, asm.Load(a, V(i)))
         }
       case KNorm.Put(array, index, value) =>
         val a = wrapVar(array)
         val i = wrapVar(index)
         val v = wrapVar(value)
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
-          currentLines += Line(AReg.REG_DUMMY, asm.Store(a, i, v))
+          currentLines += Line(AReg.REG_DUMMY, asm.Store(a, V(i), v))
         }
       case KNorm.ApplyDirect(fn, args) =>
         val as = args map wrapVar
@@ -178,7 +178,7 @@ class Specializer {
           if (elem.typ != Typ.TUnit) {
             i += 1
             tyEnv(v) = Ty(elem.typ)
-            currentLines += Line(v, asm.Loadi(b, i))
+            currentLines += Line(v, asm.Load(b, C(i)))
           } else {
             tyEnv(v) = asm.TyUnit
           }
@@ -203,7 +203,7 @@ class Specializer {
 
         // if分岐を登録
         currentChart.jumps(condJumpIndex) = asm.Condition(
-          condJumpIndex, op, l, r,
+          condJumpIndex, op, l, V(r),
           currentBlockIndex, trueStartBlockIndex, falseStartBlockIndex,
         )
 

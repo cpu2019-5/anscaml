@@ -11,17 +11,11 @@ final case class Mvi(value: Int) extends Instruction
 
 final case class Fmvi(value: Float) extends Instruction
 
-final case class NewArray(len: AID, elem: AID) extends Instruction
+final case class NewArray(len: VC, elem: AID) extends Instruction
 
-final case class NewArrayi(len: Int, elem: AID) extends Instruction
+final case class Store(addr: AID, index: VC, value: AID) extends Instruction
 
-final case class Store(addr: AID, index: AID, value: AID) extends Instruction
-
-final case class Storei(addr: AID, index: Int, value: AID) extends Instruction
-
-final case class Load(addr: AID, index: AID) extends Instruction
-
-final case class Loadi(addr: AID, index: Int) extends Instruction
+final case class Load(addr: AID, index: VC) extends Instruction
 
 final case class UnOpTree(op: UnOp, value: AID) extends Instruction
 

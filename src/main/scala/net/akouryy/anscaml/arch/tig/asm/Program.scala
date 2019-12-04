@@ -55,7 +55,9 @@ final case class Block(i: BlockIndex, lines: List[Line], input: JumpIndex, outpu
 
 final case class Line(dest: AID, inst: Instruction)
 
-sealed trait Jump
+sealed trait Jump {
+  val i: JumpIndex
+}
 
 final case class StartFun(i: JumpIndex, output: BlockIndex) extends Jump
 
@@ -63,7 +65,7 @@ final case class Return(i: JumpIndex, value: AID, input: BlockIndex) extends Jum
 
 final case class Condition(
   i: JumpIndex,
-  op: CmpOp, left: AID, right: AID,
+  op: CmpOp, left: AID, right: VC,
   input: BlockIndex, trueOutput: BlockIndex, falseOutput: BlockIndex
 ) extends Jump
 
