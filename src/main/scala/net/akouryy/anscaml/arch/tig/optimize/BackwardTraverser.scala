@@ -7,6 +7,9 @@ import base._
 
 import scala.collection.mutable
 
+/**
+  * グラフ構造を変えない最適化
+  */
 class BackwardTraverser {
   def apply(prog: Program): Boolean = {
     changed = false
@@ -32,7 +35,7 @@ class BackwardTraverser {
   : Boolean = {
     inst match {
       case Mv(value) =>
-        if(keep) {
+        if (keep) {
           use ++= value.aVarOpt
         }
         false
@@ -92,10 +95,21 @@ class BackwardTraverser {
         u ++= left.aVarOpt
         u ++= right.vOpt.flatMap(_.aVarOpt)
         u
-      case Merge(_, inputs, outputID, output) =>
+      case Merge(i, inputs, outputID, output) =>
         val u = useSets(output).to(mutable.Set)
-        u --= outputID.aVarOpt
-        u ++= inputs.find(_._2 == b.i).get._1.aVarOpt
+        if (outputID.aVarOpt.exists(!u.contains(_))) {
+          // outputID is not used
+          c.jumps(i) = Merge(
+            i,
+            inputs.map { case (aid, index) => (AReg.REG_DUMMY, index) },
+            AReg.REG_DUMMY,
+            output
+          )
+        } else {
+          // outputID is provably used
+          u --= outputID.aVarOpt
+          u ++= inputs.find(_._2 == b.i).get._1.aVarOpt
+        }
         u
     }
 

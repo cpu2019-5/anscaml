@@ -8,11 +8,13 @@ object Optimizer {
   def apply(iterationCount: Int, asm: Program): Unit = {
     for (i <- 0 until iterationCount) {
       println(s"[TigOptimize] iteration $i")
-      val changedER = EarlyReturn(asm)
-      val changedMM = MergeMerge(asm)
-      val changedCF = new ImmediateFolder(asm)()
-      val changedBT = new BackwardTraverser()(asm)
-      if (!changedER && !changedMM && !changedCF && !changedBT) return
+      val changed =
+        EarlyReturn(asm) | // 正格評価: 全最適化を実行
+        MergeMerge(asm) |
+        DistributeIf(asm) |
+        new ImmediateFolder(asm)() |
+        new BackwardTraverser()(asm)
+      if (!changed) return
     }
   }
 }

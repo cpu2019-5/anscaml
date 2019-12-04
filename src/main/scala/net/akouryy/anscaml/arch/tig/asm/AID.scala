@@ -34,9 +34,9 @@ final case class AReg(id: Int) extends AID {
 
   assert(-1 <= id && id < REG_SIZE)
 
-  override val idStr: String = s"$$reg$id"
+  override val idStr: String = if (id == -1) "$reg_x" else s"$$reg$id"
 
-  override def toString: String = s"%r$id"
+  override def toString: String = if (id == -1) "%rx" else s"%r$id"
 }
 
 object AReg {

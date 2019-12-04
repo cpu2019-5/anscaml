@@ -10,37 +10,43 @@ final case class Program(gcSize: Int, tyEnv: Map[AVar, Ty], functions: List[FDef
 
 final case class FDef(name: LabelID, args: List[ID], body: Chart, typ: Fn)
 
-final case class BlockIndex(index: Int) extends Ordered[BlockIndex] {
-  override def toString: String = s"Block$index"
+final case class BlockIndex(indices: List[Int]) extends Ordered[BlockIndex] {
+  override def toString: String = s"Block$indexString"
 
-  // import scala.math.Ordered.orderingToOrdered
+  def indexString: String = indices.mkString("_")
 
-  def compare(that: BlockIndex): Int = index compare that.index
+  import Ordering.Implicits._
+
+  def compare(that: BlockIndex): Int =
+    implicitly[Ordering[List[Int]]].compare(indices, that.indices)
 }
 
 object BlockIndex {
   private[this] var cnt = -1
 
-  def generate(): BlockIndex = {
+  def generate(prefix: BlockIndex = BlockIndex(Nil)): BlockIndex = {
     cnt += 1
-    BlockIndex(cnt)
+    BlockIndex(prefix.indices :+ cnt) // O(n)
   }
 }
 
-final case class JumpIndex(index: Int) extends Ordered[JumpIndex] {
-  override def toString: String = s"Jump$index"
+final case class JumpIndex(indices: List[Int]) extends Ordered[JumpIndex] {
+  override def toString: String = s"Jump$indexString"
 
-  // import scala.math.Ordered.orderingToOrdered
+  def indexString: String = indices.mkString("_")
 
-  def compare(that: JumpIndex): Int = index compare that.index
+  import Ordering.Implicits._
+
+  def compare(that: JumpIndex): Int = implicitly[Ordering[List[Int]]].compare(indices, that.indices)
+
 }
 
 object JumpIndex {
   private[this] var cnt = -1
 
-  def generate(): JumpIndex = {
+  def generate(prefix: JumpIndex = JumpIndex(Nil)): JumpIndex = {
     cnt += 1
-    JumpIndex(cnt)
+    JumpIndex(prefix.indices :+ cnt) // O(n)
   }
 }
 

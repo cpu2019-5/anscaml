@@ -25,11 +25,11 @@ class GraphDrawer {
         res ++= (j match {
           case asm.StartFun(i, ob) =>
             val args = f.args.map(_.str).mkString(", ")
-            s"""$i[label = "StartFun.${i.index}"; shape = box3d];
+            s"""$i[label = "StartFun.${i.indexString}"; shape = box3d];
                |$i -> $ob [label = "($args)"];
                |""".stripMargin
           case asm.Return(i, v, ib) =>
-            s"""$i[label = "Return.${i.index}"; shape = box3d];
+            s"""$i[label = "Return.${i.indexString}"; shape = box3d];
                |$ib -> $i [label="$v"];
                |""".stripMargin
           case asm.Condition(i, op, l, r, ib, tob, fob) =>
@@ -44,7 +44,7 @@ class GraphDrawer {
           case asm.Merge(i, inputs, v, ob) =>
             val inputEdges =
               inputs.map(ib => s"""${ib._2} -> $i [label="${ib._1}"];""").mkString
-            s"""$i[label = "Merge.${i.index}"; shape = box; style = rounded];
+            s"""$i[label = "Merge.${i.indexString}"; shape = box; style = rounded];
                |$inputEdges
                |$i -> $ob [label="$v"];
                |""".stripMargin
