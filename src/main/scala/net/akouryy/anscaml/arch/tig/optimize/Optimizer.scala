@@ -9,7 +9,8 @@ object Optimizer {
     for (i <- 0 until iterationCount) {
       println(s"[TigOptimize] iteration $i")
       val changedER = EarlyReturn(asm)
-      if (!changedER) return
+      val changedMM = MergeMerge(asm)
+      if (!changedER && !changedMM) return
     }
   }
 }

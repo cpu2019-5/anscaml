@@ -52,13 +52,11 @@ class GraphDrawer {
 
       for (asm.Block(i, lines, _, _) <- f.body.blocks.valuesIterator) {
         if (lines.isEmpty) {
-          res ++= s"""$i [label = "$i\nempty"]"""
-        } else if (lines.sizeIs <= 20) {
-          val ls = lines.map(l => s"${l.dest} = ${l.inst}").mkString("\n")
-          res ++= s"""$i [label = "$i\n-----\n$ls"]"""
-        }
-        else {
-          res ++= s"""$i [label = "$i\n(略)"]"""
+          res ++= s"""$i [label = "$i\\l(0行)"]"""
+        } else {
+          val ls = lines.take(15).map(l => s"${l.dest} = ${l.inst}").mkString("\\l")
+          val msg = if (lines.sizeIs <= 15) "" else s"略\\l"
+          res ++= s"""$i [label = "$i (${lines.size}行)\\l-----\\l$ls\\l$msg"]"""
         }
       }
 
