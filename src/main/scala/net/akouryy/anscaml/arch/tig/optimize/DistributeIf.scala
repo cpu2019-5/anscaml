@@ -4,8 +4,6 @@ package optimize
 
 import asm._
 
-import scala.collection.mutable
-
 /**
   * before
   * {{{
@@ -37,15 +35,21 @@ import scala.collection.mutable
   * }}}
   */
 object DistributeIf {
-  def apply(program: Program): Boolean = {
+  def apply(program: Program, useSets: Map[BlockIndex, Set[AVar]]): Boolean = {
     var changed = false
     for (f <- program.functions) {
       for {
         Condition(ji3, op, left, right, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
         Block(_, Nil, ji1, _) <- f.body.blocks.get(bi2).orElse(???)
-        Merge(_, inputs1, outputID1, _) <- f.body.jumps.get(ji1).orElse(???)
-        if outputID1 == left // TODO: outputID1がtbi4やfbi4で使われていると面倒だから弾く
+        Merge(_, inputs1, outputID1: AVar, _) <- f.body.jumps.get(ji1).orElse(???)
+        if outputID1 == left &&
+           !useSets.get(tbi4).exists(_ contains outputID1) &&
+           !useSets.get(fbi4).exists(_ contains outputID1)
       } {
+        val _ = outputID1 // scala/bug#11175 unused var false positive
+
+        changed = true
+
         var truInputList = List[(AID, BlockIndex)]()
         var flsInputList = List[(AID, BlockIndex)]()
         val truMergeIndex = JumpIndex.generate(ji3)
@@ -67,8 +71,8 @@ object DistributeIf {
           flsInputList ::= (aid0, flsGlueIndex)
         }
 
-        f.body.jumps(truMergeIndex) = Merge(truMergeIndex, truInputList, outputID1, tbi4)
-        f.body.jumps(flsMergeIndex) = Merge(flsMergeIndex, flsInputList, outputID1, fbi4)
+        f.body.jumps(truMergeIndex) = Merge(truMergeIndex, truInputList, AReg.REG_DUMMY, tbi4)
+        f.body.jumps(flsMergeIndex) = Merge(flsMergeIndex, flsInputList, AReg.REG_DUMMY, fbi4)
 
         f.body.blocks(tbi4) = f.body.blocks(tbi4).copy(input = truMergeIndex)
         f.body.blocks(fbi4) = f.body.blocks(fbi4).copy(input = flsMergeIndex)

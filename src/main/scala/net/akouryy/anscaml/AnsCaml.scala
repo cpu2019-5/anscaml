@@ -27,6 +27,10 @@ object AnsCaml {
 
     val kn = knorm.Converter(astTyped)
 
+    val dbg = new java.io.PrintWriter("../dbg.txt")
+    PPrinter.writeTo(dbg, kn)
+    dbg.close()
+
     val alpha = knorm.Alpha(kn)
 
     val ko = knorm.optimize.Optimizer(config.optimizationCount, alpha)
@@ -35,11 +39,11 @@ object AnsCaml {
 
     val asm = new arch.tig.Specializer()(cl)
 
-    arch.tig.optimize.Optimizer(config.optimizationCount, asm)
+    val rawDot = new java.io.PrintWriter("../raw.dot")
+    rawDot.write(new arch.tig.GraphDrawer()(asm))
+    rawDot.close()
 
-    val dbg = new java.io.PrintWriter("../dbg.txt")
-    // PPrinter.writeTo(dbg, cl)
-    dbg.close()
+    arch.tig.optimize.Optimizer(config.optimizationCount, asm)
 
     val dot = new java.io.PrintWriter("../dbg.dot")
     dot.write(new arch.tig.GraphDrawer()(asm))

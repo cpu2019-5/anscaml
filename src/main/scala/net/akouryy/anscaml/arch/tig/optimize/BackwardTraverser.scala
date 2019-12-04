@@ -11,15 +11,19 @@ import scala.collection.mutable
   * グラフ構造を変えない最適化
   */
 class BackwardTraverser {
-  def apply(prog: Program): Boolean = {
+  def apply(prog: Program): (Boolean, Map[BlockIndex, Set[AVar]]) = {
     changed = false
     useSets.clear()
 
     for (f <- prog.functions) {
       f.body.blocks.values.toSeq.reverseIterator.foreach(traverseBlock(f.body)) // TODO: reverse
+      val free = useSets(f.body.blocks.firstKey) -- f.args.map(AVar(_))
+      if (free.nonEmpty) {
+        println(s"[Tig BackwardTraverser] free variables $free found.")
+      }
     }
 
-    changed
+    (changed, useSets.toMap)
   }
 
   private[this] var changed = false
@@ -101,7 +105,7 @@ class BackwardTraverser {
           // outputID is not used
           c.jumps(i) = Merge(
             i,
-            inputs.map { case (aid, index) => (AReg.REG_DUMMY, index) },
+            inputs.map { case (_, index) => (AReg.REG_DUMMY, index) },
             AReg.REG_DUMMY,
             output
           )

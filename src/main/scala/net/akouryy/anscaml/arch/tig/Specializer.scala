@@ -55,6 +55,7 @@ class Specializer {
   }
 
   private[this] val tyEnv = mutable.Map[AVar, Ty]()
+  private[this] val fnTypEnv = mutable.Map[ID, Typ]()
 
   private[this] var currentChart: asm.Chart = _
   private[this] var currentBlockIndex: asm.BlockIndex = _
@@ -127,7 +128,7 @@ class Specializer {
           case asm.TyUnit => asm.Nop
           case _ => asm.Mv(x)
         })
-      case KNorm.KTuple(Nil) => // currentLines += Line(AReg.REG_DUMMY, asm.Nop)
+      case KNorm.KTuple(Nil) => assert(dest == AReg.REG_DUMMY)
       case KNorm.KTuple(elems) =>
         var i = 0
         for (elem <- elems) {
@@ -152,6 +153,7 @@ class Specializer {
           currentLines += Line(dest, asm.Load(a, V(i)))
         }
       case KNorm.Put(array, index, value) =>
+        assert(dest == AReg.REG_DUMMY)
         val a = wrapVar(array)
         val i = wrapVar(index)
         val v = wrapVar(value)
@@ -159,12 +161,23 @@ class Specializer {
           currentLines += Line(AReg.REG_DUMMY, asm.Store(a, V(i), v))
         }
       case KNorm.ApplyDirect(fn, args) =>
+        val Typ.TFun(argsTyp, retTyp) =
+          if (fn.name.startsWith("$ext_"))
+            typ.Constrainer.ExtEnv(ID(fn.name.substring(5)))
+          else
+            fnTypEnv(ID(fn.name))
+        if (retTyp == Typ.TUnit) {
+          assert(dest == AReg.REG_DUMMY)
+        }
         val as = args map wrapVar
         specializeInlineStdlib(dest, fn, as) match {
           case Nil => currentLines += Line(dest, asm.CallDir(fn, as)) // no stdlib
           case lines => currentLines ++= lines
         }
       case KNorm.ApplyClosure(_, _) => ???
+      case KNorm.CLet(Entry(_, typ.Typ.TUnit), bound, kont) =>
+        specializeExpr(AReg.REG_DUMMY, bound)
+        specializeExpr(dest, kont)
       case KNorm.CLet(entry, bound, kont) =>
         val v = AVar(entry.name)
         specializeExpr(v, bound)
@@ -194,8 +207,8 @@ class Specializer {
         // 各分岐先は1つ以上のブロックから構成されるが、その先頭ブロック
         val trueStartBlockIndex = BlockIndex.generate()
         val falseStartBlockIndex = BlockIndex.generate()
-        val trueDest = AVar.generate(ID.generate().str)
-        val falseDest = AVar.generate(ID.generate().str)
+        val trueDest, falseDest =
+          if (dest == AReg.REG_DUMMY) dest else AVar.generate(ID.generate().str)
 
         // ifの前のブロックを登録
         currentChart.blocks(branchingBlockIndex) =
@@ -251,6 +264,7 @@ class Specializer {
 
   private[this] def specializeFDef(cFDef: KNorm.CFDef, handleGC: Boolean): asm.FDef = {
     tyEnv ++= cFDef.args.map(e => AVar(e.name) -> Ty(e.typ))
+    val fnTyp = asm.Fn.fromTyp(cFDef.entry.typ)
 
     currentChart = new asm.Chart
     currentBlockIndex = asm.BlockIndex.generate()
@@ -262,7 +276,9 @@ class Specializer {
 
     currentInputJumpIndex = startFunJumpIndex
     currentLines.clear()
-    val retVar = AVar.generate(s"${cFDef.entry.name.str}$$ret")
+    val retVar =
+      if (fnTyp.ret == asm.TyUnit) AReg.REG_DUMMY
+      else AVar.generate(s"${cFDef.entry.name.str}$$ret")
     specializeExpr(retVar, cFDef.body)
 
     // 最後のブロックとその後のReturnジャンプを登録
@@ -275,12 +291,16 @@ class Specializer {
       LabelID(cFDef.entry.name.str),
       cFDef.args.map(_.name),
       currentChart,
-      asm.Fn.fromTyp(cFDef.entry.typ),
+      fnTyp,
     )
   }
 
   def apply(cl: KCProgram): asm.Program = {
     loadGConsts(cl.gConsts)
+
+    fnTypEnv.clear()
+
+    fnTypEnv ++= cl.fDefs.map(_.entry.toPair)
 
     val fDefs = cl.fDefs.map(specializeFDef(_, handleGC = false))
 

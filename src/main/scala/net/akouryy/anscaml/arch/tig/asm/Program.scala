@@ -76,5 +76,15 @@ final case class Condition(
 ) extends Jump
 
 final case class Merge(
-  i: JumpIndex, inputs: List[(AID, BlockIndex)], outputID: AID, output: BlockIndex,
-) extends Jump
+  i: JumpIndex,
+  /*private var */ inputs: List[(AID, BlockIndex)],
+  outputID: AID,
+  output: BlockIndex,
+) extends Jump {
+  /*val inputs: List[(AID, BlockIndex)] =
+    if (outputID == AReg.REG_DUMMY)
+      _inputs.map { case (_, output) => (AReg.REG_DUMMY, output) }
+    else _inputs
+
+  _inputs = inputs*/
+}

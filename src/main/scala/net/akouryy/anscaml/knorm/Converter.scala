@@ -96,21 +96,25 @@ object Converter {
         val envWithFn = env + newEntry.toPair
         val (_, be) = convert(envWithFn ++ newArgs.map(_.toPair), body)
         val (kt, ke) = convert(envWithFn, kont)
-        (kt, KNorm.LetRec(KNorm.FDef(newEntry, newArgs, KNorm(be), noInline), KNorm(ke)))
+
+        val Typ.TFun(argsTyp, retTyp) = newEntry.typ
+        val kEntry = newEntry.copy(typ = Typ.TFun(argsTyp.filter(_ != Typ.TUnit), retTyp))
+        val filteredArgs = newArgs.filter(_.typ != Typ.TUnit)
+        (kt, KNorm.LetRec(KNorm.FDef(kEntry, filteredArgs, KNorm(be), noInline), KNorm(ke)))
       case Apply(Var(fn), args) if !(env contains fn) =>
         val Typ.TFun(_, retTyp) = typ.Constrainer.ExtEnv(fn)
         for {
-          (xs, _) <- insertMulti(args, env)
+          (xs, env2) <- insertMulti(args, env)
         } yield {
-          (retTyp, KNorm.ApplyExternal(fn, xs))
+          (retTyp, KNorm.ApplyExternal(fn, xs.filter(x => env2(x) != Typ.TUnit)))
         }
       case Apply(fn, args) =>
         val fnr @ (Typ.TFun(_, retTyp), _) = convert(env, fn): @unchecked
         for {
           (x, env2) <- insert(fnr, env)
-          (ys, _) <- insertMulti(args, env2)
+          (ys, env3) <- insertMulti(args, env2)
         } yield {
-          (retTyp, KNorm.Apply(x, ys))
+          (retTyp, KNorm.Apply(x, ys.filter(y => env3(y) != Typ.TUnit)))
         }
       case Tuple(es) =>
         for ((xs, env2) <- insertMulti(es, env)) yield (
