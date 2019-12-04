@@ -46,9 +46,18 @@ object AReg {
 
   val REG_DUMMY = AReg(-1)
   val REG_ZERO = AReg(0)
-  val REG_MINUS1 = AReg(27)
+  val REG_ONE = AReg(26)
+  val REG_MINUS_ONE = AReg(27)
   val REG_TMP = AReg(28)
   val REG_HEAP = AReg(29)
   val REG_STACK = AReg(30)
   val REG_LINK = AReg(31)
+
+  val fromConstants: Map[Int, AReg] = Map(
+    0 -> REG_ZERO,
+    1 -> REG_ONE,
+    -1 -> REG_MINUS_ONE,
+  )
+
+  val toConstants: Map[AReg, Int] = fromConstants.map(_.swap)
 }

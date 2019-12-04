@@ -28,3 +28,5 @@ case object Fsub extends BinOpV
 case object Fmul extends BinOpV
 
 case object Fdiv extends BinOpV
+
+case object FnegCond extends BinOpV

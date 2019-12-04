@@ -53,9 +53,11 @@ class ImmediateFolder(prog: Program) {
           l.dest match {
             case _: AReg => // pass
             case dest: AVar =>
-              if (r == AReg.REG_ZERO) { // TODO: constReg判定
-                constRegEnv(dest) = r
-                immEnv(dest) = 0
+              AReg.toConstants.get(r) match {
+                case Some(i) =>
+                  constRegEnv(dest) = r
+                  immEnv(dest) = i
+                case None => // pass
               }
           }
           None
@@ -64,8 +66,9 @@ class ImmediateFolder(prog: Program) {
             case _: AReg => // pass
             case dest: AVar =>
               immEnv(dest) = i
-              if (i == 0) { // TODO: constReg判定
-                constRegEnv(dest) = AReg.REG_ZERO
+              AReg.fromConstants.get(i) match {
+                case Some(r) => constRegEnv(dest) = r
+                case None => // pass
               }
           }
           None
@@ -73,9 +76,11 @@ class ImmediateFolder(prog: Program) {
           l.dest match {
             case _: AReg => // pass
             case dest: AVar =>
-              if(f == 0.0) { // TODO: constReg判定
-                immEnv(dest) = 0
-                constRegEnv(dest) = AReg.REG_ZERO
+              val i = java.lang.Float.floatToRawIntBits(f)
+              immEnv(dest) = i
+              AReg.fromConstants.get(i) match {
+                case Some(r) => constRegEnv(dest) = r
+                case None => // pass
               }
           }
           None
@@ -88,7 +93,7 @@ class ImmediateFolder(prog: Program) {
         case Nop | Read => None
         case Write(value) => Some(Write(wrapAID(value)))
         case CallDir(fn, args) => Some(CallDir(fn, args.map(wrapAID)))
-        case Save(_, _) | Restore(_) => None // TODO: ちゃんと考える
+        case Save(_, _) | Restore(_) => ???
       }
       newInst match {
         case Some(i) if i != l.inst =>

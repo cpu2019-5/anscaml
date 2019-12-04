@@ -53,11 +53,17 @@ class GraphDrawer {
 
       for (asm.Block(i, lines, _, _) <- f.body.blocks.valuesIterator) {
         if (lines.isEmpty) {
-          res ++= s"""$i [label = "$i\\l(0行)"]"""
+          res ++= s"""$i [label = "$i\\l(0行)"]""" + "\n"
         } else {
-          val ls = lines.take(15).map(l => s"${l.dest} = ${l.inst}").mkString("\\l")
-          val msg = if (lines.sizeIs <= 15) "" else s"略\\l"
-          res ++= s"""$i [label = "$i (${lines.size}行)\\l-----\\l$ls\\l$msg"]"""
+          val ls = lines.take(10).map(l => s"${l.dest} = ${l.inst}").mkString("\\l")
+          if (lines.sizeIs <= 10) {
+            res ++= s"""$i [label = "$i (${lines.size}行)\\l-----\\l$ls\\l"]""" + "\n"
+          } else {
+            val lsx = lines.map(l => s"${l.dest} = ${l.inst}").mkString("\\l")
+            res ++=
+            s"""$i [label = "$i (${lines.size}行)\\l-----\\l$ls\\l(略)"; tooltip = "$lsx"]
+               |""".stripMargin
+          }
         }
       }
 

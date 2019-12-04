@@ -87,7 +87,9 @@ class Specializer {
     (fn.name, args) match {
       case ("$ext_print_char", List(x)) => List(Line(dest, asm.Write(x)))
       case ("$ext_read_char", List()) => List(Line(dest, asm.Read))
-      case ("$ext_fneg", List(x)) => List(Line(dest, asm.BinOpVTree(asm.Fsub, AReg.REG_ZERO, x)))
+      case ("$ext_fneg", List(x)) =>
+        List(Line(dest, asm.BinOpVTree(asm.FnegCond, x, AReg.REG_MINUS_ONE)))
+      case ("$ext_fabs", List(x)) => List(Line(dest, asm.BinOpVTree(asm.FnegCond, x, x)))
       case ("$ext_fsqr", List(x)) => List(Line(dest, asm.BinOpVTree(asm.Fmul, x, x)))
       case ("$ext_fhalf", List(x)) =>
         val half = AVar.generate("half")
