@@ -55,12 +55,12 @@ class Closer {
       case raw: KCRaw => KClosed(norm.comment, raw)
       case Apply(fn, args) =>
         if (directFunctions contains fn) {
-          KClosed(norm.comment, ApplyDirect(LabelID(fn.name), args))
+          KClosed(norm.comment, ApplyDirect(LabelID(fn.str), args))
         } else {
           KClosed(norm.comment, ApplyClosure(fn, args))
         }
       case ApplyExternal(fn, args) =>
-        KClosed(norm.comment, ApplyDirect(LabelID(s"$$ext_${fn.name}"), args))
+        KClosed(norm.comment, ApplyDirect(LabelID(s"$$ext_${fn.str}"), args))
       case IfCmp(op, left, right, tru, fls) =>
         KClosed(norm.comment, CIfCmp(op, left, right, close(tru, Local), close(fls, Local)))
       case Let(entry, bound, kont) =>

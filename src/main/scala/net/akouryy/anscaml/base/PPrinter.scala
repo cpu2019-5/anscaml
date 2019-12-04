@@ -23,7 +23,7 @@ object PPrinter {
 
         case Entry(name, typ) =>
           pprint.Tree.Apply("Entry", Iterator(
-            pprint.Tree.Infix(pprinter.treeify(name.name), ":", pprinter.treeify(typ))
+            pprint.Tree.Infix(pprinter.treeify(name.str), ":", pprinter.treeify(typ))
           ))
       }) orElse syntax.PPrinter.handle(pprinter) orElse knorm.PPrinter.handle(pprinter)
         orElse arch.tig.PPrinter.handle(pprinter),

@@ -37,7 +37,7 @@ class TypFolder {
       case Apply(fn, List(arg)) =>
         (fnEnv.get(fn), typEnv.get(arg)) match {
           case (Some(fDef), Some(Typ.TInt(Lit.List(s)))) /*if s.sizeIs >= 2*/ =>
-            println(s"[KOptimize TypFolder] fold ${fn.name} for ${arg.name} in {${
+            println(s"[KOptimize TypFolder] fold ${fn.str} for ${arg.str} in {${
               s.mkString(",")
             }}")
             // TODO: 二分探索?
@@ -49,7 +49,7 @@ class TypFolder {
                   Entry(a, Typ.TInt(Lit.List[Primitives.PInt](Set(lit)))),
                   KNorm(KInt(lit)),
                   KNorm(
-                    body.comment :+ s"[KO TypFolder] fold ${fn.name}($arg = $lit)",
+                    body.comment :+ s"[KO TypFolder] fold ${fn.str}($arg = $lit)",
                     body.raw
                   )
                 ))
@@ -60,7 +60,7 @@ class TypFolder {
                   Entry(a, Typ.TInt(Lit.List[Primitives.PInt](Set(lit)))),
                   KNorm(KInt(lit)),
                   KNorm(
-                    Commented(s"[KO TypFolder] fold ${fn.name}($arg = $lit)"),
+                    Commented(s"[KO TypFolder] fold ${fn.str}($arg = $lit)"),
                     IfCmp(
                       syntax.CmpOp.Eq, arg, a,
                       body,

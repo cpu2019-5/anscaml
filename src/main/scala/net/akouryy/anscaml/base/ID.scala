@@ -5,7 +5,7 @@ import typ.Typ
 
 import scala.collection.mutable
 
-final case class ID(name: String)
+final case class ID(str: String)
 
 object ID {
   /**
@@ -32,12 +32,20 @@ object ID {
     ID(s"$$${suffix(cnt)}")
   }
 
-  private[this] val cntMap = mutable.Map[ID, Int]()
+  private[this] val cntMap = mutable.Map[String, Int]()
+
+  private[this] val TempRegex = """^\$[A-Z][a-z]*$""".r
+  private[this] val SuffixedRegex = """^([\w$]+)[A-Z][a-z]*$""".r
 
   def generate(id: ID): ID = {
-    val c = cntMap.getOrElse(id, -1) + 1
-    cntMap(id) = c
-    ID(s"${id.name}${suffix(c)}")
+    val str = id.str match {
+      case TempRegex() => id.str
+      case SuffixedRegex(str) => str
+      case _ => id.str
+    }
+    val c = cntMap.getOrElse(str, -1) + 1
+    cntMap(str) = c
+    ID(s"${str}${suffix(c)}")
   }
 }
 

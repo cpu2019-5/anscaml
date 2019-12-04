@@ -52,7 +52,7 @@ class Inliner {
       val fDef = bodyEnv(fn)
       val body = Alpha.convert(fDef.body, fDef.args.map(_.name).zip(args).toMap)
       KNorm(
-        kn.comment + body.comment :+ s"[KO Inliner] ${fn.name} in ${scopeFn.name}",
+        kn.comment + body.comment :+ s"[KO Inliner] ${fn.str} in ${scopeFn.str}",
         body.raw
       )
     case _ => kn

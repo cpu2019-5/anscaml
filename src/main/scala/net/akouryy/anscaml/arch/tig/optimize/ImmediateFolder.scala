@@ -69,7 +69,16 @@ class ImmediateFolder(prog: Program) {
               }
           }
           None
-        case Fmvi(_) => None // TODO
+        case Fmvi(f) =>
+          l.dest match {
+            case _: AReg => // pass
+            case dest: AVar =>
+              if(f == 0.0) { // TODO: constReg判定
+                immEnv(dest) = 0
+                constRegEnv(dest) = AReg.REG_ZERO
+              }
+          }
+          None
         case NewArray(len, elem) => Some(NewArray(wrapVC(len), wrapAID(elem)))
         case Store(addr, index, value) => Some(Store(wrapAID(addr), wrapVC(index), wrapAID(value)))
         case Load(addr, index) => Some(Load(wrapAID(addr), wrapVC(index)))

@@ -11,7 +11,8 @@ object Optimizer {
       val changedER = EarlyReturn(asm)
       val changedMM = MergeMerge(asm)
       val changedCF = new ImmediateFolder(asm)()
-      if (!changedER && !changedMM) return
+      val changedBT = new BackwardTraverser()(asm)
+      if (!changedER && !changedMM && !changedCF && !changedBT) return
     }
   }
 }

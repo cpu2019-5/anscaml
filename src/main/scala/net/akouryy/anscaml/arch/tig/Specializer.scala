@@ -194,8 +194,8 @@ class Specializer {
         // 各分岐先は1つ以上のブロックから構成されるが、その先頭ブロック
         val trueStartBlockIndex = BlockIndex.generate()
         val falseStartBlockIndex = BlockIndex.generate()
-        val trueDest = AVar.generate(ID.generate().name)
-        val falseDest = AVar.generate(ID.generate().name)
+        val trueDest = AVar.generate(ID.generate().str)
+        val falseDest = AVar.generate(ID.generate().str)
 
         // ifの前のブロックを登録
         currentChart.blocks(branchingBlockIndex) =
@@ -262,7 +262,7 @@ class Specializer {
 
     currentInputJumpIndex = startFunJumpIndex
     currentLines.clear()
-    val retVar = AVar.generate(s"${cFDef.entry.name.name}$$ret")
+    val retVar = AVar.generate(s"${cFDef.entry.name.str}$$ret")
     specializeExpr(retVar, cFDef.body)
 
     // 最後のブロックとその後のReturnジャンプを登録
@@ -272,7 +272,7 @@ class Specializer {
     currentChart.jumps(returnJumpIndex) = asm.Return(returnJumpIndex, retVar, currentBlockIndex)
 
     asm.FDef(
-      LabelID(cFDef.entry.name.name),
+      LabelID(cFDef.entry.name.str),
       cFDef.args.map(_.name),
       currentChart,
       asm.Fn.fromTyp(cFDef.entry.typ),

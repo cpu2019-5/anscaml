@@ -7,12 +7,18 @@ final case class AEntry(aid: AID, ty: Ty)
 
 sealed trait AID {
   val idStr: String
+
+  def aVarOpt: Option[AVar] = this match {
+    case v: AVar => Some(v)
+    case _: AReg => None
+  }
+
 }
 
 final case class AVar(id: ID) extends AID {
-  override val idStr: String = id.name
+  override val idStr: String = id.str
 
-  override def toString: String = id.name
+  override def toString: String = id.str
 }
 
 object AVar {
