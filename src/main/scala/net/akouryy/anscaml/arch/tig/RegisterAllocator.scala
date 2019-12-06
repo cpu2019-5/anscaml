@@ -7,12 +7,12 @@ import scala.collection.mutable
 
 class RegisterAllocator {
 
-  type IGraph = Map[AVar, Set[AVar]]
+  type IGraph = Map[XVar, Set[XVar]]
 
   private[this] var liveness: analyze.Liveness.Info = _
 
   private[this] def interferenceGraph(f: FDef): IGraph = {
-    val g = mutable.Map[AVar, Set[AVar]]().withDefault(_ => Set())
+    val g = mutable.Map[XVar, Set[XVar]]().withDefault(_ => Set())
     for {
       bi <- f.body.blocks.keysIterator
       live <- liveness(bi)
@@ -25,18 +25,18 @@ class RegisterAllocator {
 
   private[this] def allocateInFun(f: FDef, interference: IGraph): FDef = {
     val newChart = new Chart
-    val regEnv = AReg.VALID_REGS.map(r => (r: AID) -> r).to(mutable.Map)
+    val regEnv = XReg.VALID_REGS.map(r => (r: XID) -> r).to(mutable.Map)
 
-    def allocate(aid: AID): AReg = aid match {
-      case aid: AReg => aid
-      case v: AVar =>
+    def allocate(xid: XID): XReg = xid match {
+      case xid: XReg => xid
+      case v: XVar =>
         assert(!regEnv.contains(v))
         val used = interference.getOrElse(v, Set()).flatMap(regEnv.get)
-        regEnv(v) = AReg.NORMAL_REGS.find(r => !used.contains(r)).getOrElse(???)
+        regEnv(v) = XReg.NORMAL_REGS.find(r => !used.contains(r)).getOrElse(???)
         regEnv(v)
     }
 
-    def getOrAllocate(aid: AID): AReg = regEnv.getOrElse(aid, allocate(aid))
+    def getOrAllocate(xid: XID): XReg = regEnv.getOrElse(xid, allocate(xid))
 
     def wrapVC(vc: VC): VC = vc.fold(v => V(getOrAllocate(v)), _ => vc)
 
@@ -48,7 +48,7 @@ class RegisterAllocator {
       val newLines = block.lines.reverseIterator.map {
         case Line(dest, inst) =>
           val newDest = regEnv(dest)
-          Line(newDest, inst.mapAID(getOrAllocate))
+          Line(newDest, inst.mapXID(getOrAllocate))
       }.toList.reverse
       newChart.blocks(block.i) = Block(block.i, newLines, block.input, block.output)
 
@@ -63,7 +63,7 @@ class RegisterAllocator {
             None // newJumpの追加はtruとflsの両方が処理された後に行う
           }
         case Merge(_, inputs, outputID, output) =>
-          val newInputs = inputs.map { case (aid, bi) => (allocate(aid), bi) }
+          val newInputs = inputs.map { case (xid, bi) => (allocate(xid), bi) }
           Some(Merge(ji1, newInputs, regEnv(outputID), output))
       }
       newJump.foreach(newChart.jumps(ji1) = _)

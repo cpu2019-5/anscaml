@@ -11,13 +11,13 @@ import scala.collection.mutable
   * グラフ構造を変えない最適化
   */
 class BackwardTraverser {
-  def apply(prog: Program): (Boolean, Map[BlockIndex, Set[AVar]]) = {
+  def apply(prog: Program): (Boolean, Map[BlockIndex, Set[XVar]]) = {
     changed = false
     useSets.clear()
 
     for (f <- prog.functions) {
       f.body.blocks.values.toSeq.reverseIterator.foreach(traverseBlock(f.body)) // TODO: reverse
-      val free = useSets(f.body.blocks.firstKey) -- f.args.flatMap(_.aVarOpt)
+      val free = useSets(f.body.blocks.firstKey) -- f.args.flatMap(_.asXVar)
       if (free.nonEmpty) {
         println(s"[Tig BackwardTraverser] free variables $free found.")
       }
@@ -27,61 +27,61 @@ class BackwardTraverser {
   }
 
   private[this] var changed = false
-  private[this] val useSets = mutable.Map[BlockIndex, Set[AVar]]()
+  private[this] val useSets = mutable.Map[BlockIndex, Set[XVar]]()
 
   /**
     * @param keep 副作用がなくてもブロックが保持されるかどうか。trueなら副作用がない命令でもuseが更新される
     * @return instが(ヒープ拡張以外の)副作用を持つかどうか
     */
-  private[this] def traverseInst(keep: Boolean, use: mutable.Set[AVar], inst: Instruction)
+  private[this] def traverseInst(keep: Boolean, use: mutable.Set[XVar], inst: Instruction)
   : Boolean = {
     inst match {
       case Mv(value) =>
         if (keep) {
-          use ++= value.aVarOpt
+          use ++= value.asXVar
         }
         false
-      case _: Mvi | _: Fmvi | Nop => false
+      case _: Mvi | Nop => false
       case NewArray(len, elem) =>
         if (keep) {
-          use ++= len.vOpt.flatMap(_.aVarOpt)
-          use ++= elem.aVarOpt
+          use ++= len.asV.flatMap(_.asXVar)
+          use ++= elem.asXVar
         }
         false
       case Store(addr, index, value) =>
-        use ++= addr.aVarOpt
-        use ++= index.vOpt.flatMap(_.aVarOpt)
-        use ++= value.aVarOpt
+        use ++= addr.asXVar
+        use ++= index.asV.flatMap(_.asXVar)
+        use ++= value.asXVar
         true
       case Load(addr, index) =>
         if (keep) {
-          use ++= addr.aVarOpt
-          use ++= index.vOpt.flatMap(_.aVarOpt)
+          use ++= addr.asXVar
+          use ++= index.asV.flatMap(_.asXVar)
         }
         false
       case UnOpTree(_, value) =>
         if (keep) {
-          use ++= value.aVarOpt
+          use ++= value.asXVar
         }
         false
       case BinOpVCTree(_, left, right) =>
         if (keep) {
-          use ++= left.aVarOpt
-          use ++= right.vOpt.flatMap(_.aVarOpt)
+          use ++= left.asXVar
+          use ++= right.asV.flatMap(_.asXVar)
         }
         false
       case BinOpVTree(_, left, right) =>
         if (keep) {
-          use ++= left.aVarOpt
-          use ++= right.aVarOpt
+          use ++= left.asXVar
+          use ++= right.asXVar
         }
         false
       case Read => true
       case Write(value) =>
-        use ++= value.aVarOpt
+        use ++= value.asXVar
         true
       case CallDir(_, args) =>
-        use ++= args.flatMap(_.aVarOpt)
+        use ++= args.flatMap(_.asXVar)
         true
       case _: Save | _: Restore => ???
     }
@@ -90,27 +90,27 @@ class BackwardTraverser {
   private[this] def traverseBlock(c: Chart)(b: Block): Unit = {
     val use = c.jumps(b.output) match {
       case _: StartFun => ???
-      case Return(_, value, _) => value.aVarOpt.to(mutable.Set)
+      case Return(_, value, _) => value.asXVar.to(mutable.Set)
       case Condition(_, _, left, right, _, tru, fls) =>
         val u = useSets(tru).to(mutable.Set)
         u ++= useSets(fls)
-        u ++= left.aVarOpt
-        u ++= right.vOpt.flatMap(_.aVarOpt)
+        u ++= left.asXVar
+        u ++= right.asV.flatMap(_.asXVar)
         u
       case Merge(i, inputs, outputID, output) =>
         val u = useSets(output).to(mutable.Set)
-        if (outputID.aVarOpt.exists(!u.contains(_)) || outputID == AReg.REG_DUMMY) {
+        if (outputID.asXVar.exists(!u.contains(_)) || outputID == XReg.REG_DUMMY) {
           // outputID is not used
           c.jumps(i) = Merge(
             i,
-            inputs.map { case (_, index) => (AReg.REG_DUMMY, index) },
-            AReg.REG_DUMMY,
+            inputs.map { case (_, index) => (XReg.REG_DUMMY, index) },
+            XReg.REG_DUMMY,
             output
           )
         } else {
           // outputID is provably used
-          u --= outputID.aVarOpt
-          u ++= inputs.find(_._2 == b.i).get._1.aVarOpt
+          u --= outputID.asXVar
+          u ++= inputs.find(_._2 == b.i).get._1.asXVar
         }
         u
     }
@@ -118,10 +118,10 @@ class BackwardTraverser {
     var isBlockChanging = false
 
     val ls = b.lines.reverseIterator.flatMap {
-      case l @ Line(_: AReg, inst) =>
+      case l @ Line(_: XReg, inst) =>
         traverseInst(keep = true, use, inst)
         Some(l)
-      case l @ Line(dest: AVar, inst) =>
+      case l @ Line(dest: XVar, inst) =>
         val keep = use.contains(dest)
         use -= dest
 
@@ -131,7 +131,7 @@ class BackwardTraverser {
         if (keep) {
           Some(l)
         } else if (side) {
-          Some(Line(AReg.REG_DUMMY, inst))
+          Some(Line(XReg.REG_DUMMY, inst))
         } else {
           None
         }

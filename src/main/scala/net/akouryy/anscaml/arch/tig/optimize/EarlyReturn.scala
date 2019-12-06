@@ -8,8 +8,8 @@ object EarlyReturn {
   def apply(program: Program): Boolean = {
     var changed = false
     for (f <- program.functions) {
-      // 既にchangedでもsearchWithは走らせる
-      changed = goBackFrom(f.body.jumps.lastKey, f.body) || changed
+      val c = goBackFrom(f.body.jumps.lastKey, f.body)
+      changed ||= c
     }
     changed
   }

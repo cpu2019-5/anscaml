@@ -6,48 +6,48 @@ import asm._
 import scala.collection.mutable
 
 object Liveness {
-  type LiveSet = Set[AVar]
+  type LiveSet = Set[XVar]
 
   private[this] type MutableInfo = mutable.Map[BlockIndex, List[LiveSet]]
 
   type Info = Map[BlockIndex, List[LiveSet]]
 
-  private[this] def useInInst(inst: Instruction): Iterable[AVar] = inst match {
+  private[this] def useInInst(inst: Instruction): Iterable[XVar] = inst match {
     case Mv(value) =>
-      value.aVarOpt
-    case _: Mvi | _: Fmvi | Nop | Read =>
+      value.asXVar
+    case _: Mvi | Nop | Read =>
       Set()
     case NewArray(len, elem) =>
-      len.vAVarOpt ++ elem.aVarOpt
+      len.asVXVar ++ elem.asXVar
     case Store(addr, index, value) =>
-      addr.aVarOpt ++ index.vAVarOpt ++ value.aVarOpt
+      addr.asXVar ++ index.asVXVar ++ value.asXVar
     case Load(addr, index) =>
-      addr.aVarOpt ++ index.vAVarOpt
+      addr.asXVar ++ index.asVXVar
     case UnOpTree(_, value) =>
-      value.aVarOpt
+      value.asXVar
     case BinOpVCTree(_, left, right) =>
-      left.aVarOpt ++ right.vAVarOpt
+      left.asXVar ++ right.asVXVar
     case BinOpVTree(_, left, right) =>
-      left.aVarOpt ++ right.aVarOpt
+      left.asXVar ++ right.asXVar
     case Write(value) =>
-      value.aVarOpt
+      value.asXVar
     case CallDir(_, args) =>
-      args.flatMap(_.aVarOpt)
+      args.flatMap(_.asXVar)
     case _: Save | _: Restore => ???
   }
 
   private[this] def analyzeBlock(info: MutableInfo, c: Chart, b: Block): Unit = {
     var live: LiveSet = c.jumps(b.output) match {
       case _: StartFun => ???
-      case Return(_, value, _) => value.aVarOpt.to(Set)
+      case Return(_, value, _) => value.asXVar.to(Set)
       case Condition(_, _, left, right, _, tru, fls) =>
-        info(tru).head ++ info(fls).head ++ left.aVarOpt ++ right.vAVarOpt
+        info(tru).head ++ info(fls).head ++ left.asXVar ++ right.asVXVar
       case Merge(_, inputs, outputID, output) =>
-        info(output).head -- outputID.aVarOpt ++ inputs.find(_._2 == b.i).get._1.aVarOpt
+        info(output).head -- outputID.asXVar ++ inputs.find(_._2 == b.i).get._1.asXVar
     }
     val liveOut = live
     val liveInsRev = b.lines.reverseIterator.map { line =>
-      live --= line.dest.aVarOpt
+      live --= line.dest.asXVar
       live ++= useInInst(line.inst)
       live
     }.toList

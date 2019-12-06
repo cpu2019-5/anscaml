@@ -8,7 +8,8 @@ package object base {
   }
 
   implicit class RichOption[A](val option: Option[A]) extends AnyVal {
-    def foldX[B](f: A => B, ifEmpty: => B): B = option.fold(ifEmpty)(f)
+    /** `fold` with swapped arguments */
+    def foldF[B](f: A => B, ifEmpty: => B): B = option.fold(ifEmpty)(f)
   }
 
 }

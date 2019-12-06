@@ -35,13 +35,13 @@ import asm._
   * }}}
   */
 object DistributeIf {
-  def apply(program: Program, useSets: Map[BlockIndex, Set[AVar]]): Boolean = {
+  def apply(program: Program, useSets: Map[BlockIndex, Set[XVar]]): Boolean = {
     var changed = false
     for (f <- program.functions) {
       for {
         Condition(ji3, op, left, right, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
         Block(_, Nil, ji1, _) <- f.body.blocks.get(bi2).orElse(???)
-        Merge(_, inputs1, outputID1: AVar, _) <- f.body.jumps.get(ji1).orElse(???)
+        Merge(_, inputs1, outputID1: XVar, _) <- f.body.jumps.get(ji1).orElse(???)
         if outputID1 == left &&
            !useSets.get(tbi4).exists(_ contains outputID1) &&
            !useSets.get(fbi4).exists(_ contains outputID1)
@@ -50,29 +50,29 @@ object DistributeIf {
 
         changed = true
 
-        var truInputList = List[(AID, BlockIndex)]()
-        var flsInputList = List[(AID, BlockIndex)]()
+        var truInputList = List[(XID, BlockIndex)]()
+        var flsInputList = List[(XID, BlockIndex)]()
         val truMergeIndex = JumpIndex.generate(ji3)
         val flsMergeIndex = JumpIndex.generate(ji3)
 
-        for ((aid0, bi0) <- inputs1) {
+        for ((xid0, bi0) <- inputs1) {
           val condIndex = JumpIndex.generate(ji1)
           val truGlueIndex = BlockIndex.generate(bi2)
           val flsGlueIndex = BlockIndex.generate(bi2)
 
           f.body.blocks(bi0) = f.body.blocks(bi0).copy(output = condIndex)
           f.body.jumps(condIndex) = Condition(
-            condIndex, op, aid0, right, bi0, truGlueIndex, flsGlueIndex,
+            condIndex, op, xid0, right, bi0, truGlueIndex, flsGlueIndex,
           )
           f.body.blocks(truGlueIndex) = Block(truGlueIndex, Nil, condIndex, truMergeIndex)
           f.body.blocks(flsGlueIndex) = Block(flsGlueIndex, Nil, condIndex, flsMergeIndex)
 
-          truInputList ::= (aid0, truGlueIndex)
-          flsInputList ::= (aid0, flsGlueIndex)
+          truInputList ::= (xid0, truGlueIndex)
+          flsInputList ::= (xid0, flsGlueIndex)
         }
 
-        f.body.jumps(truMergeIndex) = Merge(truMergeIndex, truInputList, AReg.REG_DUMMY, tbi4)
-        f.body.jumps(flsMergeIndex) = Merge(flsMergeIndex, flsInputList, AReg.REG_DUMMY, fbi4)
+        f.body.jumps(truMergeIndex) = Merge(truMergeIndex, truInputList, XReg.REG_DUMMY, tbi4)
+        f.body.jumps(flsMergeIndex) = Merge(flsMergeIndex, flsInputList, XReg.REG_DUMMY, fbi4)
 
         f.body.blocks(tbi4) = f.body.blocks(tbi4).copy(input = truMergeIndex)
         f.body.blocks(fbi4) = f.body.blocks(fbi4).copy(input = flsMergeIndex)

@@ -21,29 +21,20 @@ class ImmediateFolder(prog: Program) {
     changed
   }
 
-  private[this] val constRegEnv = mutable.Map[AVar, AReg]()
-  private[this] val immEnv = mutable.Map[AVar, Word]()
+  private[this] val constRegEnv = mutable.Map[XVar, XReg]()
+  private[this] val immEnv = mutable.Map[XVar, Word]()
   private[this] var changed = false
 
-  private[this] def aidToConst(aid: AID): Option[Word] = aid match {
-    case r: AReg => AReg.toConstants.get(r)
-    case v: AVar => immEnv.get(v)
-  }
+  private[this] def xidToConst(xid: XID): Option[Word] = xid.fold(immEnv.get, XReg.toConstants.get)
 
-  private[this] def vcToConst(vc: VC): Option[Word] = vc match {
-    case C(w) => Some(w)
-    case V(aid) => aidToConst(aid)
-  }
+  private[this] def vcToConst(vc: VC): Option[Word] = vc.fold(xidToConst, Some(_))
 
-  private[this] def wrapAID(aid: AID): AID = aid match {
-    case r: AReg => r
-    case v: AVar => constRegEnv.getOrElse(v, v)
-  }
+  private[this] def wrapXID(xid: XID): XID = xid.fold(v => constRegEnv.getOrElse(v, v), identity)
 
   private[this] def wrapVC(vc: VC): VC = vc match {
     case _: C => vc
-    case V(r: AReg) => V(r)
-    case V(v: AVar) => immEnv.get(v).foldX(C, V(v))
+    case V(r: XReg) => V(r)
+    case V(v: XVar) => immEnv.get(v).foldF(C, V(v))
   }
 
   private[this] def optBlock(c: Chart)(b: Block): Unit = {
@@ -51,19 +42,19 @@ class ImmediateFolder(prog: Program) {
 
     val ls = b.lines.map { l =>
       val newInst = l.inst match {
-        case Mv(v: AVar) =>
+        case Mv(v: XVar) =>
           l.dest match {
-            case _: AReg => // pass
-            case dest: AVar =>
+            case _: XReg => // pass
+            case dest: XVar =>
               constRegEnv ++= constRegEnv.get(v).map(dest -> _)
               immEnv ++= immEnv.get(v).map(dest -> _)
           }
           None
-        case Mv(r: AReg) =>
+        case Mv(r: XReg) =>
           l.dest match {
-            case _: AReg => // pass
-            case dest: AVar =>
-              AReg.toConstants.get(r) match {
+            case _: XReg => // pass
+            case dest: XVar =>
+              XReg.toConstants.get(r) match {
                 case Some(i) =>
                   constRegEnv(dest) = r
                   immEnv(dest) = i
@@ -71,59 +62,48 @@ class ImmediateFolder(prog: Program) {
               }
           }
           None
-        case Mvi(i) =>
+        case Mvi(w) =>
           l.dest match {
-            case _: AReg => // pass
-            case dest: AVar =>
-              immEnv(dest) = Word.fromInt(i)
-              AReg.fromConstants.get(Word.fromInt(i)) match {
+            case _: XReg => // pass
+            case dest: XVar =>
+              immEnv(dest) = w
+              XReg.fromConstants.get(w) match {
                 case Some(r) => constRegEnv(dest) = r
                 case None => // pass
               }
           }
           None
-        case Fmvi(f) =>
-          l.dest match {
-            case _: AReg => // pass
-            case dest: AVar =>
-              immEnv(dest) = Word.fromFloat(f)
-              AReg.fromConstants.get(Word.fromFloat(f)) match {
-                case Some(r) => constRegEnv(dest) = r
-                case None => // pass
-              }
-          }
-          None
-        case NewArray(len, elem) => Some(NewArray(wrapVC(len), wrapAID(elem)))
+        case NewArray(len, elem) => Some(NewArray(wrapVC(len), wrapXID(elem)))
         case Store(addr, index, value) =>
-          (aidToConst(addr), vcToConst(index)) match {
+          (xidToConst(addr), vcToConst(index)) match {
             case (Some(a), Some(i)) =>
-              Some(Store(AReg.REG_ZERO, C(Word.fromInt(a.int + i.int)), wrapAID(value)))
+              Some(Store(XReg.REG_ZERO, C(Word.fromInt(a.int + i.int)), wrapXID(value)))
             case (Some(a), None) =>
-              Some(Store(wrapAID(index.asInstanceOf[V].v), C(a), wrapAID(value)))
+              Some(Store(wrapXID(index.asInstanceOf[V].v), C(a), wrapXID(value)))
             case _ =>
-              Some(Store(wrapAID(addr), wrapVC(index), wrapAID(value)))
+              Some(Store(wrapXID(addr), wrapVC(index), wrapXID(value)))
           }
         case Load(addr, index) =>
-          (aidToConst(addr), vcToConst(index)) match {
+          (xidToConst(addr), vcToConst(index)) match {
             case (Some(a), Some(i)) =>
-              Some(Load(AReg.REG_ZERO, C(Word.fromInt(a.int + i.int))))
+              Some(Load(XReg.REG_ZERO, C(Word.fromInt(a.int + i.int))))
             case (Some(a), None) =>
-              Some(Load(wrapAID(index.asInstanceOf[V].v), C(a)))
+              Some(Load(wrapXID(index.asInstanceOf[V].v), C(a)))
             case _ =>
-              Some(Load(wrapAID(addr), wrapVC(index)))
+              Some(Load(wrapXID(addr), wrapVC(index)))
           }
-        case UnOpTree(op, value) => Some(UnOpTree(op, wrapAID(value)))
+        case UnOpTree(op, value) => Some(UnOpTree(op, wrapXID(value)))
         case BinOpVCTree(op, left, right) =>
-          (aidToConst(left), vcToConst(right)) match {
+          (xidToConst(left), vcToConst(right)) match {
             case (Some(l), Some(r)) =>
-              Some(Mvi(op.fn(l, r).int))
+              Some(Mvi(op.fn(l, r)))
             case _ =>
-              Some(BinOpVCTree(op, wrapAID(left), wrapVC(right)))
+              Some(BinOpVCTree(op, wrapXID(left), wrapVC(right)))
           }
-        case BinOpVTree(op, left, right) => Some(BinOpVTree(op, wrapAID(left), wrapAID(right)))
+        case BinOpVTree(op, left, right) => Some(BinOpVTree(op, wrapXID(left), wrapXID(right)))
         case Nop | Read => None
-        case Write(value) => Some(Write(wrapAID(value)))
-        case CallDir(fn, args) => Some(CallDir(fn, args.map(wrapAID)))
+        case Write(value) => Some(Write(wrapXID(value)))
+        case CallDir(fn, args) => Some(CallDir(fn, args.map(wrapXID)))
         case Save(_, _) | Restore(_) => ???
       }
       newInst match {
@@ -143,17 +123,17 @@ class ImmediateFolder(prog: Program) {
   private[this] def optJump(c: Chart)(j: Jump): Unit = {
     val newJ = j match {
       case StartFun(_, _) => j
-      case Return(i, value, input) => Return(i, wrapAID(value), input)
+      case Return(i, value, input) => Return(i, wrapXID(value), input)
       case Merge(i, inputs, outputID, output) =>
-        Merge(i, inputs.map { case (aid, index) => (wrapAID(aid), index) }, outputID, output)
+        Merge(i, inputs.map { case (xid, index) => (wrapXID(xid), index) }, outputID, output)
       case Condition(i, op, left, right, input, trueOutput, falseOutput) =>
-        (aidToConst(left), vcToConst(right)) match {
+        (xidToConst(left), vcToConst(right)) match {
           case (Some(l), Some(r)) =>
             // 定数標準形(JumpFolder参照)
             val result = Word.fromInt(if (op.fn(l, r)) 1 else 0)
-            Condition(i, Eq, AReg.REG_ZERO, C(result), input, trueOutput, falseOutput)
+            Condition(i, Eq, XReg.REG_ZERO, C(result), input, trueOutput, falseOutput)
           case _ =>
-            Condition(i, op, wrapAID(left), wrapVC(right), input, trueOutput, falseOutput)
+            Condition(i, op, wrapXID(left), wrapVC(right), input, trueOutput, falseOutput)
         }
     }
 

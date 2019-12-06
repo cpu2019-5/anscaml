@@ -5,9 +5,9 @@ import base.{ID, LabelID}
 
 import scala.collection.mutable
 
-final case class Program(gcSize: Int, tyEnv: Map[AVar, Ty], functions: List[FDef])
+final case class Program(gcSize: Int, tyEnv: Map[XVar, Ty], functions: List[FDef])
 
-final case class FDef(name: LabelID, args: List[AID], body: Chart, typ: Fn)
+final case class FDef(name: LabelID, args: List[XID], body: Chart, typ: Fn)
 
 final case class BlockIndex(indices: List[Int]) extends Ordered[BlockIndex] {
   override def toString: String = s"Block$indexString"
@@ -58,7 +58,7 @@ final class Chart {
 /** 基本ブロック */
 final case class Block(i: BlockIndex, lines: List[Line], input: JumpIndex, output: JumpIndex)
 
-final case class Line(dest: AID, inst: Instruction)
+final case class Line(dest: XID, inst: Instruction)
 
 sealed trait Jump {
   val i: JumpIndex
@@ -66,24 +66,17 @@ sealed trait Jump {
 
 final case class StartFun(i: JumpIndex, output: BlockIndex) extends Jump
 
-final case class Return(i: JumpIndex, value: AID, input: BlockIndex) extends Jump
+final case class Return(i: JumpIndex, value: XID, input: BlockIndex) extends Jump
 
 final case class Condition(
   i: JumpIndex,
-  op: CmpOp, left: AID, right: VC,
+  op: CmpOp, left: XID, right: VC,
   input: BlockIndex, tru: BlockIndex, fls: BlockIndex,
 ) extends Jump
 
 final case class Merge(
   i: JumpIndex,
-  /*private var */ inputs: List[(AID, BlockIndex)],
-  outputID: AID,
+  inputs: List[(XID, BlockIndex)],
+  outputID: XID,
   output: BlockIndex,
-) extends Jump {
-  /*val inputs: List[(AID, BlockIndex)] =
-    if (outputID == AReg.REG_DUMMY)
-      _inputs.map { case (_, output) => (AReg.REG_DUMMY, output) }
-    else _inputs
-
-  _inputs = inputs*/
-}
+) extends Jump

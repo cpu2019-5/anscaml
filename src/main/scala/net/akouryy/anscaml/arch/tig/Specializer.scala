@@ -1,7 +1,7 @@
 package net.akouryy.anscaml
 package arch.tig
 
-import asm.{AID, AReg, AVar, BlockIndex, C, JumpIndex, Line, Ty, V}
+import asm.{XID, XReg, XVar, BlockIndex, C, JumpIndex, Line, Ty, V}
 import base._
 import knorm.KNorm
 import KNorm.{KCProgram, KClosed}
@@ -18,7 +18,7 @@ object Specializer {
 
   private final case class GCFloat(f: Float) extends GConst
 
-  private final case class GCArrayImm(addr: Int, len: Int, elem: AID) extends GConst
+  private final case class GCArrayImm(addr: Int, len: Int, elem: XID) extends GConst
 
   private final case class GCOther(addr: Int, closed: KClosed) extends GConst
 
@@ -28,7 +28,7 @@ class Specializer {
 
   import Specializer._
 
-  private[this] val gConsts = mutable.Map[AID, (Ty, GConst)]()
+  private[this] val gConsts = mutable.Map[XID, (Ty, GConst)]()
   private[this] var gConstsListRev = List[ID]()
   private[this] var gConstsSumSize: Int = _
 
@@ -42,19 +42,19 @@ class Specializer {
         case KNorm.KInt(i) => (GCInt(i), 0)
         case KNorm.KFloat(f) => (GCFloat(f), 0)
         case KNorm.Array(len, elem) =>
-          gConsts.get(AVar(len)) match {
-            case Some((_, GCInt(len))) => (GCArrayImm(gConstsSumSize, len, AVar(elem)), len)
+          gConsts.get(XVar(len)) match {
+            case Some((_, GCInt(len))) => (GCArrayImm(gConstsSumSize, len, XVar(elem)), len)
             case _ => (GCOther(gConstsSumSize, cl), 1) // 即値かポインタなのでサイズ1
           }
         case _ => (GCOther(gConstsSumSize, cl), 1)
       }
-      gConsts(AVar(entry.name)) = (Ty(entry.typ), gc)
+      gConsts(XVar(entry.name)) = (Ty(entry.typ), gc)
       gConstsListRev ::= entry.name
       gConstsSumSize += size
     }
   }
 
-  private[this] val tyEnv = mutable.Map[AVar, Ty]()
+  private[this] val tyEnv = mutable.Map[XVar, Ty]()
   private[this] val fnTypEnv = mutable.Map[ID, Typ]()
 
   private[this] var currentChart: asm.Chart = _
@@ -62,18 +62,18 @@ class Specializer {
   private[this] var currentInputJumpIndex: asm.JumpIndex = _
   private[this] var currentLines = mutable.ListBuffer[asm.Line]()
 
-  private[this] def wrapVar(v: ID): AVar = {
-    val vv = AVar(v)
+  private[this] def wrapVar(v: ID): XVar = {
+    val vv = XVar(v)
     gConsts.get(vv) match {
       case None => vv
       case Some((ty, gc)) =>
         val line = gc match {
-          case GCInt(i) => asm.Mvi(i)
-          case GCFloat(f) => asm.Fmvi(f)
-          case GCArrayImm(addr, _, _) => asm.Mvi(addr)
-          case GCOther(addr, _) => asm.Load(AReg.REG_ZERO, C(Word.fromInt(addr)))
+          case GCInt(i) => asm.Mvi.int(i)
+          case GCFloat(f) => asm.Mvi.float(f)
+          case GCArrayImm(addr, _, _) => asm.Mvi.int(addr)
+          case GCOther(addr, _) => asm.Load(XReg.REG_ZERO, C(Word.fromInt(addr)))
         }
-        val x = AVar.generate(vv, "sp")
+        val x = XVar.generate(vv, "sp")
         tyEnv(x) = ty
         currentLines += Line(x, line)
         x
@@ -83,18 +83,18 @@ class Specializer {
   /**
     * @return 標準関数が存在するならそれを表す非空の命令列、存在しないならNil
     */
-  def specializeInlineStdlib(dest: AID, fn: LabelID, args: List[AID]): List[Line] =
+  def specializeInlineStdlib(dest: XID, fn: LabelID, args: List[XID]): List[Line] =
     (fn.name, args) match {
       case ("$ext_print_char", List(x)) => List(Line(dest, asm.Write(x)))
       case ("$ext_read_char", List()) => List(Line(dest, asm.Read))
       case ("$ext_fneg", List(x)) =>
-        List(Line(dest, asm.BinOpVTree(asm.FnegCond, x, AReg.REG_MINUS_ONE)))
+        List(Line(dest, asm.BinOpVTree(asm.FnegCond, x, XReg.REG_MINUS_ONE)))
       case ("$ext_fabs", List(x)) => List(Line(dest, asm.BinOpVTree(asm.FnegCond, x, x)))
       case ("$ext_fsqr", List(x)) => List(Line(dest, asm.BinOpVTree(asm.Fmul, x, x)))
       case ("$ext_fhalf", List(x)) =>
-        val half = AVar.generate("half")
+        val half = XVar.generate("half")
         List(
-          Line(half, asm.Fmvi(0.5F)),
+          Line(half, asm.Mvi.float(0.5F)),
           Line(dest, asm.BinOpVTree(asm.Fmul, x, half)),
         )
       case ("$ext_floor", List(x)) => List(Line(dest, asm.UnOpTree(asm.Floor, x)))
@@ -104,10 +104,10 @@ class Specializer {
       case _ => Nil
     }
 
-  private[this] def specializeExpr(dest: AID, cl: KClosed): Unit = {
+  private[this] def specializeExpr(dest: XID, cl: KClosed): Unit = {
     cl.raw match {
-      case KNorm.KInt(i) => currentLines += Line(dest, asm.Mvi(i))
-      case KNorm.KFloat(f) => currentLines += Line(dest, asm.Fmvi(f))
+      case KNorm.KInt(i) => currentLines += Line(dest, asm.Mvi.int(i))
+      case KNorm.KFloat(f) => currentLines += Line(dest, asm.Mvi.float(f))
       case KNorm.BinOpTree(op, left, right) =>
         val l = wrapVar(left)
         val r = wrapVar(right)
@@ -130,19 +130,19 @@ class Specializer {
           case asm.TyUnit => asm.Nop
           case _ => asm.Mv(x)
         })
-      case KNorm.KTuple(Nil) => assert(dest == AReg.REG_DUMMY)
+      case KNorm.KTuple(Nil) => assert(dest == XReg.REG_DUMMY)
       case KNorm.KTuple(elems) =>
         var i = 0
         for (elem <- elems) {
           val e = wrapVar(elem)
           if (tyEnv(e) != asm.TyUnit) {
             i += 1
-            currentLines += Line(AReg.REG_DUMMY, asm.Store(AReg.REG_HEAP, C(Word.fromInt(i)), e))
+            currentLines += Line(XReg.REG_DUMMY, asm.Store(XReg.REG_HEAP, C(Word.fromInt(i)), e))
           }
         }
         currentLines ++= Seq(
-          Line(dest, asm.Mv(AReg.REG_HEAP)),
-          Line(AReg.REG_HEAP, asm.BinOpVCTree(asm.Add, AReg.REG_HEAP, asm.C(Word.fromInt(i)))),
+          Line(dest, asm.Mv(XReg.REG_HEAP)),
+          Line(XReg.REG_HEAP, asm.BinOpVCTree(asm.Add, XReg.REG_HEAP, asm.C(Word.fromInt(i)))),
         )
       case KNorm.Array(len, elem) =>
         val l = wrapVar(len)
@@ -155,12 +155,12 @@ class Specializer {
           currentLines += Line(dest, asm.Load(a, V(i)))
         }
       case KNorm.Put(array, index, value) =>
-        assert(dest == AReg.REG_DUMMY)
+        assert(dest == XReg.REG_DUMMY)
         val a = wrapVar(array)
         val i = wrapVar(index)
         val v = wrapVar(value)
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
-          currentLines += Line(AReg.REG_DUMMY, asm.Store(a, V(i), v))
+          currentLines += Line(XReg.REG_DUMMY, asm.Store(a, V(i), v))
         }
       case KNorm.ApplyDirect(fn, args) =>
         val Typ.TFun(argsTyp, retTyp) =
@@ -169,7 +169,7 @@ class Specializer {
           else
             fnTypEnv(ID(fn.name))
         if (retTyp == Typ.TUnit) {
-          assert(dest == AReg.REG_DUMMY)
+          assert(dest == XReg.REG_DUMMY)
         }
         val as = args map wrapVar
         specializeInlineStdlib(dest, fn, as) match {
@@ -178,10 +178,10 @@ class Specializer {
         }
       case KNorm.ApplyClosure(_, _) => ???
       case KNorm.CLet(Entry(_, typ.Typ.TUnit), bound, kont) =>
-        specializeExpr(AReg.REG_DUMMY, bound)
+        specializeExpr(XReg.REG_DUMMY, bound)
         specializeExpr(dest, kont)
       case KNorm.CLet(entry, bound, kont) =>
-        val v = AVar(entry.name)
+        val v = XVar(entry.name)
         specializeExpr(v, bound)
         tyEnv(v) = Ty(entry.typ)
         specializeExpr(dest, kont)
@@ -189,7 +189,7 @@ class Specializer {
         val b = wrapVar(bound)
         var i = 0
         for (elem <- elems) {
-          val v = AVar(elem.name)
+          val v = XVar(elem.name)
           if (elem.typ != Typ.TUnit) {
             i += 1
             tyEnv(v) = Ty(elem.typ)
@@ -210,7 +210,7 @@ class Specializer {
         val trueStartBlockIndex = BlockIndex.generate()
         val falseStartBlockIndex = BlockIndex.generate()
         val trueDest, falseDest =
-          if (dest == AReg.REG_DUMMY) dest else AVar.generate(ID.generate().str)
+          if (dest == XReg.REG_DUMMY) dest else XVar.generate(ID.generate().str)
 
         // ifの前のブロックを登録
         currentChart.blocks(branchingBlockIndex) =
@@ -265,7 +265,7 @@ class Specializer {
   }
 
   private[this] def specializeFDef(cFDef: KNorm.CFDef, handleGC: Boolean): asm.FDef = {
-    tyEnv ++= cFDef.args.map(e => AVar(e.name) -> Ty(e.typ))
+    tyEnv ++= cFDef.args.map(e => XVar(e.name) -> Ty(e.typ))
     val fnTyp = asm.Fn.fromTyp(cFDef.entry.typ)
 
     currentChart = new asm.Chart
@@ -279,8 +279,8 @@ class Specializer {
     currentInputJumpIndex = startFunJumpIndex
     currentLines.clear()
     val retVar =
-      if (fnTyp.ret == asm.TyUnit) AReg.REG_DUMMY
-      else AVar.generate(s"${cFDef.entry.name.str}$$ret")
+      if (fnTyp.ret == asm.TyUnit) XReg.REG_DUMMY
+      else XVar.generate(s"${cFDef.entry.name.str}$$ret")
     specializeExpr(retVar, cFDef.body)
 
     // 最後のブロックとその後のReturnジャンプを登録
@@ -291,7 +291,7 @@ class Specializer {
 
     asm.FDef(
       LabelID(cFDef.entry.name.str),
-      cFDef.args.map(a => AVar(a.name)),
+      cFDef.args.map(a => XVar(a.name)),
       currentChart,
       fnTyp,
     )

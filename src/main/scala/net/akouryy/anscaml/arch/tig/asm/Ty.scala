@@ -9,9 +9,7 @@ sealed trait Ty
 
 case object TyUnit extends Ty
 
-case object TyInt extends Ty
-
-case object TyFloat extends Ty
+case object TyWord extends Ty
 
 final case class TyPointer(to: Ty) extends Ty
 
@@ -22,8 +20,7 @@ final case class TyArray(elem: Ty) extends Ty
 object Ty {
   def apply(typ: Typ): Ty = typ match {
     case Typ.TUnit => TyUnit
-    case Typ.TInt(_) => TyInt
-    case Typ.TFloat(_) => TyInt
+    case Typ.TInt(_) | Typ.TFloat(_) => TyWord
     case Typ.TTuple(elems) => TyPointer(TyTuple(elems map apply))
     case Typ.TArray(elem) => TyPointer(TyArray(Ty(elem)))
     case Typ.TBool(_) | Typ.TFun(_, _) | Typ.TypVar(_) =>
@@ -31,7 +28,7 @@ object Ty {
   }
 }
 
-final case class Fn(args: List[Ty], ret: Ty, safeRegs: Set[AReg])
+final case class Fn(args: List[Ty], ret: Ty, safeRegs: Set[XReg])
 
 object Fn {
   def fromTyp(typ: Typ): Fn = typ match {
