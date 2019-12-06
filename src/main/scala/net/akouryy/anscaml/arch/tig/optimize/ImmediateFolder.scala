@@ -22,8 +22,18 @@ class ImmediateFolder(prog: Program) {
   }
 
   private[this] val constRegEnv = mutable.Map[AVar, AReg]()
-  private[this] val immEnv = mutable.Map[AVar, Int]()
+  private[this] val immEnv = mutable.Map[AVar, Word]()
   private[this] var changed = false
+
+  private[this] def aidToConst(aid: AID): Option[Word] = aid match {
+    case r: AReg => AReg.toConstants.get(r)
+    case v: AVar => immEnv.get(v)
+  }
+
+  private[this] def vcToConst(vc: VC): Option[Word] = vc match {
+    case C(w) => Some(w)
+    case V(aid) => aidToConst(aid)
+  }
 
   private[this] def wrapAID(aid: AID): AID = aid match {
     case r: AReg => r
@@ -65,8 +75,8 @@ class ImmediateFolder(prog: Program) {
           l.dest match {
             case _: AReg => // pass
             case dest: AVar =>
-              immEnv(dest) = i
-              AReg.fromConstants.get(i) match {
+              immEnv(dest) = Word.fromInt(i)
+              AReg.fromConstants.get(Word.fromInt(i)) match {
                 case Some(r) => constRegEnv(dest) = r
                 case None => // pass
               }
@@ -76,19 +86,40 @@ class ImmediateFolder(prog: Program) {
           l.dest match {
             case _: AReg => // pass
             case dest: AVar =>
-              val i = java.lang.Float.floatToRawIntBits(f)
-              immEnv(dest) = i
-              AReg.fromConstants.get(i) match {
+              immEnv(dest) = Word.fromFloat(f)
+              AReg.fromConstants.get(Word.fromFloat(f)) match {
                 case Some(r) => constRegEnv(dest) = r
                 case None => // pass
               }
           }
           None
         case NewArray(len, elem) => Some(NewArray(wrapVC(len), wrapAID(elem)))
-        case Store(addr, index, value) => Some(Store(wrapAID(addr), wrapVC(index), wrapAID(value)))
-        case Load(addr, index) => Some(Load(wrapAID(addr), wrapVC(index)))
+        case Store(addr, index, value) =>
+          (aidToConst(addr), vcToConst(index)) match {
+            case (Some(a), Some(i)) =>
+              Some(Store(AReg.REG_ZERO, C(Word.fromInt(a.int + i.int)), wrapAID(value)))
+            case (Some(a), None) =>
+              Some(Store(wrapAID(index.asInstanceOf[V].v), C(a), wrapAID(value)))
+            case _ =>
+              Some(Store(wrapAID(addr), wrapVC(index), wrapAID(value)))
+          }
+        case Load(addr, index) =>
+          (aidToConst(addr), vcToConst(index)) match {
+            case (Some(a), Some(i)) =>
+              Some(Load(AReg.REG_ZERO, C(Word.fromInt(a.int + i.int))))
+            case (Some(a), None) =>
+              Some(Load(wrapAID(index.asInstanceOf[V].v), C(a)))
+            case _ =>
+              Some(Load(wrapAID(addr), wrapVC(index)))
+          }
         case UnOpTree(op, value) => Some(UnOpTree(op, wrapAID(value)))
-        case BinOpVCTree(op, left, right) => Some(BinOpVCTree(op, wrapAID(left), wrapVC(right)))
+        case BinOpVCTree(op, left, right) =>
+          (aidToConst(left), vcToConst(right)) match {
+            case (Some(l), Some(r)) =>
+              Some(Mvi(op.fn(l, r).int))
+            case _ =>
+              Some(BinOpVCTree(op, wrapAID(left), wrapVC(right)))
+          }
         case BinOpVTree(op, left, right) => Some(BinOpVTree(op, wrapAID(left), wrapAID(right)))
         case Nop | Read => None
         case Write(value) => Some(Write(wrapAID(value)))
@@ -116,7 +147,14 @@ class ImmediateFolder(prog: Program) {
       case Merge(i, inputs, outputID, output) =>
         Merge(i, inputs.map { case (aid, index) => (wrapAID(aid), index) }, outputID, output)
       case Condition(i, op, left, right, input, trueOutput, falseOutput) =>
-        Condition(i, op, wrapAID(left), wrapVC(right), input, trueOutput, falseOutput)
+        (aidToConst(left), vcToConst(right)) match {
+          case (Some(l), Some(r)) =>
+            // 定数標準形(JumpFolder参照)
+            val result = Word.fromInt(if (op.fn(l, r)) 1 else 0)
+            Condition(i, Eq, AReg.REG_ZERO, C(result), input, trueOutput, falseOutput)
+          case _ =>
+            Condition(i, op, wrapAID(left), wrapVC(right), input, trueOutput, falseOutput)
+        }
     }
 
     if (newJ != j) {

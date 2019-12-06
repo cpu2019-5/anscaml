@@ -3,6 +3,7 @@ package arch.tig
 package optimize
 
 import asm._
+import base._
 
 /**
   * ==単独併合除去==
@@ -53,8 +54,9 @@ class JumpFolder {
     var changed = false
 
     for (f <- program.functions) {
-      f.body.jumps.valuesIterator.foreach {
-        case Condition(ji1, syntax.CmpOp.Eq, AReg.REG_ZERO, C(i @ (0 | 1)), bi0, tbi2, fbi2) =>
+      /*f.body.jumps.valuesIterator.foreach*/
+      for (k <- f.body.jumps.keysIterator; j <- f.body.jumps.get(k)) j match {
+        case Condition(ji1, Eq, AReg.REG_ZERO, C(Word(i @ (0 | 1), _)), bi0, tbi2, fbi2) =>
           changed = true
           val toUse = if (i == 0) tbi2 else fbi2
           val toRemove = if (i == 0) fbi2 else tbi2

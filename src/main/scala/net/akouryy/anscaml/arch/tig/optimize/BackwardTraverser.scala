@@ -33,9 +33,7 @@ class BackwardTraverser {
     * @param keep 副作用がなくてもブロックが保持されるかどうか。trueなら副作用がない命令でもuseが更新される
     * @return instが(ヒープ拡張以外の)副作用を持つかどうか
     */
-  private[this] def traverseInst(
-    keep: Boolean, use: mutable.Set[AVar], inst: Instruction,
-  )
+  private[this] def traverseInst(keep: Boolean, use: mutable.Set[AVar], inst: Instruction)
   : Boolean = {
     inst match {
       case Mv(value) =>
@@ -101,7 +99,7 @@ class BackwardTraverser {
         u
       case Merge(i, inputs, outputID, output) =>
         val u = useSets(output).to(mutable.Set)
-        if (outputID.aVarOpt.exists(!u.contains(_))) {
+        if (outputID.aVarOpt.exists(!u.contains(_)) || outputID == AReg.REG_DUMMY) {
           // outputID is not used
           c.jumps(i) = Merge(
             i,

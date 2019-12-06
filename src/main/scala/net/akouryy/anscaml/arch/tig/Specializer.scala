@@ -71,7 +71,7 @@ class Specializer {
           case GCInt(i) => asm.Mvi(i)
           case GCFloat(f) => asm.Fmvi(f)
           case GCArrayImm(addr, _, _) => asm.Mvi(addr)
-          case GCOther(addr, _) => asm.Load(AReg.REG_ZERO, C(addr))
+          case GCOther(addr, _) => asm.Load(AReg.REG_ZERO, C(Word.fromInt(addr)))
         }
         val x = AVar.generate(vv, "sp")
         tyEnv(x) = ty
@@ -137,12 +137,12 @@ class Specializer {
           val e = wrapVar(elem)
           if (tyEnv(e) != asm.TyUnit) {
             i += 1
-            currentLines += Line(AReg.REG_DUMMY, asm.Store(AReg.REG_HEAP, C(i), e))
+            currentLines += Line(AReg.REG_DUMMY, asm.Store(AReg.REG_HEAP, C(Word.fromInt(i)), e))
           }
         }
         currentLines ++= Seq(
           Line(dest, asm.Mv(AReg.REG_HEAP)),
-          Line(AReg.REG_HEAP, asm.BinOpVCTree(asm.Add, AReg.REG_HEAP, asm.C(i))),
+          Line(AReg.REG_HEAP, asm.BinOpVCTree(asm.Add, AReg.REG_HEAP, asm.C(Word.fromInt(i)))),
         )
       case KNorm.Array(len, elem) =>
         val l = wrapVar(len)
@@ -193,7 +193,7 @@ class Specializer {
           if (elem.typ != Typ.TUnit) {
             i += 1
             tyEnv(v) = Ty(elem.typ)
-            currentLines += Line(v, asm.Load(b, C(i)))
+            currentLines += Line(v, asm.Load(b, C(Word.fromInt(i))))
           } else {
             tyEnv(v) = asm.TyUnit
           }
@@ -218,7 +218,7 @@ class Specializer {
 
         // if分岐を登録
         currentChart.jumps(condJumpIndex) = asm.Condition(
-          condJumpIndex, op, l, V(r),
+          condJumpIndex, asm.CmpOp.fromSyntax(op), l, V(r),
           currentBlockIndex, trueStartBlockIndex, falseStartBlockIndex,
         )
 

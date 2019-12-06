@@ -2,7 +2,6 @@ package net.akouryy.anscaml
 package arch.tig.asm
 
 import base.{ID, LabelID}
-import syntax.CmpOp
 
 import scala.collection.mutable
 

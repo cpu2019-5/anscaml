@@ -42,7 +42,7 @@ final case class AReg(id: Int) extends AID {
 object AReg {
   val REG_SIZE = 32
 
-  val NORMAL_REG_IDS: Array[Int] = (1 to 26).toArray
+  val NORMAL_REG_IDS: Array[Int] = (1 to 25).toArray
 
   val REG_DUMMY = AReg(-1)
   val REG_ZERO = AReg(0)
@@ -53,11 +53,11 @@ object AReg {
   val REG_STACK = AReg(30)
   val REG_LINK = AReg(31)
 
-  val fromConstants: Map[Int, AReg] = Map(
-    0 -> REG_ZERO,
-    1 -> REG_ONE,
-    -1 -> REG_MINUS_ONE,
+  val fromConstants: Map[Word, AReg] = Map(
+    Word.fromInt(0) -> REG_ZERO,
+    Word.fromInt(1) -> REG_ONE,
+    Word.fromInt(-1) -> REG_MINUS_ONE,
   )
 
-  val toConstants: Map[AReg, Int] = fromConstants.map(_.swap)
+  val toConstants: Map[AReg, Word] = fromConstants.map(_.swap)
 }
