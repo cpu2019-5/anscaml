@@ -27,10 +27,6 @@ object AnsCaml {
 
     val kn = knorm.Converter(astTyped)
 
-    val dbg = new java.io.PrintWriter("../dbg.txt")
-    PPrinter.writeTo(dbg, kn)
-    dbg.close()
-
     val alpha = knorm.Alpha(kn)
 
     val ko = knorm.optimize.Optimizer(config.optimizationCount, alpha)
@@ -48,6 +44,16 @@ object AnsCaml {
     val dot = new java.io.PrintWriter("../dbg.dot")
     dot.write(new arch.tig.GraphDrawer()(asm))
     dot.close()
+
+    val dbg = new java.io.PrintWriter("../dbg.txt")
+    PPrinter.writeTo(dbg, arch.tig.analyze.Liveness.analyzeProgram(asm).toList.sortBy(_._1))
+    dbg.close()
+
+    val reg = new arch.tig.RegisterAllocator()(asm, arch.tig.analyze.Liveness.analyzeProgram(asm))
+
+    val rDot = new java.io.PrintWriter("../reg.dot")
+    rDot.write(new arch.tig.GraphDrawer()(reg))
+    rDot.close()
 
     val t = System.nanoTime() - startTime
     println(s"time: ${t / 1e9}s")

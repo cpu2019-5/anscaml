@@ -10,6 +10,11 @@ sealed trait VC {
   }
 
   def vAVarOpt: Option[AVar] = this.vOpt.flatMap(_.aVarOpt)
+
+  def fold[T](ifV: AID => T, ifC: Word => T): T = this match {
+    case V(v) => ifV(v)
+    case C(c) => ifC(c)
+  }
 }
 
 final case class V(v: AID) extends VC

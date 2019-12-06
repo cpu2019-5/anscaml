@@ -42,7 +42,8 @@ final case class AReg(id: Int) extends AID {
 object AReg {
   val REG_SIZE = 32
 
-  val NORMAL_REG_IDS: Array[Int] = (1 to 25).toArray
+  val VALID_REGS: Seq[AReg] = (-1 until REG_SIZE).map(AReg.apply)
+  val NORMAL_REGS: Seq[AReg] = (1 to 25).map(AReg.apply)
 
   val REG_DUMMY = AReg(-1)
   val REG_ZERO = AReg(0)

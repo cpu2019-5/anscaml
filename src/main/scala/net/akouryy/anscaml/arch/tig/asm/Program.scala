@@ -7,7 +7,7 @@ import scala.collection.mutable
 
 final case class Program(gcSize: Int, tyEnv: Map[AVar, Ty], functions: List[FDef])
 
-final case class FDef(name: LabelID, args: List[ID], body: Chart, typ: Fn)
+final case class FDef(name: LabelID, args: List[AID], body: Chart, typ: Fn)
 
 final case class BlockIndex(indices: List[Int]) extends Ordered[BlockIndex] {
   override def toString: String = s"Block$indexString"
@@ -71,7 +71,7 @@ final case class Return(i: JumpIndex, value: AID, input: BlockIndex) extends Jum
 final case class Condition(
   i: JumpIndex,
   op: CmpOp, left: AID, right: VC,
-  input: BlockIndex, trueOutput: BlockIndex, falseOutput: BlockIndex
+  input: BlockIndex, tru: BlockIndex, fls: BlockIndex,
 ) extends Jump
 
 final case class Merge(

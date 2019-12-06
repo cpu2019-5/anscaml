@@ -24,7 +24,7 @@ class GraphDrawer {
       for (j <- f.body.jumps.valuesIterator) {
         res ++= (j match {
           case asm.StartFun(i, ob) =>
-            val args = f.args.map(_.str).mkString(", ")
+            val args = f.args.mkString(", ")
             s"""$i[label = "StartFun.${i.indexString}"; shape = box3d];
                |$i -> $ob [label = "($args)"];
                |""".stripMargin

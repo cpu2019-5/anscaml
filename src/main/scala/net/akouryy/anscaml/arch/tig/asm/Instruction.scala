@@ -2,8 +2,21 @@ package net.akouryy.anscaml
 package arch.tig.asm
 
 import base._
+import shapeless._
 
-sealed trait Instruction
+sealed trait Instruction {
+  def mapAID(fn: AID => AID): Instruction = {
+    object inc extends Poly1 {
+      implicit def caseAID = at[AID](fn)
+
+      implicit def caseAReg = at[AReg](fn)
+
+      implicit def caseAVar = at[AVar](fn)
+    }
+    val res = everywhere(inc)(this) // shapelessの?バグのため一時変数に代入
+    res
+  }
+}
 
 final case class Mv(id: AID) extends Instruction
 

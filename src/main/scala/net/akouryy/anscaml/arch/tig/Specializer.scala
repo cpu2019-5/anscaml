@@ -291,7 +291,7 @@ class Specializer {
 
     asm.FDef(
       LabelID(cFDef.entry.name.str),
-      cFDef.args.map(_.name),
+      cFDef.args.map(a => AVar(a.name)),
       currentChart,
       fnTyp,
     )

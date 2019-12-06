@@ -17,7 +17,7 @@ class BackwardTraverser {
 
     for (f <- prog.functions) {
       f.body.blocks.values.toSeq.reverseIterator.foreach(traverseBlock(f.body)) // TODO: reverse
-      val free = useSets(f.body.blocks.firstKey) -- f.args.map(AVar(_))
+      val free = useSets(f.body.blocks.firstKey) -- f.args.flatMap(_.aVarOpt)
       if (free.nonEmpty) {
         println(s"[Tig BackwardTraverser] free variables $free found.")
       }
@@ -117,18 +117,24 @@ class BackwardTraverser {
 
     var isBlockChanging = false
 
-    val ls = b.lines.reverseIterator.filter {
-      case Line(_: AReg, inst) =>
+    val ls = b.lines.reverseIterator.flatMap {
+      case l @ Line(_: AReg, inst) =>
         traverseInst(keep = true, use, inst)
-        true
-      case Line(dest: AVar, inst) =>
+        Some(l)
+      case l @ Line(dest: AVar, inst) =>
         val keep = use.contains(dest)
         use -= dest
 
         val side = traverseInst(keep, use, inst)
 
         isBlockChanging ||= !keep && !side
-        keep || side
+        if (keep) {
+          Some(l)
+        } else if (side) {
+          Some(Line(AReg.REG_DUMMY, inst))
+        } else {
+          None
+        }
     }.toList.reverse
 
     if (isBlockChanging) {
