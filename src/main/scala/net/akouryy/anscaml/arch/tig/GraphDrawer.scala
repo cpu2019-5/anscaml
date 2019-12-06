@@ -62,7 +62,7 @@ class GraphDrawer {
         } else {
           val ls = lines.grouped(10).toList
           val linesStr = ls.map { lg =>
-            """<td align="left" valign="top">""" +
+            """<td align="left" balign="left" valign="top">""" +
             lg.map(
               l => s"${l.dest} = ${unsafeEscape(l.inst.toString)}"
             ).mkString("<br/>") +

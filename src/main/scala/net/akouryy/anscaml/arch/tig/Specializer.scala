@@ -114,8 +114,11 @@ class Specializer {
         currentLines += Line(dest, op match {
           case BinOp.Add => asm.BinOpVCTree(asm.Add, l, asm.V(r))
           case BinOp.Sub => asm.BinOpVCTree(asm.Sub, l, asm.V(r))
-          case BinOp.Shl => asm.BinOpVCTree(asm.Shla, l, asm.V(r))
-          case BinOp.Shr => asm.BinOpVCTree(asm.Shra, l, asm.V(r))
+          case BinOp.Shl => asm.BinOpVCTree(asm.Sha, l, asm.V(r))
+          case BinOp.Shr =>
+            val neg = XVar.generate(s"${r.idStr}$$neg")
+            currentLines += Line(neg, asm.BinOpVCTree(asm.Sub, XReg.REG_ZERO, asm.V(r)))
+            asm.BinOpVCTree(asm.Sha, l, asm.V(neg))
           case BinOp.Land => asm.BinOpVCTree(asm.Land, l, asm.V(r))
           case BinOp.Mul | BinOp.Div | BinOp.Mod =>
             throw new RuntimeException(s"[Tig Specializer] unimplemented operator $op")

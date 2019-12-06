@@ -1,10 +1,19 @@
 package net.akouryy.anscaml.base
 
 final case class Word private(int: Int, float: Float) {
-  @annotation.unused
-  private[this] def copy(int: Int = this.int, float: Float = this.float): Word = ???
 
-  override def toString: String = s"$int:$float"
+  @annotation.unused
+  private[this] def copy(_int: Int, _float: Float): Word = ???
+
+  def isGoodFloat: Boolean =
+    int == 0 || java.lang.Float.MIN_NORMAL <= float.abs && float.abs <= Float.MaxValue
+
+  override def toString: String =
+    if (isGoodFloat) {
+      s"$int:$float"
+    } else {
+      s"$int:?"
+    }
 }
 
 object Word {

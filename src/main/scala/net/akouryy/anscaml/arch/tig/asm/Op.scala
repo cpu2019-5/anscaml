@@ -22,12 +22,11 @@ case object Sub extends BinOpVC {
   override def fn(l: Word, r: Word): Word = Word.fromInt(l.int - r.int)
 }
 
-case object Shla extends BinOpVC {
-  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int << r.int)
-}
-
-case object Shra extends BinOpVC {
-  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int >> r.int)
+case object Sha extends BinOpVC {
+  override def fn(l: Word, r: Word): Word = Word.fromInt(
+    if (r.int >= 0) l.int << r.int
+    else l.int >> -r.int
+  )
 }
 
 case object Land extends BinOpVC {

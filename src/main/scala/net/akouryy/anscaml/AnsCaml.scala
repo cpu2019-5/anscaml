@@ -51,6 +51,8 @@ object AnsCaml {
 
     val reg = new arch.tig.RegisterAllocator()(asm, arch.tig.analyze.Liveness.analyzeProgram(asm))
 
+    arch.tig.emit.LastOptimizer(reg)
+
     val rDot = new java.io.PrintWriter("../reg.dot")
     rDot.write(new arch.tig.GraphDrawer()(reg))
     rDot.close()
