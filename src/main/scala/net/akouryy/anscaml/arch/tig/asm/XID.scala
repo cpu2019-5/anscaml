@@ -49,15 +49,15 @@ final case class XReg(id: Int) extends XID {
 object XReg {
   val REG_SIZE = 32
 
-  val VALID_REGS: Seq[XReg] = (-1 until REG_SIZE).map(XReg.apply)
-  val NORMAL_REGS: Seq[XReg] = (1 to 25).map(XReg.apply)
+  val VALID_REGS: IndexedSeq[XReg] = (-1 until REG_SIZE).map(XReg.apply)
+  val NORMAL_REGS: IndexedSeq[XReg] = (1 to 25).map(XReg.apply)
 
   val REG_DUMMY = XReg(-1)
   val REG_ZERO = XReg(0)
   val REG_RETURN = XReg(1)
   val REG_ONE = XReg(26)
   val REG_MINUS_ONE = XReg(27)
-  val REG_TMP = XReg(28)
+  val REG_LAST_TMP = XReg(28)
   val REG_HEAP = XReg(29)
   val REG_STACK = XReg(30)
   val REG_LINK = XReg(31)

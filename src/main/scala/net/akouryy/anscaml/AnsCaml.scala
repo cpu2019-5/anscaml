@@ -1,6 +1,7 @@
 package net.akouryy.anscaml
 
 import base._
+import net.akouryy.anscaml.arch.tig.emit.Emitter
 
 import scala.io.Source
 
@@ -51,11 +52,13 @@ object AnsCaml {
 
     val reg = new arch.tig.RegisterAllocator()(asm, arch.tig.analyze.Liveness.analyzeProgram(asm))
 
-    arch.tig.emit.LastOptimizer(reg)
+    val lo = arch.tig.emit.LastOptimizer(reg)
 
     val rDot = new java.io.PrintWriter("../reg.dot")
-    rDot.write(new arch.tig.GraphDrawer()(reg))
+    rDot.write(new arch.tig.GraphDrawer()(lo))
     rDot.close()
+
+    new Emitter()(rDot, lo)
 
     val t = System.nanoTime() - startTime
     println(s"time: ${t / 1e9}s")

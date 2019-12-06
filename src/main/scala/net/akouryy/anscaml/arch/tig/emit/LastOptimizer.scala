@@ -4,14 +4,18 @@ package emit
 import asm._
 
 object LastOptimizer {
-  def apply(program: Program): Unit = {
-    for {
-      f <- program.functions
-    } {
+  def apply(program: Program): Program = {
+    program.copy(functions = program.functions.map { f =>
       def updateLines(bi: BlockIndex, fn: List[Line] => List[Line]) = {
         val b = f.body.blocks(bi)
         f.body.blocks(bi) = b.copy(lines = fn(b.lines))
       }
+
+      updateLines(f.body.blocks.firstKey, lines =>
+        Emitter.moveSimultaneously(f.args.zipWithIndex.map {
+          case (a, i) => Emitter.Move(src = XReg.NORMAL_REGS(i), dest = a)
+        }) ::: lines
+      )
 
       f.body.jumps.mapValuesInPlace { (ji, j) =>
         j match {
@@ -42,6 +46,8 @@ object LastOptimizer {
           case _ => true
         })
       }
-    }
+
+      f.copy(args = (1 to f.args.size).map(XReg(_)).toList)
+    })
   }
 }
