@@ -4,14 +4,19 @@ package arch.tig
 class GraphDrawer {
   private[this] val res = new StringBuilder
 
+  private[this] def unsafeEscape(str: String): String = {
+    str.replaceAll("&", "&nbsp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+      .replaceAll("\"", "&quot;")
+  }
+
   //noinspection SpellCheckingInspection
   def apply(p: asm.Program): String = {
     res.clear()
     res ++=
     """digraph Program {
-      |graph [fontname = "Monaco", fontsize = 13, ranksep = 0.5];
-      |node [shape = box, fontname = "Monaco", fontsize = 12];
-      |edge [fontname = "Monaco", fontsize = 12];
+      |graph [fontname = "Monaco", fontsize = 12, ranksep = 0.5];
+      |node [shape = box, fontname = "Monaco", fontsize = 11];
+      |edge [fontname = "Monaco", fontsize = 11];
       |""".stripMargin
 
     for (f <- p.functions) {
@@ -55,15 +60,21 @@ class GraphDrawer {
         if (lines.isEmpty) {
           res ++= s"""$i [label = "$i\\l(0行)"]""" + "\n"
         } else {
-          val ls = lines.take(10).map(l => s"${l.dest} = ${l.inst}").mkString("\\l")
-          if (lines.sizeIs <= 10) {
-            res ++= s"""$i [label = "$i (${lines.size}行)\\l-----\\l$ls\\l"]""" + "\n"
-          } else {
-            val lsx = lines.map(l => s"${l.dest} = ${l.inst}").mkString("\\l")
-            res ++=
-            s"""$i [label = "$i (${lines.size}行)\\l-----\\l$ls\\l(略)"; tooltip = "$lsx"]
-               |""".stripMargin
-          }
+          val ls = lines.grouped(10).toList
+          val linesStr = ls.map { lg =>
+            """<td align="left" valign="top">""" +
+            lg.map(
+              l => s"${l.dest} = ${unsafeEscape(l.inst.toString)}"
+            ).mkString("<br/>") +
+            """</td>"""
+          }.mkString
+          res ++=
+          s"""$i [shape = plain; label = <
+             |<table border="0" cellborder="1" cellspacing="0">
+             |  <tr><td colspan="${ls.size}">$i (${lines.size}行)</td></tr>
+             |  <tr>$linesStr</tr>
+             |</table>
+             |>]""".stripMargin
         }
       }
 
