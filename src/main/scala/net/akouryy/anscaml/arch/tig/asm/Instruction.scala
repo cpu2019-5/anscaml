@@ -31,7 +31,7 @@ object Mvi {
 
 final case class NewArray(len: VC, elem: XID) extends Instruction
 
-final case class Store(addr: XID, index: VC, value: XID) extends Instruction
+final case class Store(addr: XID, index: C, value: XID) extends Instruction
 
 final case class Load(addr: XID, index: VC) extends Instruction
 

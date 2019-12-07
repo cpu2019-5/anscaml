@@ -45,25 +45,25 @@ final case class XReg(id: Int) extends XID {
 }
 
 object XReg {
-  val REG_SIZE = 32
+  val REG_SIZE = 64
 
   val VALID_REGS: IndexedSeq[XReg] = (-1 until REG_SIZE).map(XReg.apply)
-  val NORMAL_REGS: IndexedSeq[XReg] = (1 to 25).map(XReg.apply)
+  val NORMAL_REGS: IndexedSeq[XReg] = (1 to 27).map(XReg.apply)
 
-  val REG_DUMMY = XReg(-1)
-  val REG_ZERO = XReg(0)
-  val REG_RETURN = XReg(1)
-  val REG_ONE = XReg(26)
-  val REG_MINUS_ONE = XReg(27)
-  val REG_LAST_TMP = XReg(28)
-  val REG_HEAP = XReg(29)
-  val REG_STACK = XReg(30)
-  val REG_LINK = XReg(31)
+  val DUMMY = XReg(-1)
+  val ZERO = XReg(0)
+  val RETURN = XReg(1)
+  val LAST_TMP = XReg(28)
+  val HEAP = XReg(29)
+  val STACK = XReg(30)
+  val LINK = XReg(31)
+  val C_ONE = XReg(62)
+  val C_MINUS_ONE = XReg(63)
 
   val fromConstants: Map[Word, XReg] = Map(
-    Word.fromInt(0) -> REG_ZERO,
-    Word.fromInt(1) -> REG_ONE,
-    Word.fromInt(-1) -> REG_MINUS_ONE,
+    Word.fromInt(0) -> ZERO,
+    Word.fromInt(1) -> C_ONE,
+    Word.fromInt(-1) -> C_MINUS_ONE,
   )
 
   val toConstants: Map[XReg, Word] = fromConstants.map(_.swap)

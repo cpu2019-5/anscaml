@@ -71,8 +71,8 @@ object DistributeIf {
           flsInputList ::= (xid0, flsGlueIndex)
         }
 
-        f.body.jumps(truMergeIndex) = Merge(truMergeIndex, truInputList, XReg.REG_DUMMY, tbi4)
-        f.body.jumps(flsMergeIndex) = Merge(flsMergeIndex, flsInputList, XReg.REG_DUMMY, fbi4)
+        f.body.jumps(truMergeIndex) = Merge(truMergeIndex, truInputList, XReg.DUMMY, tbi4)
+        f.body.jumps(flsMergeIndex) = Merge(flsMergeIndex, flsInputList, XReg.DUMMY, fbi4)
 
         f.body.blocks(tbi4) = f.body.blocks(tbi4).copy(input = truMergeIndex)
         f.body.blocks(fbi4) = f.body.blocks(fbi4).copy(input = flsMergeIndex)

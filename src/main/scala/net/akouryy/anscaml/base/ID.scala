@@ -13,7 +13,7 @@ object ID {
     */
   def suffix(c0: Int, allowEmptySuffix: Boolean = false): String = {
     assert(c0 >= 0)
-    if(c0 == 0 && allowEmptySuffix) return ""
+    if (c0 == 0 && allowEmptySuffix) return ""
     var c = c0
     var doNext = true
     val res = new StringBuilder
@@ -50,8 +50,12 @@ object ID {
   }
 
   object Special {
-    val GC_INSTANCE = "$gci"
+    val SPECIALIZE_ADDR = "$addr"
 
+    val EMIT_ARRAY_BODY = "$arb"
+    val EMIT_ARRAY_END = "$are"
+
+    val GC_INSTANCE = "$gci"
     val GC_VAL = "$gcv"
 
     val MAIN = "$main"

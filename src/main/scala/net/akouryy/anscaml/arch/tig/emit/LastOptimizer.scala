@@ -13,21 +13,23 @@ object LastOptimizer {
 
       updateLines(f.body.blocks.firstKey, lines =>
         Emitter.moveSimultaneously(f.args.zipWithIndex.map {
-          case (a, i) => Emitter.Move(src = XReg.NORMAL_REGS(i), dest = a)
-        }) ::: lines
+          case (a, i) => Emitter.Move(src = XReg.NORMAL_REGS(i), dest = a.asXReg.get)
+        }).map {
+          case Emitter.Move(s, d) => Line(d, Mv(s))
+        } ::: lines
       )
 
       f.body.jumps.mapValuesInPlace { (ji, j) =>
         j match {
           case _: StartFun | _: Condition => j
           case Return(_, src, bi) =>
-            if (src == XReg.REG_DUMMY) {
+            if (src == XReg.DUMMY) {
               j
             } else {
-              if (src != XReg.REG_RETURN) {
-                updateLines(bi, lines => lines :+ Line(XReg.REG_RETURN, Mv(src)))
+              if (src != XReg.RETURN) {
+                updateLines(bi, lines => lines :+ Line(XReg.RETURN, Mv(src)))
               }
-              Return(ji, XReg.REG_RETURN, bi)
+              Return(ji, XReg.RETURN, bi)
             }
           case Merge(_, inputs, dest, obi) =>
             Merge(ji, inputs.map {
@@ -35,8 +37,8 @@ object LastOptimizer {
                 if (inputXID != dest) {
                   updateLines(ibi, lines => lines :+ Line(dest, Mv(inputXID)))
                 }
-                (XReg.REG_DUMMY, ibi)
-            }, XReg.REG_DUMMY, obi)
+                (XReg.DUMMY, ibi)
+            }, XReg.DUMMY, obi)
         }
       }
 

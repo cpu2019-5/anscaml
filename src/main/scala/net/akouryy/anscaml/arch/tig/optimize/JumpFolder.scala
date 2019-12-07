@@ -56,7 +56,7 @@ class JumpFolder {
     for (f <- program.functions) {
       /*f.body.jumps.valuesIterator.foreach*/
       for (k <- f.body.jumps.keysIterator; j <- f.body.jumps.get(k)) j match {
-        case Condition(ji1, Eq, XReg.REG_ZERO, C(Word(i @ (0 | 1), _)), bi0, tbi2, fbi2) =>
+        case Condition(ji1, Eq, XReg.ZERO, C(Word(i @ (0 | 1), _)), bi0, tbi2, fbi2) =>
           changed = true
           val toUse = if (i == 0) tbi2 else fbi2
           val toRemove = if (i == 0) fbi2 else tbi2
@@ -66,7 +66,7 @@ class JumpFolder {
 
           removeBlock(f.body, toRemove)
 
-        case Merge(ji1, List(id0 -> bi0), id2, bi2) if id0 == id2 || id2 == XReg.REG_DUMMY =>
+        case Merge(ji1, List(id0 -> bi0), id2, bi2) if id0 == id2 || id2 == XReg.DUMMY =>
           f.body.jumps -= ji1
           concatBlock(f.body, bi0, bi2)
 

@@ -74,19 +74,17 @@ class ImmediateFolder(prog: Program) {
           }
           None
         case NewArray(len, elem) => Some(NewArray(wrapVC(len), wrapXID(elem)))
-        case Store(addr, index, value) =>
-          (xidToConst(addr), vcToConst(index)) match {
-            case (Some(a), Some(i)) =>
-              Some(Store(XReg.REG_ZERO, C(Word.fromInt(a.int + i.int)), wrapXID(value)))
-            case (Some(a), None) =>
-              Some(Store(wrapXID(index.asInstanceOf[V].v), C(a), wrapXID(value)))
-            case _ =>
-              Some(Store(wrapXID(addr), wrapVC(index), wrapXID(value)))
+        case Store(addr, C(index), value) =>
+          xidToConst(addr) match {
+            case Some(a) =>
+              Some(Store(XReg.ZERO, C(Word.fromInt(a.int + index.int)), wrapXID(value)))
+            case None =>
+              Some(Store(wrapXID(addr), C(index), wrapXID(value)))
           }
         case Load(addr, index) =>
           (xidToConst(addr), vcToConst(index)) match {
             case (Some(a), Some(i)) =>
-              Some(Load(XReg.REG_ZERO, C(Word.fromInt(a.int + i.int))))
+              Some(Load(XReg.ZERO, C(Word.fromInt(a.int + i.int))))
             case (Some(a), None) =>
               Some(Load(wrapXID(index.asInstanceOf[V].v), C(a)))
             case _ =>
@@ -131,7 +129,7 @@ class ImmediateFolder(prog: Program) {
           case (Some(l), Some(r)) =>
             // 定数標準形(JumpFolder参照)
             val result = Word.fromInt(if (op.fn(l, r)) 1 else 0)
-            Condition(i, Eq, XReg.REG_ZERO, C(result), input, trueOutput, falseOutput)
+            Condition(i, Eq, XReg.ZERO, C(result), input, trueOutput, falseOutput)
           case _ =>
             Condition(i, op, wrapXID(left), wrapVC(right), input, trueOutput, falseOutput)
         }

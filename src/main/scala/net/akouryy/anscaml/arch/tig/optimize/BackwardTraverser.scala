@@ -99,12 +99,12 @@ class BackwardTraverser {
         u
       case Merge(i, inputs, outputID, output) =>
         val u = useSets(output).to(mutable.Set)
-        if (outputID.asXVar.exists(!u.contains(_)) || outputID == XReg.REG_DUMMY) {
+        if (outputID.asXVar.exists(!u.contains(_)) || outputID == XReg.DUMMY) {
           // outputID is not used
           c.jumps(i) = Merge(
             i,
-            inputs.map { case (_, index) => (XReg.REG_DUMMY, index) },
-            XReg.REG_DUMMY,
+            inputs.map { case (_, index) => (XReg.DUMMY, index) },
+            XReg.DUMMY,
             output
           )
         } else {
@@ -131,7 +131,7 @@ class BackwardTraverser {
         if (keep) {
           Some(l)
         } else if (side) {
-          Some(Line(XReg.REG_DUMMY, inst))
+          Some(Line(XReg.DUMMY, inst))
         } else {
           None
         }

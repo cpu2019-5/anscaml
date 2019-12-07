@@ -58,7 +58,9 @@ object AnsCaml {
     rDot.write(new arch.tig.GraphDrawer()(lo))
     rDot.close()
 
-    new Emitter()(rDot, lo)
+    val out = new java.io.PrintWriter(config.outputFile)
+    new Emitter()(out, lo)
+    out.close()
 
     val t = System.nanoTime() - startTime
     println(s"time: ${t / 1e9}s")
