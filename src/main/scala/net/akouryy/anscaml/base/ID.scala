@@ -11,8 +11,9 @@ object ID {
   /**
     * `0...26 -> A..Z, 26...26^2+26 -> Aa..Zz, 26^2+26...26^3+26^2+26 -> Aaa..Zzz`
     */
-  def suffix(c0: Int): String = {
+  def suffix(c0: Int, allowEmptySuffix: Boolean = false): String = {
     assert(c0 >= 0)
+    if(c0 == 0 && allowEmptySuffix) return ""
     var c = c0
     var doNext = true
     val res = new StringBuilder
@@ -37,7 +38,7 @@ object ID {
   private[this] val TempRegex = """^\$[A-Z][a-z]*$""".r
   private[this] val SuffixedRegex = """^([\w$]+)[A-Z][a-z]*$""".r
 
-  def generate(id: ID): ID = {
+  def generate(id: ID, allowEmptySuffix: Boolean = false): ID = {
     val str = id.str match {
       case TempRegex() => id.str
       case SuffixedRegex(str) => str
@@ -45,8 +46,17 @@ object ID {
     }
     val c = cntMap.getOrElse(str, -1) + 1
     cntMap(str) = c
-    ID(s"${str}${suffix(c)}")
+    ID(s"${str}${suffix(c, allowEmptySuffix)}")
   }
+
+  object Special {
+    val GC_INSTANCE = "$gci"
+
+    val GC_VAL = "$gcv"
+
+    val MAIN = "$main"
+  }
+
 }
 
 final case class Entry(name: ID, typ: Typ) {

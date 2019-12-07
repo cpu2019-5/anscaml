@@ -29,10 +29,8 @@ final case class XVar(id: ID) extends XID {
 }
 
 object XVar {
-  def generate(str: String) = XVar(ID.generate(ID(str)))
-
-  def generate(xid: XID, suffix: String = "") =
-    XVar(ID.generate(ID(s"${xid.idStr}$$$suffix")))
+  def generate(str: String, allowEmptySuffix: Boolean = false) =
+    XVar(ID.generate(ID(str), allowEmptySuffix))
 }
 
 final case class XReg(id: Int) extends XID {

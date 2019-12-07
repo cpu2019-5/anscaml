@@ -30,17 +30,17 @@ class GraphDrawer {
         res ++= (j match {
           case asm.StartFun(i, ob) =>
             val args = f.args.mkString(", ")
-            s"""$i[label = "StartFun.${i.indexString}"; shape = box3d];
+            s"""$i[label = "StartFun.${i.indexString}"; shape = component];
                |$i -> $ob [label = "($args)"];
                |""".stripMargin
           case asm.Return(i, v, ib) =>
-            s"""$i[label = "Return.${i.indexString}"; shape = box3d];
+            s"""$i[label = "Return.${i.indexString}"; shape = lpromoter];
                |$ib -> $i [label="$v"];
                |""".stripMargin
           case asm.Condition(i, op, l, r, ib, tob, fob) =>
             s"""$i[
                |  label = "$i\n$l $op $r";
-               |  shape = box; style = rounded;
+               |  shape = trapezium; style = rounded;
                |];
                |$ib -> $i;
                |$i -> $tob [label=true];
@@ -49,7 +49,7 @@ class GraphDrawer {
           case asm.Merge(i, inputs, v, ob) =>
             val inputEdges =
               inputs.map(ib => s"""${ib._2} -> $i [label="${ib._1}"];""").mkString
-            s"""$i[label = "Merge.${i.indexString}"; shape = box; style = rounded];
+            s"""$i[label = "Merge.${i.indexString}"; shape = invtrapezium; style = rounded];
                |$inputEdges
                |$i -> $ob [label="$v"];
                |""".stripMargin
@@ -60,7 +60,7 @@ class GraphDrawer {
         if (lines.isEmpty) {
           res ++= s"""$i [label = "$i\\l(0行)"]""" + "\n"
         } else {
-          val ls = lines.grouped(10).toList
+          val ls = lines.grouped(if (i == f.body.blocks.firstKey) 30 else 10).toList
           val linesStr = ls.map { lg =>
             """<td align="left" balign="left" valign="top">""" +
             lg.map(

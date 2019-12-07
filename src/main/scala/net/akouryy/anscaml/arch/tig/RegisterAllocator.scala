@@ -32,7 +32,9 @@ class RegisterAllocator {
       case v: XVar =>
         assert(!regEnv.contains(v))
         val used = interference.getOrElse(v, Set()).flatMap(regEnv.get)
-        regEnv(v) = XReg.NORMAL_REGS.find(r => !used.contains(r)).getOrElse(???)
+        regEnv(v) = XReg.NORMAL_REGS.find(r => !used.contains(r)).getOrElse(
+          throw new NotImplementedError(s"Spill: $v vs ${interference(v)}")
+        )
         regEnv(v)
     }
 

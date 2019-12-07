@@ -1,7 +1,7 @@
 package net.akouryy.anscaml
 package arch.tig
 
-import asm.{XID, XReg, XVar, BlockIndex, C, JumpIndex, Line, Ty, V}
+import asm.{BlockIndex, C, JumpIndex, Line, Ty, V, XID, XReg, XVar}
 import base._
 import knorm.KNorm
 import KNorm.{KCProgram, KClosed}
@@ -18,7 +18,7 @@ object Specializer {
 
   private final case class GCFloat(f: Float) extends GConst
 
-  private final case class GCArrayImm(addr: Int, len: Int, elem: XID) extends GConst
+  private final case class GCArrayImm(addr: Int, len: Int, elem: ID) extends GConst
 
   private final case class GCOther(addr: Int, closed: KClosed) extends GConst
 
@@ -32,7 +32,7 @@ class Specializer {
   private[this] var gConstsListRev = List[ID]()
   private[this] var gConstsSumSize: Int = _
 
-  private[this] def loadGConsts(gcs: List[(Entry, KClosed)]): Unit = {
+  private[this] def loadGConstsInfo(gcs: List[(Entry, KClosed)]): Unit = {
     gConsts.clear()
     gConstsListRev = Nil
     gConstsSumSize = 0
@@ -43,7 +43,7 @@ class Specializer {
         case KNorm.KFloat(f) => (GCFloat(f), 0)
         case KNorm.Array(len, elem) =>
           gConsts.get(XVar(len)) match {
-            case Some((_, GCInt(len))) => (GCArrayImm(gConstsSumSize, len, XVar(elem)), len)
+            case Some((_, GCInt(len))) => (GCArrayImm(gConstsSumSize, len, elem), len)
             case _ => (GCOther(gConstsSumSize, cl), 1) // 即値かポインタなのでサイズ1
           }
         case _ => (GCOther(gConstsSumSize, cl), 1)
@@ -73,10 +73,34 @@ class Specializer {
           case GCArrayImm(addr, _, _) => asm.Mvi.int(addr)
           case GCOther(addr, _) => asm.Load(XReg.REG_ZERO, C(Word.fromInt(addr)))
         }
-        val x = XVar.generate(vv, "sp")
+        val x = XVar.generate(vv.idStr + ID.Special.GC_INSTANCE, allowEmptySuffix = true)
         tyEnv(x) = ty
         currentLines += Line(x, line)
         x
+    }
+  }
+
+  private[this] def specializeInitialization(): Unit = {
+    currentLines ++= XReg.toConstants.map { case (r, w) => Line(r, asm.Mvi(w)) }
+    currentLines ++= Seq(
+      Line(XReg.REG_STACK, asm.Mvi.int(1 << AnsCaml.config.memorySizeLog2)),
+      Line(XReg.REG_HEAP, asm.Mvi.int(gConstsSumSize)),
+    )
+
+    gConstsListRev.reverseIterator.foreach { gConst =>
+      gConsts(XVar(gConst)) match {
+        case (_, _: GCInt | _: GCFloat) | (asm.TyArray(asm.TyUnit), _: GCArrayImm) => // no store
+        case (_, GCArrayImm(addr, len, elem)) =>
+          val e = wrapVar(elem)
+          for (i <- 0 until len) {
+            currentLines +=
+            Line(XReg.REG_DUMMY, asm.Store(XReg.REG_ZERO, C.int(addr + i), e))
+          }
+        case (_, GCOther(addr, kcl)) =>
+          val gcVal = XVar.generate(gConst.str + ID.Special.GC_VAL, allowEmptySuffix = true)
+          specializeExpr(gcVal, kcl)
+          currentLines += Line(XReg.REG_DUMMY, asm.Store(XReg.REG_ZERO, C.int(addr), gcVal))
+      }
     }
   }
 
@@ -267,7 +291,7 @@ class Specializer {
     }
   }
 
-  private[this] def specializeFDef(cFDef: KNorm.CFDef, handleGC: Boolean): asm.FDef = {
+  private[this] def specializeFDef(cFDef: KNorm.CFDef, gc: List[(Entry, KClosed)]): asm.FDef = {
     tyEnv ++= cFDef.args.map(e => XVar(e.name) -> Ty(e.typ))
     val fnTyp = asm.Fn.fromTyp(cFDef.entry.typ)
 
@@ -278,9 +302,14 @@ class Specializer {
     val startFunJumpIndex = JumpIndex.generate()
     currentChart.jumps(startFunJumpIndex) =
       asm.StartFun(startFunJumpIndex, currentBlockIndex)
-
     currentInputJumpIndex = startFunJumpIndex
     currentLines.clear()
+
+    if (gc.nonEmpty) {
+      loadGConstsInfo(gc)
+      specializeInitialization()
+    }
+
     val retVar =
       if (fnTyp.ret == asm.TyUnit) XReg.REG_DUMMY
       else XVar.generate(s"${cFDef.entry.name.str}$$ret")
@@ -301,18 +330,16 @@ class Specializer {
   }
 
   def apply(cl: KCProgram): asm.Program = {
-    loadGConsts(cl.gConsts)
-
     fnTypEnv.clear()
 
     fnTypEnv ++= cl.fDefs.map(_.entry.toPair)
 
-    val fDefs = cl.fDefs.map(specializeFDef(_, handleGC = false))
-
     val main = specializeFDef(
-      KNorm.CFDef(Entry(ID("$main"), Typ.TFun(Nil, Typ.TUnit)), Nil, Nil, cl.main),
-      handleGC = true
+      KNorm.CFDef(Entry(ID(ID.Special.MAIN), Typ.TFun(Nil, Typ.TUnit)), Nil, Nil, cl.main),
+      cl.gConsts
     )
+
+    val fDefs = cl.fDefs.map(specializeFDef(_, Nil))
 
     asm.Program(gConstsSumSize, tyEnv.toMap, main :: fDefs)
   }
