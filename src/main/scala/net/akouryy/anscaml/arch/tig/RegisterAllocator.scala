@@ -2,6 +2,7 @@ package net.akouryy.anscaml
 package arch.tig
 
 import asm._
+import base._
 
 import scala.collection.mutable
 
@@ -47,17 +48,25 @@ class RegisterAllocator {
     }
 
     for (block <- f.body.blocks.values.toSeq.reverseIterator) {
-      val newLines = block.lines.reverseIterator.map {
-        case Line(dest, inst) =>
+      val newLines = block.lines.zipWithIndex.reverseIterator.map {
+        case (Line(dest, inst), lineIndex) =>
           val newDest = regEnv(dest)
-          Line(newDest, inst.mapXID(getOrAllocate))
+          val newInst = inst match {
+            case CallDir(fn, args, None) =>
+              val saves =
+                (liveness(block.i)(lineIndex + 1 /* 出口生存 */) -- dest.asXVar)
+                  .map(v => v.id -> regEnv(v)).toMap
+              CallDir(fn, args, Some(saves))
+            case _ => inst
+          }
+          Line(newDest, newInst.mapXID(getOrAllocate))
       }.toList.reverse
       newChart.blocks(block.i) = Block(block.i, newLines, block.input, block.output)
 
       val ji1 = block.input
       val newJump = f.body.jumps(ji1) match {
         case j1: StartFun => Some(j1)
-        case _: Return => ???
+        case j1: Return => ????(j1)
         case Condition(_, op, left, right, input, tru, fls) =>
           if (newChart.blocks.contains(tru) && newChart.blocks.contains(fls)) {
             Some(Condition(ji1, op, getOrAllocate(left), wrapVC(right), input, tru, fls))

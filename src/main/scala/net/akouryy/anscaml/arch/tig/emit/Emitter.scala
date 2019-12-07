@@ -16,7 +16,9 @@ class Emitter {
   private[this] var writer: PrintWriter = _
 
   private[this] var currentFun: FDef = _
-  private[this] var emittedBlocks: mutable.Set[BlockIndex] = mutable.Set()
+  private[this] var emittedBlocks = mutable.Set[BlockIndex]()
+  private[this] var currentStack = mutable.ArrayBuffer[ID]()
+  private[this] var currentStackInv = mutable.Map[ID, Int]()
 
   private[this] def write(ss: Any*) = {
     writer.write("  " + ss.map(s => f"$s%9s").mkString(" ") + "\n")
@@ -52,7 +54,8 @@ class Emitter {
       case NewArray(V(len: XReg), elem: XReg) =>
         // do-whileループでtmpが0以上である間拡張を繰り返す
         // len=0のとき1回ループしてしまうが、未定義領域に1個書き込むだけなので許容
-        val bodyLabel = ID.generate(ID(s"${currentFun.name}.${ID.Special.EMIT_ARRAY_BODY}")).str
+        val bodyLabel =
+          ID.generate(ID(s"${currentFun.name.name}.${ID.Special.EMIT_ARRAY_BODY}")).str
         emitMv(XReg.LAST_TMP, len)
         writeLabel(bodyLabel)
         write("store", XReg.HEAP, 0, elem)
@@ -73,7 +76,7 @@ class Emitter {
       case UnOpTree(op, value: XReg) => write(op.toInstString, dest, value)
       case BinOpVCTree(op, left: XReg, right @ (V(_: XReg) | _: C)) =>
         write(
-          right.fold(_v => op.toInstString, _c => op.toImmInstString),
+          right.fold(_ => op.toInstString, _ => op.toImmInstString),
           dest,
           left,
           right.fold(identity, _.int),
@@ -82,22 +85,56 @@ class Emitter {
       case Nop if l.dest == XReg.DUMMY => // nop
       case Read => write("read", dest)
       case Write(value: XReg) if l.dest == XReg.DUMMY => write("write", value)
-      case CallDir(fn, args) =>
+      case CallDir(fn, args, Some(saves)) =>
         // TODO: tail call
-        val stackSize = 20 // TODO: save/restore
+        val savedKeyPositions = saves.keys.flatMap { k =>
+          currentStackInv.get(k).map(k -> _)
+        }.to(mutable.Map)
+        val savedKeysByPosition = savedKeyPositions.map(_.swap)
+
+        for {
+          (key, reg) <- saves
+          if !savedKeyPositions.contains(key)
+        } {
+          val i = (0 until saves.size).find(i => !savedKeysByPosition.contains(i)).get
+          savedKeyPositions(key) = i
+          savedKeysByPosition(i) = key
+          if (i < currentStack.size) {
+            currentStack(i) = key
+          } else {
+            assert(i == currentStack.size)
+            currentStack += key
+          }
+          currentStackInv(key) = i
+        }
+        println(fn)
+        println(saves)
+        println(currentStack)
+
+        val otherStackSpaceSize = 1 // リンクレジスタ退避用
+        val saveSize = saves.size max savedKeyPositions.values.maxOption.foldF(_ + 1, 0)
         val argMoves = moveSimultaneously(
-          args.zipWithIndex.map { case (a, i) => Move(a.asXReg.get, XReg.NORMAL_REGS(i)) }
+          args.zipWithIndex.map {
+            case (a, i) => Move(a.asXReg.get, XReg.NORMAL_REGS(i))
+          }
         )
-        write("addi", XReg.STACK, XReg.STACK, stackSize)
-        write("store", XReg.STACK, 0, XReg.LINK)
+
+        write("store", XReg.STACK, -1, XReg.LINK)
+        for ((i, key) <- savedKeysByPosition) {
+          write("store", XReg.STACK, -(otherStackSpaceSize + i + 1), saves(key))
+        }
+        write("addi", XReg.STACK, XReg.STACK, -(otherStackSpaceSize + saveSize))
         for (Move(s, d) <- argMoves) emitMv(d, s)
         write("jal", fn.name)
-        write("load", XReg.LINK, XReg.STACK, 0)
-        write("addi", XReg.STACK, XReg.STACK, -stackSize)
+        write("addi", XReg.STACK, XReg.STACK, otherStackSpaceSize + saveSize)
+        for ((i, key) <- savedKeysByPosition) {
+          write("load", saves(key), XReg.STACK, -(otherStackSpaceSize + i + 1))
+        }
+        write("load", XReg.LINK, XReg.STACK, -1)
         if (dest != XReg.DUMMY && dest != XReg.RETURN) {
           emitMv(dest, XReg.RETURN)
         }
-      case _ => require(requirement = false, l)
+      case _ => ????(l)
     }
   }
 
@@ -109,7 +146,7 @@ class Emitter {
         write("jr", XReg.LINK)
       case Condition(_, op, left: XReg, right @ (V(_: XReg) | _: C), _, tru, fls) =>
         write(
-          right.fold(_v => op.toNegJumpString, _c => op.toNegImmJumpString),
+          right.fold(_ => op.toNegJumpString, _ => op.toNegImmJumpString),
           left,
           right.fold(identity, _.int),
           blockLabel("rel:", fls)
@@ -146,8 +183,10 @@ class Emitter {
       write("addi", XReg.C_MINUS_ONE, XReg.ZERO, -1)
     }
 
-    emittedBlocks.clear()
     currentFun = fun
+    emittedBlocks.clear()
+    currentStack.clear()
+    currentStackInv.clear()
 
     emitBlock(fun.body.blocks.firstKey)
   }

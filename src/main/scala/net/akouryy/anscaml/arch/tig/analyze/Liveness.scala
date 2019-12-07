@@ -1,7 +1,9 @@
-package net.akouryy.anscaml.arch.tig
+package net.akouryy.anscaml
+package arch.tig
 package analyze
 
 import asm._
+import base._
 
 import scala.collection.mutable
 
@@ -31,9 +33,9 @@ object Liveness {
       left.asXVar ++ right.asXVar
     case Write(value) =>
       value.asXVar
-    case CallDir(_, args) =>
+    case CallDir(_, args, None) =>
       args.flatMap(_.asXVar)
-    case _: Save | _: Restore => ???
+    case _ => ????(inst)
   }
 
   private[this] def analyzeBlock(info: MutableInfo, c: Chart, b: Block): Unit = {

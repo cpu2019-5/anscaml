@@ -64,7 +64,7 @@ class GraphDrawer {
           val linesStr = ls.map { lg =>
             """<td align="left" balign="left" valign="top">""" +
             lg.map(
-              l => s"${l.dest} = ${unsafeEscape(l.inst.toString)}"
+              l => s"${l.dest} = ${unsafeEscape(l.inst.toBriefString)}"
             ).mkString("<br/>") +
             """</td>"""
           }.mkString

@@ -201,7 +201,7 @@ class Specializer {
         }
         val as = args map wrapVar
         specializeInlineStdlib(dest, fn, as) match {
-          case Nil => currentLines += Line(dest, asm.CallDir(fn, as)) // no stdlib
+          case Nil => currentLines += Line(dest, asm.CallDir(fn, as, None)) // no stdlib
           case lines => currentLines ++= lines
         }
       case KNorm.ApplyClosure(_, _) => ???

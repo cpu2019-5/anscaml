@@ -12,4 +12,6 @@ package object base {
     def foldF[B](f: A => B, ifEmpty: => B): B = option.fold(ifEmpty)(f)
   }
 
+  def ????(a: Any): Nothing = throw new IllegalArgumentException(a.toString)
+
 }

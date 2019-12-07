@@ -101,8 +101,8 @@ class ImmediateFolder(prog: Program) {
         case BinOpVTree(op, left, right) => Some(BinOpVTree(op, wrapXID(left), wrapXID(right)))
         case Nop | Read => None
         case Write(value) => Some(Write(wrapXID(value)))
-        case CallDir(fn, args) => Some(CallDir(fn, args.map(wrapXID)))
-        case Save(_, _) | Restore(_) => ???
+        case CallDir(fn, args, None) => Some(CallDir(fn, args.map(wrapXID), None))
+        case inst => ????(inst)
       }
       newInst match {
         case Some(i) if i != l.inst =>

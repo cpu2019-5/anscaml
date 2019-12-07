@@ -17,6 +17,8 @@ sealed trait Instruction {
     val res = everywhere(inc)(this) // shapelessの?バグのため一時変数に代入
     res
   }
+
+  def toBriefString: String = toString
 }
 
 final case class Mv(id: XID) extends Instruction
@@ -47,8 +49,8 @@ case object Read extends Instruction
 
 final case class Write(value: XID) extends Instruction
 
-final case class CallDir(fn: LabelID, args: List[XID]) extends Instruction
-
-final case class Save(reg: XReg, memory: XVar) extends Instruction
-
-final case class Restore(memory: XVar) extends Instruction
+final case class CallDir(fn: LabelID, args: List[XID], saves: Option[Map[ID, XReg]])
+  extends Instruction {
+  override def toBriefString =
+    s"CallDir(${fn.name}; ${if(args.isEmpty) "Nil" else args.mkString(", ")})"
+}
