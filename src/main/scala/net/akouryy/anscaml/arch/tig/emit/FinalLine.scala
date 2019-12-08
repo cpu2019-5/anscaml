@@ -6,13 +6,26 @@ sealed trait FinalLine {
 }
 
 final case class FinalLabel(label: String, comment: String) extends FinalLine {
-  override def toFinalString = f"${s"$label:"}%-70s$comment"
+  override def toFinalString: String = {
+    val base = s"$label:"
+    if (comment.nonEmpty) {
+      f"$base%-70s# $comment"
+    } else {
+      base
+    }
+  }
 }
 
 final case class FinalCommand(comment: String, inst: FinalInst, args: List[FinalArg])
   extends FinalLine {
-  override def toFinalString =
-    f"${f"$inst%-10s" + args.map(a => f"${a.toFinalString}%9s").mkString(" ")}%-70s$comment"
+  override def toFinalString: String = {
+    val base = f"  $inst%-9s " + args.map(a => f"${a.toFinalString}%9s").mkString(" ")
+    if (comment.nonEmpty) {
+      f"$base%-70s# $comment"
+    } else {
+      base
+    }
+  }
 }
 
 object FinalCommand {

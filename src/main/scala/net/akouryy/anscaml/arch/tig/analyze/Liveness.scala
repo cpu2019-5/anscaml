@@ -42,10 +42,8 @@ object Liveness {
     var live: LiveSet = c.jumps(b.output) match {
       case _: StartFun => ???
       case Return(_, value, _) => value.asXVar.to(Set)
-      case Condition(_, Condition.withVC(_, left, right), _, tru, fls) =>
+      case Branch(_, Branch.Cond(_, left, right), _, tru, fls) =>
         info(tru).head ++ info(fls).head ++ left.asXVar ++ right.asVXVar
-      case Condition(_, Condition.withV(_, left, right), _, tru, fls) =>
-        info(tru).head ++ info(fls).head ++ left.asXVar ++ right.asXVar
       case Merge(_, inputs, outputID, output) =>
         info(output).head -- outputID.asXVar ++ inputs.find(_._2 == b.i).get._1.asXVar
     }

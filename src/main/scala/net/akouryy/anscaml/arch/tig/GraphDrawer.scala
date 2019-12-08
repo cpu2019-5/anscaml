@@ -1,7 +1,7 @@
 package net.akouryy.anscaml
 package arch.tig
 
-import net.akouryy.anscaml.arch.tig.asm.Condition
+import net.akouryy.anscaml.arch.tig.asm.Branch
 
 class GraphDrawer {
   private[this] val res = new StringBuilder
@@ -24,7 +24,7 @@ class GraphDrawer {
     for (f <- p.functions) {
       res ++=
       s"""subgraph cluster_${Math.abs(f.hashCode)} {
-         |label="${f.name.name}";
+         |label="${f.name}";
          |color=green;
          |""".stripMargin
 
@@ -39,13 +39,9 @@ class GraphDrawer {
             s"""$i[label = "Return.${i.indexString}"; shape = lpromoter];
                |$ib -> $i [label="$v"];
                |""".stripMargin
-          case asm.Condition(i, expr, ib, tob, fob) =>
-            val (op, l, r) = expr match {
-              case Condition.withVC(op, l, r) => (op, l, r)
-              case Condition.withV(op, l, r) => (op, l, r)
-            }
+          case asm.Branch(i, Branch.Cond(op, l, r), ib, tob, fob) =>
             s"""$i[
-               |  label = "$i\n$l $op $r";
+               |  label = "Branch.${i.indexString}\n$l $op $r";
                |  shape = trapezium; style = rounded;
                |];
                |$ib -> $i;

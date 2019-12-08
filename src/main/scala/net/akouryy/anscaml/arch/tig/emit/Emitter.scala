@@ -36,7 +36,7 @@ class Emitter(program: Program) {
   private[this] def FReg(xReg: XReg) = FinalArg.Reg(xReg.toString)
 
   private[this] def blockLabel(bi: BlockIndex) =
-    s"${currentFun.name.name}.${bi.indexString}"
+    s"${currentFun.name}.${bi.indexString}"
 
   private[this] def draftMv(dest: XReg, src: XReg) =
     draftCommand("", FInst.band, FReg(dest), FReg(XReg.C_MINUS_ONE), FReg(src))
@@ -63,7 +63,7 @@ class Emitter(program: Program) {
         // do-whileループでtmpが0以上である間拡張を繰り返す
         // len=0のとき1回ループしてしまうが、未定義領域に1個書き込むだけなので許容
         val bodyLabel =
-          ID.generate(ID(s"${currentFun.name.name}.${ID.Special.EMIT_ARRAY_BODY}")).str
+          ID.generate(ID(s"${currentFun.name}.${ID.Special.EMIT_ARRAY_BODY}")).str
         draftMv(XReg.LAST_TMP, len)
         draftLabel(bodyLabel)
         draftCommand("", FInst.store, FReg(XReg.HEAP), FImm(0), FReg(elem))
@@ -122,9 +122,6 @@ class Emitter(program: Program) {
           }
           currentStackInv(key) = i
         }
-        println(fn)
-        println(saves)
-        println(currentStack)
 
         val reservedSize = 1 // リンクレジスタ退避用
         val saveSize = saves.size max savedKeyPositions.values.maxOption.foldF(_ + 1, 0)
@@ -143,7 +140,7 @@ class Emitter(program: Program) {
         }
         draftCommand("", FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), FImm(-totalSize))
         for (Move(s, d) <- argMoves) draftMv(d, s)
-        draftCommand("", FInst.jal, FLabel(LAbs, fn.name))
+        draftCommand("", FInst.jal, FLabel(LAbs, fn))
         draftCommand("", FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), FImm(totalSize))
         for ((i, key) <- savedKeysByPosition) {
           draftCommand("", FInst.load,
@@ -164,32 +161,30 @@ class Emitter(program: Program) {
     currentFun.body.jumps(ji) match {
       case Return(_, XReg.DUMMY | `retReg`, _) =>
         draftCommand("", FinalInst.jr, FReg(XReg.LINK))
-      case Condition(_, Condition.withVC(op, left: XReg, right @ (V(_: XReg) | _: C)), _, tru, fls) =>
+      case jump @ Branch(_, cond, _, tru, fls) =>
         val flsLabel = blockLabel(fls)
-        draftCommand("",
-          right.fold(_ => FInst.negVJumpFromCmpOpVC(op), _ => FInst.negCJumpFromCmpOpVC(op)),
-          FReg(left),
-          right.fold(v => FReg(v.asXReg.get), c => FImm(c.int)),
-          FLabel(LRel, flsLabel),
-        )
+        cond match {
+          case Branch.CondVC(op, left: XReg, right) =>
+            draftCommand("",
+              right.fold(_ => FInst.negVJumpFromCmpOpVC(op), _ => FInst.negCJumpFromCmpOpVC(op)),
+              FReg(left),
+              right.fold(v => FReg(v.asXReg.get), c => FImm(c.int)),
+              FLabel(LRel, flsLabel),
+            )
+          case Branch.CondV(op, left: XReg, right: XReg) =>
+            draftCommand("",
+              FInst.negJumpFromCmpOpV(op),
+              FReg(left),
+              FReg(right),
+              FLabel(LRel, flsLabel),
+            )
+          case _ => ????(jump)
+        }
         emitBlock(tru)
-        draftLabel(flsLabel)
-        emitBlock(fls)
-      case Condition(_, Condition.withV(op, left: XReg, right: XReg), _, tru, fls) =>
-        val flsLabel = blockLabel(fls)
-        draftCommand("",
-          FInst.negJumpFromCmpOpV(op),
-          FReg(left),
-          FReg(right),
-          FLabel(LRel, flsLabel),
-        )
-        emitBlock(tru)
-        draftLabel(flsLabel)
         emitBlock(fls)
       case Merge(_, inputs, XReg.DUMMY, output) if inputs.forall(_._1 == XReg.DUMMY) =>
         val outputLabel = blockLabel(output)
         if (inputs.forall(emittedBlocks contains _._2)) {
-          draftLabel(outputLabel)
           emitBlock(output)
         } else {
           draftCommand("", FinalInst.j, FLabel(LAbs, outputLabel))
@@ -209,17 +204,18 @@ class Emitter(program: Program) {
   private[this] def emitFunction(fun: FDef) = {
     require(fun.args == XReg.NORMAL_REGS.take(fun.args.size), fun.args)
 
-    draftLabel(fun.name.name)
-
-    if (fun.name.name == ID.Special.MAIN) {
-      draftCommand("", FinalInst.addi, FReg(XReg.C_ONE), FReg(XReg.ZERO), FImm(1))
-      draftCommand("", FinalInst.addi, FReg(XReg.C_MINUS_ONE), FReg(XReg.ZERO), FImm(-1))
-    }
-
     currentFun = fun
     emittedBlocks.clear()
     currentStack.clear()
     currentStackInv.clear()
+    currentFLines.clear()
+
+    draftLabel(fun.name)
+
+    if (fun.name == ID.Special.MAIN) {
+      draftCommand("", FinalInst.addi, FReg(XReg.C_ONE), FReg(XReg.ZERO), FImm(1))
+      draftCommand("", FinalInst.addi, FReg(XReg.C_MINUS_ONE), FReg(XReg.ZERO), FImm(-1))
+    }
 
     emitBlock(fun.body.blocks.firstKey)
 

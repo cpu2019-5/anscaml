@@ -21,7 +21,7 @@ object LastOptimizer {
 
       f.body.jumps.mapValuesInPlace { (ji, j) =>
         j match {
-          case _: StartFun | _: Condition => j
+          case _: StartFun | _: Branch => j
           case Return(_, src, bi) =>
             if (src == XReg.DUMMY) {
               j

@@ -106,8 +106,8 @@ class Specializer {
   /**
     * @return 標準関数が存在するならそれを表す非空の命令列、存在しないならNil
     */
-  def specializeInlineStdlib(dest: XID, fn: LabelID, args: List[XID]): List[Line] =
-    (fn.name, args) match {
+  def specializeInlineStdlib(dest: XID, fn: String, args: List[XID]): List[Line] =
+    (fn, args) match {
       case ("$ext_print_char", List(x)) => List(Line(dest, asm.Write(x)))
       case ("$ext_read_char", List()) => List(Line(dest, asm.Read))
       case ("$ext_fneg", List(x)) =>
@@ -192,10 +192,10 @@ class Specializer {
         }
       case KNorm.ApplyDirect(fn, args) =>
         val Typ.TFun(argsTyp, retTyp) =
-          if (fn.name.startsWith("$ext_"))
-            typ.Constrainer.ExtEnv(ID(fn.name.substring(5)))
+          if (fn.startsWith(ID.Special.EXTERNAL_PREFIX))
+            typ.Constrainer.ExtEnv(ID(fn.substring(5)))
           else
-            fnTypEnv(ID(fn.name))
+            fnTypEnv(ID(fn))
         if (retTyp == Typ.TUnit) {
           assert(dest == XReg.DUMMY)
         }
@@ -219,9 +219,9 @@ class Specializer {
         for (elem <- elems) {
           val v = XVar(elem.name)
           if (elem.typ != Typ.TUnit) {
-            i += 1
             tyEnv(v) = Ty(elem.typ)
             currentLines += Line(v, asm.Load(b, C(Word.fromInt(i))))
+            i += 1
           } else {
             tyEnv(v) = asm.TyUnit
           }
@@ -245,12 +245,9 @@ class Specializer {
           asm.Block(branchingBlockIndex, currentLines.toList, currentInputJumpIndex, condJumpIndex)
 
         // if分岐を登録
-        currentChart.jumps(condJumpIndex) = asm.Condition(
+        currentChart.jumps(condJumpIndex) = asm.Branch(
           condJumpIndex,
-          asm.CmpOpVC.fromSyntax(op).fold(
-            asm.Condition.withV(_, l, r),
-            asm.Condition.withVC(_, l, V(r)),
-          ),
+          asm.CmpOpVC.fromSyntax(op).fold(asm.Branch.CondV(_, l, r), asm.Branch.CondVC(_, l, V(r))),
           currentBlockIndex, trueStartBlockIndex, falseStartBlockIndex,
         )
 
@@ -332,7 +329,7 @@ class Specializer {
     currentChart.jumps(returnJumpIndex) = asm.Return(returnJumpIndex, retVar, currentBlockIndex)
 
     asm.FDef(
-      LabelID(cFDef.entry.name.str),
+      cFDef.entry.name.str,
       cFDef.args.map(a => XVar(a.name)),
       currentChart,
       fnTyp,

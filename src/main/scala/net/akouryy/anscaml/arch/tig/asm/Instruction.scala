@@ -49,8 +49,8 @@ case object Read extends Instruction
 
 final case class Write(value: XID) extends Instruction
 
-final case class CallDir(fn: LabelID, args: List[XID], saves: Option[Map[ID, XReg]])
+final case class CallDir(fn: String, args: List[XID], saves: Option[Map[ID, XReg]])
   extends Instruction {
   override def toBriefString =
-    s"CallDir(${fn.name}; ${if(args.isEmpty) "Nil" else args.mkString(", ")})"
+    s"CallDir($fn; ${if (args.isEmpty) "Nil" else args.mkString(", ")})"
 }

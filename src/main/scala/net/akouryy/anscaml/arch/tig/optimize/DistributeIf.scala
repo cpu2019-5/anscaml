@@ -39,7 +39,7 @@ object DistributeIf {
     var changed = false
     for (f <- program.functions) {
       for {
-        Condition(ji3, expr, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
+        Branch(ji3, expr, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
         Block(_, Nil, ji1, _) <- f.body.blocks.get(bi2).orElse(???)
         Merge(_, inputs1, outputID1: XVar, _) <- f.body.jumps.get(ji1).orElse(???)
         if outputID1 == expr.left &&
@@ -61,11 +61,8 @@ object DistributeIf {
           val flsGlueIndex = BlockIndex.generate(bi2)
 
           f.body.blocks(bi0) = f.body.blocks(bi0).copy(output = condIndex)
-          f.body.jumps(condIndex) = Condition(
-            condIndex, expr match {
-              case e: Condition.withVC => e.copy(left = xid0)
-              case e: Condition.withV => e.copy(left = xid0)
-            }, bi0, truGlueIndex, flsGlueIndex,
+          f.body.jumps(condIndex) = Branch(
+            condIndex, expr.mapL(_ => xid0), bi0, truGlueIndex, flsGlueIndex,
           )
           f.body.blocks(truGlueIndex) = Block(truGlueIndex, Nil, condIndex, truMergeIndex)
           f.body.blocks(flsGlueIndex) = Block(flsGlueIndex, Nil, condIndex, flsMergeIndex)

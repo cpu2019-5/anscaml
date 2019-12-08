@@ -49,9 +49,11 @@ case object Fdiv extends BinOpV
 
 case object FnegCond extends BinOpV
 
-sealed trait CmpOpVC {
+sealed trait CmpOp {
   def fn(l: Word, r: Word): Boolean
 }
+
+sealed trait CmpOpVC extends CmpOp
 
 case object Eq extends CmpOpVC {
   override def fn(l: Word, r: Word): Boolean = l.int == r.int
@@ -61,9 +63,7 @@ case object Le extends CmpOpVC {
   override def fn(l: Word, r: Word): Boolean = l.int <= r.int
 }
 
-sealed trait CmpOpV {
-  def fn(l: Word, r: Word): Boolean
-}
+sealed trait CmpOpV extends CmpOp
 
 case object FLe extends CmpOpV {
   override def fn(l: Word, r: Word): Boolean = l.float <= r.float

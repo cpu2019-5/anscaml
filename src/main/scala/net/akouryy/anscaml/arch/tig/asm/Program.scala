@@ -1,13 +1,11 @@
 package net.akouryy.anscaml
 package arch.tig.asm
 
-import base.{ID, LabelID}
-
 import scala.collection.mutable
 
 final case class Program(gcSize: Int, tyEnv: Map[XVar, Ty], functions: List[FDef])
 
-final case class FDef(name: LabelID, args: List[XID], body: Chart, typ: Fn)
+final case class FDef(name: String, args: List[XID], body: Chart, typ: Fn)
 
 final case class BlockIndex(indices: List[Int]) extends Ordered[BlockIndex] {
   override def toString: String = s"Block$indexString"
@@ -68,19 +66,45 @@ final case class StartFun(i: JumpIndex, output: BlockIndex) extends Jump
 
 final case class Return(i: JumpIndex, value: XID, input: BlockIndex) extends Jump
 
-final case class Condition(
-  i: JumpIndex, expr: Condition.Expr, input: BlockIndex, tru: BlockIndex, fls: BlockIndex,
+final case class Branch(
+  i: JumpIndex, cond: Branch.Cond, input: BlockIndex, tru: BlockIndex, fls: BlockIndex,
 ) extends Jump
 
-object Condition {
+object Branch {
 
-  sealed trait Expr {
+  sealed trait Cond {
+    val opBase: CmpOp
     val left: XID
+    val rightVC: VC
+
+    def mapL(leftFn: XID => XID): Cond
+
+    def mapLR(leftFn: XID => XID)(rightFnVC: VC => VC, rightFnV: XID => XID): Cond
   }
 
-  final case class withVC(op: CmpOpVC, left: XID, right: VC) extends Expr
+  object Cond {
+    def unapply(c: Cond): Option[(CmpOp, XID, VC)] = Some(c.opBase, c.left, c.rightVC)
+  }
 
-  final case class withV(op: CmpOpV, left: XID, right: XID) extends Expr
+  final case class CondVC(op: CmpOpVC, left: XID, right: VC) extends Cond {
+    override val opBase: CmpOp = op
+    override val rightVC: VC = right
+
+    override def mapL(leftFn: XID => XID): CondVC = copy(left = leftFn(left))
+
+    override def mapLR(leftFn: XID => XID)(rightFnVC: VC => VC, rightFnV: XID => XID): CondVC =
+      copy(left = leftFn(left), right = rightFnVC(right))
+  }
+
+  final case class CondV(op: CmpOpV, left: XID, right: XID) extends Cond {
+    override val opBase: CmpOp = op
+    override val rightVC: VC = V(right)
+
+    override def mapL(leftFn: XID => XID): CondV = copy(left = leftFn(left))
+
+    override def mapLR(leftFn: XID => XID)(rightFnVC: VC => VC, rightFnV: XID => XID): CondV =
+      copy(left = leftFn(left), right = rightFnV(right))
+  }
 
 }
 

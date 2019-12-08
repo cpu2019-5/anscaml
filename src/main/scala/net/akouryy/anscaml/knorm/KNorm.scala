@@ -54,7 +54,7 @@ object KNorm {
 
   final case class ApplyExternal(fn: ID, args: List[ID]) extends KRaw
 
-  final case class ApplyDirect(fn: LabelID, args: List[ID]) extends KCRaw
+  final case class ApplyDirect(fn: String, args: List[ID]) extends KCRaw
 
   final case class ApplyClosure(fn: ID, args: List[ID]) extends KCRaw
 
