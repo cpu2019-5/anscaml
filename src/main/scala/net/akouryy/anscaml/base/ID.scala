@@ -52,10 +52,12 @@ object ID {
   object Special {
     val SPECIALIZE_ADDR = "$addr"
 
-    val EXTERNAL_PREFIX = "$ext_"
-
     val EMIT_ARRAY_BODY = "$arb"
     val EMIT_ARRAY_END = "$are"
+
+    val ASM_EXIT_FUN = "$exit"
+
+    val EXTERNAL_PREFIX = "$ext_"
 
     val GC_INSTANCE = "$gci"
     val GC_VAL = "$gcv"

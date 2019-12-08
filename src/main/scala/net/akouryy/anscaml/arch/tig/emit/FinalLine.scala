@@ -18,6 +18,9 @@ final case class FinalLabel(label: String, comment: String) extends FinalLine {
 
 final case class FinalCommand(comment: String, inst: FinalInst, args: List[FinalArg])
   extends FinalLine {
+
+  require(inst.isValidWith(args), (inst, args))
+
   override def toFinalString: String = {
     val base = f"  $inst%-9s " + args.map(a => f"${a.toFinalString}%9s").mkString(" ")
     if (comment.nonEmpty) {
@@ -223,27 +226,27 @@ object FinalInst {
   })
 
   case object jne extends FinalInst({
-    case List(_: Reg, _: Reg, Label(LAbs, _)) =>
+    case List(_: Reg, _: Reg, Label(LRel, _)) =>
   })
 
   case object jgt extends FinalInst({
-    case List(_: Reg, _: Reg, Label(LAbs, _)) =>
+    case List(_: Reg, _: Reg, Label(LRel, _)) =>
   })
 
   case object fjgt extends FinalInst({
-    case List(_: Reg, _: Reg, Label(LAbs, _)) =>
+    case List(_: Reg, _: Reg, Label(LRel, _)) =>
   })
 
   case object jnei extends FinalInst({
-    case List(_: Reg, _: Imm, Label(LAbs, _)) =>
+    case List(_: Reg, _: Imm, Label(LRel, _)) =>
   })
 
   case object jgti extends FinalInst({
-    case List(_: Reg, _: Imm, Label(LAbs, _)) =>
+    case List(_: Reg, _: Imm, Label(LRel, _)) =>
   })
 
   case object jlti extends FinalInst({
-    case List(_: Reg, _: Imm, Label(LAbs, _)) =>
+    case List(_: Reg, _: Imm, Label(LRel, _)) =>
   })
 
 }

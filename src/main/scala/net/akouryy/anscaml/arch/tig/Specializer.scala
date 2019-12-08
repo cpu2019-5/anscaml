@@ -314,12 +314,15 @@ class Specializer {
     }
 
     val retVar =
-      if (fnTyp.ret == asm.TyUnit) XReg.DUMMY
-      else XVar.generate(s"${cFDef.entry.name.str}$$ret")
+      if (fnTyp.ret == asm.TyUnit && gcsOpt.isEmpty) {
+        XReg.DUMMY
+      } else { // mainもunitを返すが、mainだけは任意の型を最後の式として認める
+        XVar.generate(s"${cFDef.entry.name.str}$$ret")
+      }
     specializeExpr(retVar, cFDef.body)
 
-    if (gcsOpt.isDefined) { // mainの最後をunitにする
-      currentLines += Line(XReg.DUMMY, asm.Nop)
+    if (gcsOpt.isDefined) { // mainの最後にexit擬似関数の呼び出しを加える
+      currentLines += Line(XReg.DUMMY, asm.CallDir(ID.Special.ASM_EXIT_FUN, Nil, None))
     }
 
     // 最後のブロックとその後のReturnジャンプを登録

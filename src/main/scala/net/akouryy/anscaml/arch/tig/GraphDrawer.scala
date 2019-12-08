@@ -1,8 +1,6 @@
 package net.akouryy.anscaml
 package arch.tig
 
-import net.akouryy.anscaml.arch.tig.asm.Branch
-
 class GraphDrawer {
   private[this] val res = new StringBuilder
 
@@ -39,7 +37,7 @@ class GraphDrawer {
             s"""$i[label = "Return.${i.indexString}"; shape = lpromoter];
                |$ib -> $i [label="$v"];
                |""".stripMargin
-          case asm.Branch(i, Branch.Cond(op, l, r), ib, tob, fob) =>
+          case asm.Branch(i, asm.Branch.Cond(op, l, r), ib, tob, fob) =>
             s"""$i[
                |  label = "Branch.${i.indexString}\n$l $op $r";
                |  shape = trapezium; style = rounded;
