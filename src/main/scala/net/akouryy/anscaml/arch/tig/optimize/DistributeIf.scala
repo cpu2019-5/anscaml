@@ -39,10 +39,10 @@ object DistributeIf {
     var changed = false
     for (f <- program.functions) {
       for {
-        Condition(ji3, op, left, right, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
+        Condition(ji3, expr, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
         Block(_, Nil, ji1, _) <- f.body.blocks.get(bi2).orElse(???)
         Merge(_, inputs1, outputID1: XVar, _) <- f.body.jumps.get(ji1).orElse(???)
-        if outputID1 == left &&
+        if outputID1 == expr.left &&
            !useSets.get(tbi4).exists(_ contains outputID1) &&
            !useSets.get(fbi4).exists(_ contains outputID1)
       } {
@@ -62,7 +62,10 @@ object DistributeIf {
 
           f.body.blocks(bi0) = f.body.blocks(bi0).copy(output = condIndex)
           f.body.jumps(condIndex) = Condition(
-            condIndex, op, xid0, right, bi0, truGlueIndex, flsGlueIndex,
+            condIndex, expr match {
+              case e: Condition.withVC => e.copy(left = xid0)
+              case e: Condition.withV => e.copy(left = xid0)
+            }, bi0, truGlueIndex, flsGlueIndex,
           )
           f.body.blocks(truGlueIndex) = Block(truGlueIndex, Nil, condIndex, truMergeIndex)
           f.body.blocks(flsGlueIndex) = Block(flsGlueIndex, Nil, condIndex, flsMergeIndex)

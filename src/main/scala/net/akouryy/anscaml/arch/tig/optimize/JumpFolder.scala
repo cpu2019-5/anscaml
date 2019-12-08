@@ -19,7 +19,7 @@ class JumpFolder {
     chart.jumps(ji1) match {
       case _: StartFun => ???
       case _: Return => chart.jumps -= ji1
-      case Condition(_, _, _, _, _, tru2, fls2) =>
+      case Condition(_, _, _, tru2, fls2) =>
         chart.jumps -= ji1
         removeBlock(chart, tru2)
         removeBlock(chart, fls2)
@@ -56,7 +56,8 @@ class JumpFolder {
     for (f <- program.functions) {
       /*f.body.jumps.valuesIterator.foreach*/
       for (k <- f.body.jumps.keysIterator; j <- f.body.jumps.get(k)) j match {
-        case Condition(ji1, Eq, XReg.ZERO, C(Word(i @ (0 | 1), _)), bi0, tbi2, fbi2) =>
+        case Condition(ji1, Condition.withVC(Eq, XReg.ZERO, C(Word(i @ (0 | 1), _))),
+        bi0, tbi2, fbi2) =>
           changed = true
           val toUse = if (i == 0) tbi2 else fbi2
           val toRemove = if (i == 0) fbi2 else tbi2

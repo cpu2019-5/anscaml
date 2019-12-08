@@ -124,15 +124,18 @@ class ImmediateFolder(prog: Program) {
       case Return(i, value, input) => Return(i, wrapXID(value), input)
       case Merge(i, inputs, outputID, output) =>
         Merge(i, inputs.map { case (xid, index) => (wrapXID(xid), index) }, outputID, output)
-      case Condition(i, op, left, right, input, trueOutput, falseOutput) =>
+      case Condition(i, Condition.withVC(op, left, right), input, trueOutput, falseOutput) =>
         (xidToConst(left), vcToConst(right)) match {
           case (Some(l), Some(r)) =>
             // 定数標準形(JumpFolder参照)
             val result = Word.fromInt(if (op.fn(l, r)) 1 else 0)
-            Condition(i, Eq, XReg.ZERO, C(result), input, trueOutput, falseOutput)
+            Condition(i, Condition.withVC(Eq, XReg.ZERO, C(result)),
+              input, trueOutput, falseOutput)
           case _ =>
-            Condition(i, op, wrapXID(left), wrapVC(right), input, trueOutput, falseOutput)
+            Condition(i, Condition.withVC(op, wrapXID(left), wrapVC(right)),
+              input, trueOutput, falseOutput)
         }
+      case c: Condition => c
     }
 
     if (newJ != j) {

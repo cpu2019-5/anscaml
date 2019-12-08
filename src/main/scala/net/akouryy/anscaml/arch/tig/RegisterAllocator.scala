@@ -67,9 +67,16 @@ class RegisterAllocator {
       val newJump = f.body.jumps(ji1) match {
         case j1: StartFun => Some(j1)
         case j1: Return => ????(j1)
-        case Condition(_, op, left, right, input, tru, fls) =>
+        case Condition(_, expr, input, tru, fls) =>
           if (newChart.blocks.contains(tru) && newChart.blocks.contains(fls)) {
-            Some(Condition(ji1, op, getOrAllocate(left), wrapVC(right), input, tru, fls))
+            Some(Condition(ji1,
+              expr match {
+                case Condition.withVC(op, left, right) =>
+                  Condition.withVC(op, getOrAllocate(left), wrapVC(right))
+                case Condition.withV(op, left, right) =>
+                  Condition.withV(op, getOrAllocate(left), getOrAllocate(right))
+              },
+              input, tru, fls))
           } else {
             None // newJumpの追加はtruとflsの両方が処理された後に行う
           }

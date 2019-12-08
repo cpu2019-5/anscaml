@@ -91,11 +91,17 @@ class BackwardTraverser {
     val use = c.jumps(b.output) match {
       case j: StartFun => ????(j)
       case Return(_, value, _) => value.asXVar.to(mutable.Set)
-      case Condition(_, _, left, right, _, tru, fls) =>
+      case Condition(_, Condition.withVC(_, left, right), _, tru, fls) =>
         val u = useSets(tru).to(mutable.Set)
         u ++= useSets(fls)
         u ++= left.asXVar
         u ++= right.asV.flatMap(_.asXVar)
+        u
+      case Condition(_, Condition.withV(_, left, right), _, tru, fls) =>
+        val u = useSets(tru).to(mutable.Set)
+        u ++= useSets(fls)
+        u ++= left.asXVar
+        u ++= right.asXVar
         u
       case Merge(i, inputs, outputID, output) =>
         val u = useSets(output).to(mutable.Set)

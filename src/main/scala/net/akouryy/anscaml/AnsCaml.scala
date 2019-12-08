@@ -59,7 +59,7 @@ object AnsCaml {
     rDot.close()
 
     val out = new java.io.PrintWriter(config.outputFile)
-    new Emitter()(out, lo)
+    new Emitter(lo).writeTo(out)
     out.close()
 
     val t = System.nanoTime() - startTime

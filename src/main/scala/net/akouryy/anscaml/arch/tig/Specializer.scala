@@ -136,11 +136,11 @@ class Specializer {
         val r = wrapVar(right)
         currentLines += Line(dest, op match {
           case BinOp.Add => asm.BinOpVCTree(asm.Add, l, asm.V(r))
-          case BinOp.Sub => asm.BinOpVCTree(asm.Sub, l, asm.V(r))
+          case BinOp.Sub => asm.BinOpVTree(asm.Sub, l, r)
           case BinOp.Shl => asm.BinOpVCTree(asm.Sha, l, asm.V(r))
           case BinOp.Shr =>
             val neg = XVar.generate(s"${r.idStr}$$neg")
-            currentLines += Line(neg, asm.BinOpVCTree(asm.Sub, XReg.ZERO, asm.V(r)))
+            currentLines += Line(neg, asm.BinOpVTree(asm.Sub, XReg.ZERO, r))
             asm.BinOpVCTree(asm.Sha, l, asm.V(neg))
           case BinOp.Land => asm.BinOpVCTree(asm.Band, l, asm.V(r))
           case BinOp.Mul | BinOp.Div | BinOp.Mod =>
@@ -246,7 +246,11 @@ class Specializer {
 
         // if分岐を登録
         currentChart.jumps(condJumpIndex) = asm.Condition(
-          condJumpIndex, asm.CmpOp.fromSyntax(op), l, V(r),
+          condJumpIndex,
+          asm.CmpOpVC.fromSyntax(op).fold(
+            asm.Condition.withV(_, l, r),
+            asm.Condition.withVC(_, l, V(r)),
+          ),
           currentBlockIndex, trueStartBlockIndex, falseStartBlockIndex,
         )
 

@@ -69,10 +69,20 @@ final case class StartFun(i: JumpIndex, output: BlockIndex) extends Jump
 final case class Return(i: JumpIndex, value: XID, input: BlockIndex) extends Jump
 
 final case class Condition(
-  i: JumpIndex,
-  op: CmpOp, left: XID, right: VC,
-  input: BlockIndex, tru: BlockIndex, fls: BlockIndex,
+  i: JumpIndex, expr: Condition.Expr, input: BlockIndex, tru: BlockIndex, fls: BlockIndex,
 ) extends Jump
+
+object Condition {
+
+  sealed trait Expr {
+    val left: XID
+  }
+
+  final case class withVC(op: CmpOpVC, left: XID, right: VC) extends Expr
+
+  final case class withV(op: CmpOpV, left: XID, right: XID) extends Expr
+
+}
 
 final case class Merge(
   i: JumpIndex,

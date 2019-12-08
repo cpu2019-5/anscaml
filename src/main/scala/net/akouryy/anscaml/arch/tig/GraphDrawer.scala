@@ -1,6 +1,8 @@
 package net.akouryy.anscaml
 package arch.tig
 
+import net.akouryy.anscaml.arch.tig.asm.Condition
+
 class GraphDrawer {
   private[this] val res = new StringBuilder
 
@@ -37,7 +39,11 @@ class GraphDrawer {
             s"""$i[label = "Return.${i.indexString}"; shape = lpromoter];
                |$ib -> $i [label="$v"];
                |""".stripMargin
-          case asm.Condition(i, op, l, r, ib, tob, fob) =>
+          case asm.Condition(i, expr, ib, tob, fob) =>
+            val (op, l, r) = expr match {
+              case Condition.withVC(op, l, r) => (op, l, r)
+              case Condition.withV(op, l, r) => (op, l, r)
+            }
             s"""$i[
                |  label = "$i\n$l $op $r";
                |  shape = trapezium; style = rounded;

@@ -3,9 +3,7 @@ package arch.tig.asm
 
 import base._
 
-sealed trait UnOp extends Product {
-  val toInstString: String = productPrefix.toLowerCase
-}
+sealed trait UnOp extends Product
 
 case object Floor extends UnOp
 
@@ -14,22 +12,10 @@ case object Itof extends UnOp
 /** 即値を取れる純粋二項演算 */
 sealed trait BinOpVC {
   def fn(l: Word, r: Word): Word
-
-  val toInstString: String
-
-  def toImmInstString = s"${toInstString}i"
 }
 
 case object Add extends BinOpVC {
   override def fn(l: Word, r: Word): Word = Word.fromInt(l.int + r.int)
-
-  override val toInstString = "add"
-}
-
-case object Sub extends BinOpVC {
-  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int - r.int)
-
-  override val toInstString = "sub"
 }
 
 case object Sha extends BinOpVC {
@@ -37,25 +23,21 @@ case object Sha extends BinOpVC {
     if (r.int >= 0) l.int << r.int
     else l.int >> -r.int
   )
-
-  override val toInstString = "sha"
 }
 
 case object Band extends BinOpVC {
   override def fn(l: Word, r: Word): Word = Word.fromInt(l.int & r.int)
-
-  override val toInstString = "band"
 }
 
 case object Bor extends BinOpVC {
   override def fn(l: Word, r: Word): Word = Word.fromInt(l.int | r.int)
-
-  override val toInstString = "or"
 }
 
 sealed trait BinOpV extends Product {
   val toInstString: String = productPrefix.toLowerCase
 }
+
+case object Sub extends BinOpV
 
 case object Fadd extends BinOpV
 
@@ -67,36 +49,30 @@ case object Fdiv extends BinOpV
 
 case object FnegCond extends BinOpV
 
-sealed trait CmpOp {
+sealed trait CmpOpVC {
   def fn(l: Word, r: Word): Boolean
-
-  val toNegJumpString: String
-
-  def toNegImmJumpString: String = toNegJumpString + "i"
 }
 
-case object Eq extends CmpOp {
+case object Eq extends CmpOpVC {
   override def fn(l: Word, r: Word): Boolean = l.int == r.int
-
-  override val toNegJumpString = "jne"
 }
 
-case object Le extends CmpOp {
+case object Le extends CmpOpVC {
   override def fn(l: Word, r: Word): Boolean = l.int <= r.int
-
-  override val toNegJumpString = "jgt"
 }
 
-case object FLe extends CmpOp {
+sealed trait CmpOpV {
+  def fn(l: Word, r: Word): Boolean
+}
+
+case object FLe extends CmpOpV {
   override def fn(l: Word, r: Word): Boolean = l.float <= r.float
-
-  override val toNegJumpString = "fjgt"
 }
 
-object CmpOp {
-  def fromSyntax(op: syntax.CmpOp): CmpOp = op match {
-    case syntax.CmpOp.Eq | syntax.CmpOp.Feq => Eq
-    case syntax.CmpOp.Le => Le
-    case syntax.CmpOp.Fle => FLe
+object CmpOpVC {
+  def fromSyntax(op: syntax.CmpOp): Either[CmpOpV, CmpOpVC] = op match {
+    case syntax.CmpOp.Eq | syntax.CmpOp.Feq => Right(Eq)
+    case syntax.CmpOp.Le => Right(Le)
+    case syntax.CmpOp.Fle => Left(FLe)
   }
 }
