@@ -150,13 +150,13 @@ class Emitter(program: Program) {
         }
         for (Move(s, d) <- argMoves) draftMv(d, s)
         draftCommand("", FInst.jal, FLabel(LAbs, fn))
-        for ((i, key) <- savedKeysByPosition) {
+        if (dest != XReg.DUMMY && dest != XReg.RETURN) {
+          draftMv(dest, XReg.RETURN)
+        }
+        for ((i, key) <- savedKeysByPosition; if saves(key) != dest) {
           draftCommand("", FInst.load,
             FReg(saves(key)),
             FReg(XReg.STACK), FImm(i))
-        }
-        if (dest != XReg.DUMMY && dest != XReg.RETURN) {
-          draftMv(dest, XReg.RETURN)
         }
       case _ => ????(l)
     }
@@ -223,6 +223,9 @@ class Emitter(program: Program) {
     if (fun.name == ID.Special.MAIN) {
       draftCommand("", FinalInst.addi, FReg(XReg.C_ONE), FReg(XReg.ZERO), FImm(1))
       draftCommand("", FinalInst.addi, FReg(XReg.C_MINUS_ONE), FReg(XReg.ZERO), FImm(-1))
+      draftMv(XReg.STACK, XReg.ZERO)
+      draftCommand("", FinalInst.orhi, FReg(XReg.HEAP), FReg(XReg.ZERO),
+        FImm(1 << AnsCaml.config.memorySizeLog2 - 16))
     }
     draftCommand("", FInst.store, FReg(XReg.STACK), FImm(LinkRegOffset), FReg(XReg.LINK))
     currentFLines += { case MaxStackSize(sz) =>

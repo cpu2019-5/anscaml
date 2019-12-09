@@ -143,7 +143,9 @@ class Specializer {
             currentLines += Line(neg, asm.BinOpVTree(asm.Sub, XReg.ZERO, r))
             asm.BinOpVCTree(asm.Sha, l, asm.V(neg))
           case BinOp.Land => asm.BinOpVCTree(asm.Band, l, asm.V(r))
-          case BinOp.Mul | BinOp.Div | BinOp.Mod =>
+          case BinOp.Div => // TODO: remove
+            asm.BinOpVTree(asm.Div, l, r)
+          case BinOp.Mul | BinOp.Mod =>
             throw new RuntimeException(s"[Tig Specializer] unimplemented operator $op")
           case BinOp.Fadd => asm.BinOpVTree(asm.Fadd, l, r)
           case BinOp.Fsub => asm.BinOpVTree(asm.Fsub, l, r)
@@ -197,7 +199,7 @@ class Specializer {
           else
             fnTypEnv(ID(fn))
         if (retTyp == Typ.TUnit) {
-          assert(dest == XReg.DUMMY)
+          assert(dest == XReg.DUMMY, dest)
         }
         val as = args map wrapVar
         specializeInlineStdlib(dest, fn, as) match {
@@ -314,9 +316,9 @@ class Specializer {
     }
 
     val retVar =
-      if (fnTyp.ret == asm.TyUnit && gcsOpt.isEmpty) {
+      if (fnTyp.ret == asm.TyUnit) {
         XReg.DUMMY
-      } else { // mainもunitを返すが、mainだけは任意の型を最後の式として認める
+      } else {
         XVar.generate(s"${cFDef.entry.name.str}$$ret")
       }
     specializeExpr(retVar, cFDef.body)

@@ -39,6 +39,10 @@ sealed trait BinOpV extends Product {
 
 case object Sub extends BinOpV
 
+// TODO: remove
+
+case object Div extends BinOpV
+
 case object Fadd extends BinOpV
 
 case object Fsub extends BinOpV

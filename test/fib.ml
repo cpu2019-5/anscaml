@@ -19,8 +19,8 @@ print_char 10;
 
 let rec f x = x in
 let rec g x = f x * 16 in
-print_char (g 10);
-print_char (g 11);
+print_char (g 3);
+print_char (g 4);
 
 let rec g2 x = f x * 16 in
 print_char (g2 (read_char ()))

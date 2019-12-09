@@ -7,3 +7,5 @@ target/
 # IDEA
 /.idea/
 *.s
+/fun_map.txt
+/instr_map.txt

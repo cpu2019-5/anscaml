@@ -73,6 +73,7 @@ object FinalInst {
 
   val fromBinOpV: Map[asm.BinOpV, FinalInst] = Map(
     asm.Sub -> sub,
+    asm.Div -> div,
     asm.Fadd -> fadd,
     asm.Fsub -> fsub,
     asm.Fmul -> fmul,
@@ -122,6 +123,10 @@ object FinalInst {
   })
 
   case object sub extends FinalInst({
+    case List(_: Reg, _: Reg, _: Reg) =>
+  })
+
+  case object div extends FinalInst({ // TODO: remove
     case List(_: Reg, _: Reg, _: Reg) =>
   })
 

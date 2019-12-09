@@ -1,7 +1,8 @@
 let rec stdlib_print_int_pos [@typ_fold] i =
   if i <> 0 then (
-    stdlib_print_int_pos (i / 10);
-    print_char (48 + (i % 10))
+    let j = i / 10 in
+    stdlib_print_int_pos j;
+    print_char (48 + i - j * 8 - j * 2)
   ) else () in
 
 let rec print_int [@typ_fold] i =
