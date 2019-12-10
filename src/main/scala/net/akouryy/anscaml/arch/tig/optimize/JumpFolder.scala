@@ -19,11 +19,11 @@ class JumpFolder {
     chart.jumps(ji1) match {
       case _: StartFun => ???
       case _: Return => chart.jumps -= ji1
-      case Branch(_, _, _, tru2, fls2) =>
+      case Branch(_, _, _, _, tru2, fls2) =>
         chart.jumps -= ji1
         removeBlock(chart, tru2)
         removeBlock(chart, fls2)
-      case m @ Merge(_, inputs, _, bi2) =>
+      case m @ Merge(_, _, inputs, _, bi2) =>
         if (inputs.sizeIs == 1) {
           chart.jumps -= ji1
           removeBlock(chart, bi2)
@@ -56,7 +56,8 @@ class JumpFolder {
     for (f <- program.functions) {
       /*f.body.jumps.valuesIterator.foreach*/
       for (k <- f.body.jumps.keysIterator; j <- f.body.jumps.get(k)) j match {
-        case Branch(ji1, Branch.CondVC(Eq, XReg.ZERO, C(Word(i @ (0 | 1), _))), bi0, tbi2, fbi2) =>
+        case Branch(_, ji1,
+        Branch.CondVC(Eq, XReg.ZERO, C(Word(i @ (0 | 1), _))), bi0, tbi2, fbi2) =>
           // 定数標準形
           changed = true
           val toUse = if (i == 0) tbi2 else fbi2
@@ -67,7 +68,7 @@ class JumpFolder {
 
           removeBlock(f.body, toRemove)
 
-        case Merge(ji1, List(id0 -> bi0), id2, bi2) if id0 == id2 || id2 == XReg.DUMMY =>
+        case Merge(_, ji1, List(id0 -> bi0), id2, bi2) if id0 == id2 || id2 == XReg.DUMMY =>
           f.body.jumps -= ji1
           concatBlock(f.body, bi0, bi2)
 

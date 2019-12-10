@@ -2,21 +2,21 @@ package net.akouryy.anscaml.base
 
 sealed trait Comment {
   def +:(str: String): Comment = this match {
-    case NoComment => Commented(str)
-    case Commented(msg) => Commented(s"$str; $msg")
+    case NC => CM(str)
+    case CM(msg) => CM(s"$str; $msg")
   }
 
   def :+(str: String): Comment = this match {
-    case NoComment => Commented(str)
-    case Commented(msg) => Commented(s"$msg; $str")
+    case NC => CM(str)
+    case CM(msg) => CM(s"$msg; $str")
   }
 
   def +(c2: Comment): Comment = this match {
-    case NoComment => c2
-    case Commented(msg) => msg +: c2
+    case NC => c2
+    case CM(msg) => msg +: c2
   }
 }
 
-case object NoComment extends Comment
+case object NC extends Comment
 
-case class Commented(msg: String) extends Comment
+case class CM(msg: String) extends Comment

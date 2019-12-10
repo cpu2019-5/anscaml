@@ -60,7 +60,7 @@ class TypFolder {
                   Entry(a, Typ.TInt(Lit.List[Primitives.PInt](Set(lit)))),
                   KNorm(KInt(lit)),
                   KNorm(
-                    Commented(s"[KO TypFolder] fold ${fn.str}($arg = $lit)"),
+                    CM(s"[KO TypFolder] fold ${fn.str}($arg = $lit)"),
                     IfCmp(
                       syntax.CmpOp.Eq, arg, a,
                       body,

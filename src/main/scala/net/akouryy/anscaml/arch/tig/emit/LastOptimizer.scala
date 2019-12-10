@@ -1,7 +1,9 @@
-package net.akouryy.anscaml.arch.tig
+package net.akouryy.anscaml
+package arch.tig
 package emit
 
 import asm._
+import base._
 
 object LastOptimizer {
   def apply(program: Program): Program = {
@@ -11,31 +13,33 @@ object LastOptimizer {
         f.body.blocks(bi) = b.copy(lines = fn(b.lines))
       }
 
-      updateLines(f.body.blocks.firstKey, lines =>
-        Emitter.moveSimultaneously(f.args.zipWithIndex.map {
-          case (a, i) => Emitter.Move(src = XReg.NORMAL_REGS(i), dest = a.asXReg.get)
+      updateLines(f.body.blocks.firstKey, lines => {
+        val moveArgs = Emitter.moveSimultaneously(f.args.zipWithIndex.flatMap {
+          case (XReg.DUMMY, _) => None
+          case (a, i) => Some(Emitter.Move(src = XReg.NORMAL_REGS(i), dest = a.asXReg.get))
         }).map {
-          case Emitter.Move(s, d) => Line(d, Mv(s))
-        } ::: lines
-      )
+          case Emitter.Move(s, d) => Line(NC, d, Mv(s))
+        }
+        moveArgs ::: lines
+      })
 
       f.body.jumps.mapValuesInPlace { (ji, j) =>
         j match {
           case _: StartFun | _: Branch => j
-          case Return(_, src, bi) =>
+          case Return(cm, _, src, bi) =>
             if (src == XReg.DUMMY) {
               j
             } else {
               if (src != XReg.RETURN) {
-                updateLines(bi, lines => lines :+ Line(XReg.RETURN, Mv(src)))
+                updateLines(bi, lines => lines :+ Line(NC, XReg.RETURN, Mv(src)))
               }
-              Return(ji, XReg.RETURN, bi)
+              Return(cm, ji, XReg.RETURN, bi)
             }
-          case Merge(_, inputs, dest, obi) =>
-            Merge(ji, inputs.map {
+          case Merge(cm, _, inputs, dest, obi) =>
+            Merge(cm, ji, inputs.map {
               case (inputXID, ibi) =>
                 if (inputXID != dest) {
-                  updateLines(ibi, lines => lines :+ Line(dest, Mv(inputXID)))
+                  updateLines(ibi, lines => lines :+ Line(NC, dest, Mv(inputXID)))
                 }
                 (XReg.DUMMY, ibi)
             }, XReg.DUMMY, obi)
@@ -44,7 +48,7 @@ object LastOptimizer {
 
       f.body.blocks.mapValuesInPlace { (_, b) =>
         b.copy(lines = b.lines.filter {
-          case Line(x, Mv(y)) if x == y => false
+          case Line(_, x, Mv(y)) if x == y => false
           case _ => true
         })
       }

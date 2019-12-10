@@ -39,9 +39,9 @@ object DistributeIf {
     var changed = false
     for (f <- program.functions) {
       for {
-        Branch(ji3, expr, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
+        Branch(cm3, ji3, expr, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
         Block(_, Nil, ji1, _) <- f.body.blocks.get(bi2).orElse(???)
-        Merge(_, inputs1, outputID1: XVar, _) <- f.body.jumps.get(ji1).orElse(???)
+        Merge(cm1, _, inputs1, outputID1: XVar, _) <- f.body.jumps.get(ji1).orElse(???)
         if outputID1 == expr.left &&
            !useSets.get(tbi4).exists(_ contains outputID1) &&
            !useSets.get(fbi4).exists(_ contains outputID1)
@@ -62,7 +62,7 @@ object DistributeIf {
 
           f.body.blocks(bi0) = f.body.blocks(bi0).copy(output = condIndex)
           f.body.jumps(condIndex) = Branch(
-            condIndex, expr.mapL(_ => xid0), bi0, truGlueIndex, flsGlueIndex,
+            cm3, condIndex, expr.mapL(_ => xid0), bi0, truGlueIndex, flsGlueIndex,
           )
           f.body.blocks(truGlueIndex) = Block(truGlueIndex, Nil, condIndex, truMergeIndex)
           f.body.blocks(flsGlueIndex) = Block(flsGlueIndex, Nil, condIndex, flsMergeIndex)
@@ -71,8 +71,8 @@ object DistributeIf {
           flsInputList ::= (xid0, flsGlueIndex)
         }
 
-        f.body.jumps(truMergeIndex) = Merge(truMergeIndex, truInputList, XReg.DUMMY, tbi4)
-        f.body.jumps(flsMergeIndex) = Merge(flsMergeIndex, flsInputList, XReg.DUMMY, fbi4)
+        f.body.jumps(truMergeIndex) = Merge(cm1, truMergeIndex, truInputList, XReg.DUMMY, tbi4)
+        f.body.jumps(flsMergeIndex) = Merge(cm1, flsMergeIndex, flsInputList, XReg.DUMMY, fbi4)
 
         f.body.blocks(tbi4) = f.body.blocks(tbi4).copy(input = truMergeIndex)
         f.body.blocks(fbi4) = f.body.blocks(fbi4).copy(input = flsMergeIndex)

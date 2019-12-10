@@ -7,7 +7,7 @@ import java.io.PrintWriter
 import asm._
 import base._
 import emit.{FinalInst => FInst}
-import FinalArg.{Imm => FImm, Label => FLabel, LAbs, LRel}
+import FinalArg.{Label => FLabel, LAbs, LRel, SImm, TImm, UImm}
 
 import scala.collection.mutable
 
@@ -30,7 +30,7 @@ class Emitter(program: Program) {
 
   private[this] def draft(fLine: FinalLine): Unit = currentFLines += (_ => fLine)
 
-  private[this] def draftCommand(comment: String, inst: FInst, args: FinalArg*): Unit =
+  private[this] def draftCommand(comment: Comment, inst: FInst, args: FinalArg*): Unit =
     draft(FinalCommand(comment, inst, args: _*))
 
   private[this] def draftLabel(label: String): Unit = currentFLines += (_ => FinalLabel(label, ""))
@@ -40,78 +40,92 @@ class Emitter(program: Program) {
   private[this] def blockLabel(bi: BlockIndex) =
     s"${currentFun.name}.${bi.indexString}"
 
-  private[this] def draftMv(dest: XReg, src: XReg) =
-    draftCommand("", FInst.band, FReg(dest), FReg(XReg.C_MINUS_ONE), FReg(src))
+  private[this] def draftMv(comment: Comment, dest: XReg, src: XReg) =
+    draftCommand(comment, FInst.band, FReg(dest), FReg(XReg.C_MINUS_ONE), FReg(src))
+
+  private[this] def draftMvi(cm: Comment, dest: XReg, value: Int) = {
+    val lowerMask = (1 << 16) - 1
+    val higher = value >>> 16
+    val lower = value & lowerMask
+    val cm2 = cm :+ s"mvi $value"
+    val higherLHS =
+      if (lower != 0) {
+        draftCommand(cm2, FInst.bandi, FReg(dest), FReg(XReg.C_MINUS_ONE), UImm(lower))
+        dest
+      } else {
+        XReg.ZERO
+      }
+    if (higher != 0 || lower == 0) { // lower==0のときも入れないとdestへの代入が一切行われないままになる
+      draftCommand(cm2, FInst.orhi, FReg(dest), FReg(higherLHS), UImm(higher))
+    }
+  }
 
   private[this] def draftRevertStack(): Unit = {
     currentFLines += { case MaxStackSize(sz) =>
-      FinalCommand("", FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), FImm(+sz))
+      FinalCommand(CM("[E] revert stack"),
+        FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), SImm(+sz))
     }
-    draftCommand("", FInst.load, FReg(XReg.LINK), FReg(XReg.STACK), FImm(LinkRegOffset))
+    draftCommand(CM("[E] restore LR"),
+      FInst.load, FReg(XReg.LINK), FReg(XReg.STACK), SImm(LinkRegOffset))
   }
 
   private[this] def emitLine(l: Line): Unit = {
+    val cm = l.comment
     val dest = l.dest.asXReg.get
     val toDummy = l.dest == XReg.DUMMY
     l.inst match {
-      case Mv(id: XReg) if !toDummy => draftMv(dest, id)
+      case Mv(id: XReg) if !toDummy => draftMv(cm, dest, id)
       case Mvi(value) if !toDummy =>
-        val lowerMask = (1 << 16) - 1
-        val higher = value.int >> 16
-        val lower = value.int & lowerMask
-        val higherLHS =
-          if (lower != 0) {
-            draftCommand("", FInst.bandi, FReg(dest), FReg(XReg.C_MINUS_ONE), FImm(lower))
-            dest
-          } else {
-            XReg.ZERO
-          }
-        if (higher != 0 || lower == 0) { // lower==0のときも入れないとdestへの代入が一切行われないままになる
-          draftCommand("", FInst.orhi, FReg(dest), FReg(higherLHS), FImm(higher))
-        }
+        draftMvi(cm, dest, value.int)
       case NewArray(V(len: XReg), elem: XReg) if !toDummy =>
         // do-whileループでtmpが0以上である間拡張を繰り返す
         // len=0のとき1回ループしてしまうが、未定義領域に1個書き込むだけなので許容
         val bodyLabel =
           ID.generate(ID(s"${currentFun.name}.${ID.Special.EMIT_ARRAY_BODY}")).str
-        draftMv(XReg.LAST_TMP, len)
+        draftMv(NC, XReg.LAST_TMP, len)
         draftLabel(bodyLabel)
-        draftCommand("", FInst.store, FReg(XReg.HEAP), FImm(0), FReg(elem))
-        draftCommand("", FInst.addi, FReg(XReg.HEAP), FReg(XReg.HEAP), FImm(1))
-        draftCommand("", FInst.addi, FReg(XReg.LAST_TMP), FReg(XReg.LAST_TMP), FImm(-1))
-        draftCommand("", FInst.jgt,
+        draftCommand(NC, FInst.store, FReg(XReg.HEAP), SImm(0), FReg(elem))
+        draftCommand(NC, FInst.addi, FReg(XReg.HEAP), FReg(XReg.HEAP), SImm(1))
+        draftCommand(NC, FInst.addi, FReg(XReg.LAST_TMP), FReg(XReg.LAST_TMP), SImm(-1))
+        draftCommand(NC, FInst.jgt,
           FReg(XReg.LAST_TMP), FReg(XReg.ZERO), FLabel(LRel, bodyLabel))
-        draftCommand("", FInst.sub, FReg(dest), FReg(XReg.HEAP), FReg(len))
+        draftCommand(cm, FInst.sub, FReg(dest), FReg(XReg.HEAP), FReg(len))
       case NewArray(C(len), elem: XReg) if !toDummy =>
         for (i <- 0 until len.int) {
-          draftCommand("", FInst.store, FReg(XReg.HEAP), FImm(i), FReg(elem))
+          draftCommand(NC, FInst.store, FReg(XReg.HEAP), SImm(i), FReg(elem))
         }
-        draftMv(dest, XReg.HEAP)
-        draftCommand("", FInst.addi, FReg(XReg.HEAP), FReg(XReg.HEAP), FImm(len.int))
+        draftMv(cm, dest, XReg.HEAP)
+        draftCommand(NC, FInst.addi, FReg(XReg.HEAP), FReg(XReg.HEAP), SImm(len.int))
       case Store(addr: XReg, index, value: XReg) if toDummy =>
-        draftCommand("", FInst.store, FReg(addr), FImm(index.c.int), FReg(value))
+        draftCommand(cm, FInst.store, FReg(addr), SImm(index.c.int), FReg(value))
       case Load(addr: XReg, V(index: XReg)) if !toDummy =>
-        draftCommand("", FInst.loadreg, FReg(dest), FReg(addr), FReg(index))
+        draftCommand(cm, FInst.loadreg, FReg(dest), FReg(addr), FReg(index))
       case Load(addr: XReg, C(index)) if !toDummy =>
-        draftCommand("", FInst.load, FReg(dest), FReg(addr), FImm(index.int))
+        draftCommand(cm, FInst.load, FReg(dest), FReg(addr), SImm(index.int))
       case UnOpTree(op, value: XReg) if !toDummy =>
-        draftCommand("", FInst.fromUnOp(op), FReg(dest), FReg(value))
+        draftCommand(cm, FInst.fromUnOp(op), FReg(dest), FReg(value))
       case BinOpVCTree(op, left: XReg, right @ (V(_: XReg) | _: C)) if !toDummy =>
-        draftCommand("",
+        draftCommand(cm,
           right.fold(_ => FInst.vFromBinOpVC(op), _ => FInst.cFromBinOpVC(op)),
           FReg(dest),
           FReg(left),
-          right.fold(v => FReg(v.asXReg.get), c => FImm(c.int)),
+          right.fold(
+            v => FReg(v.asXReg.get),
+            c =>
+              if (op == asm.Sha) TImm(c.int)
+              else if (Seq(asm.Band, asm.Bor) contains op) UImm(c.int)
+              else SImm(c.int)
+          ),
         )
       case BinOpVTree(op, left: XReg, right: XReg) if !toDummy =>
-        draftCommand("", FInst.fromBinOpV(op), FReg(dest), FReg(left), FReg(right))
+        draftCommand(cm, FInst.fromBinOpV(op), FReg(dest), FReg(left), FReg(right))
       case Nop if toDummy => // nop
       case Read =>
-        draftCommand("", FInst.read, FReg(if (toDummy) XReg.ZERO else dest))
+        draftCommand(cm, FInst.read, FReg(if (toDummy) XReg.ZERO else dest))
       case Write(value: XReg) if toDummy =>
-        draftCommand("", FInst.write, FReg(value))
+        draftCommand(cm, FInst.write, FReg(value))
       case CallDir(ID.Special.ASM_EXIT_FUN, Nil, Some(_)) if toDummy =>
-        draftCommand("", FInst.exit)
+        draftCommand(cm, FInst.exit)
       case CallDir(fn, args, Some(saves)) /* destはdummyでもそうでなくてもよい */ =>
         // TODO: tail call
         val savedKeyPositions = saves.keys.flatMap { k =>
@@ -144,19 +158,19 @@ class Emitter(program: Program) {
         )
 
         for ((i, key) <- newSaves) {
-          draftCommand("", FInst.store,
-            FReg(XReg.STACK), FImm(i),
+          draftCommand(CM(s"[E] save local ${key.str}"), FInst.store,
+            FReg(XReg.STACK), SImm(i),
             FReg(saves(key)))
         }
-        for (Move(s, d) <- argMoves) draftMv(d, s)
-        draftCommand("", FInst.jal, FLabel(LAbs, fn))
+        for (Move(s, d) <- argMoves) draftMv(CM(s"[E] move arg"), d, s)
+        draftCommand(cm, FInst.jal, FLabel(LAbs, fn))
         if (dest != XReg.DUMMY && dest != XReg.RETURN) {
-          draftMv(dest, XReg.RETURN)
+          draftMv(NC, dest, XReg.RETURN)
         }
         for ((i, key) <- savedKeysByPosition; if saves(key) != dest) {
-          draftCommand("", FInst.load,
+          draftCommand(CM(s"[E] restore local ${key.str}"), FInst.load,
             FReg(saves(key)),
-            FReg(XReg.STACK), FImm(i))
+            FReg(XReg.STACK), SImm(i))
         }
       case _ => ????(l)
     }
@@ -166,21 +180,34 @@ class Emitter(program: Program) {
     val retReg = XReg.NORMAL_REGS(0)
 
     currentFun.body.jumps(ji) match {
-      case Return(_, XReg.DUMMY | `retReg`, _) =>
+      case Return(cm, _, XReg.DUMMY | `retReg`, _) =>
         draftRevertStack()
-        draftCommand("", FinalInst.jr, FReg(XReg.LINK))
-      case jump @ Branch(_, cond, _, tru, fls) =>
+        draftCommand(cm, FinalInst.jr, FReg(XReg.LINK))
+      case jump @ Branch(cm, _, cond, _, tru, fls) =>
         val flsLabel = blockLabel(fls)
         cond match {
           case Branch.CondVC(op, left: XReg, right) =>
-            draftCommand("",
-              right.fold(_ => FInst.negVJumpFromCmpOpVC(op), _ => FInst.negCJumpFromCmpOpVC(op)),
-              FReg(left),
-              right.fold(v => FReg(v.asXReg.get), c => FImm(c.int)),
-              FLabel(LRel, flsLabel),
-            )
+            right match {
+              case V(v) =>
+                draftCommand(cm,
+                  FInst.negVJumpFromCmpOpVC(op), FReg(left), FReg(v.asXReg.get),
+                  FLabel(LRel, flsLabel),
+                )
+              case C(c) =>
+                if (TImm.dom contains c) {
+                  draftCommand(cm,
+                    FInst.negCJumpFromCmpOpVC(op), FReg(left), TImm(c.int), FLabel(LRel, flsLabel),
+                  )
+                } else {
+                  draftMvi(NC, XReg.LAST_TMP, c.int)
+                  draftCommand(cm,
+                    FInst.negVJumpFromCmpOpVC(op), FReg(left), FReg(XReg.LAST_TMP),
+                    FLabel(LRel, flsLabel),
+                  )
+                }
+            }
           case Branch.CondV(op, left: XReg, right: XReg) =>
-            draftCommand("",
+            draftCommand(cm,
               FInst.negJumpFromCmpOpV(op),
               FReg(left),
               FReg(right),
@@ -190,12 +217,12 @@ class Emitter(program: Program) {
         }
         emitBlock(tru)
         emitBlock(fls)
-      case Merge(_, inputs, XReg.DUMMY, output) if inputs.forall(_._1 == XReg.DUMMY) =>
+      case Merge(cm, _, inputs, XReg.DUMMY, output) if inputs.forall(_._1 == XReg.DUMMY) =>
         val outputLabel = blockLabel(output)
         if (inputs.forall(emittedBlocks contains _._2)) {
           emitBlock(output)
         } else {
-          draftCommand("", FinalInst.j, FLabel(LAbs, outputLabel))
+          draftCommand(cm, FinalInst.j, FLabel(LAbs, outputLabel))
         }
       case j => ????(j)
     }
@@ -221,15 +248,18 @@ class Emitter(program: Program) {
     draftLabel(fun.name)
 
     if (fun.name == ID.Special.MAIN) {
-      draftCommand("", FinalInst.addi, FReg(XReg.C_ONE), FReg(XReg.ZERO), FImm(1))
-      draftCommand("", FinalInst.addi, FReg(XReg.C_MINUS_ONE), FReg(XReg.ZERO), FImm(-1))
-      draftMv(XReg.STACK, XReg.ZERO)
-      draftCommand("", FinalInst.orhi, FReg(XReg.HEAP), FReg(XReg.ZERO),
-        FImm(1 << AnsCaml.config.memorySizeLog2 - 16))
+      draftCommand(NC, FinalInst.addi, FReg(XReg.C_ONE), FReg(XReg.ZERO), SImm(1))
+      draftCommand(NC, FinalInst.addi, FReg(XReg.C_MINUS_ONE), FReg(XReg.ZERO), SImm(-1))
+      // extend stackより前にスタックポインタを初期化する
+      val ml2 = AnsCaml.config.memorySizeLog2
+      draftCommand(CM(s"[E] bottom of stack = 2^$ml2"),
+        FinalInst.orhi, FReg(XReg.STACK), FReg(XReg.ZERO), UImm(1 << ml2 - 16))
     }
-    draftCommand("", FInst.store, FReg(XReg.STACK), FImm(LinkRegOffset), FReg(XReg.LINK))
+    draftCommand(CM("[E] save LR"),
+      FInst.store, FReg(XReg.STACK), SImm(LinkRegOffset), FReg(XReg.LINK))
     currentFLines += { case MaxStackSize(sz) =>
-      FinalCommand("", FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), FImm(-sz))
+      FinalCommand(CM("[E] extend stack"),
+        FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), SImm(-sz))
     }
 
     emitBlock(fun.body.blocks.firstKey)

@@ -43,13 +43,13 @@ class RegisterAllocator {
 
     def wrapVC(vc: VC): VC = vc.fold(v => V(getOrAllocate(v)), _ => vc)
 
-    for ((_ -> Return(ji, value, input)) <- f.body.jumps) {
-      newChart.jumps(ji) = Return(ji, allocate(value), input)
+    for ((_ -> Return(cm, ji, value, input)) <- f.body.jumps) {
+      newChart.jumps(ji) = Return(cm, ji, allocate(value), input)
     }
 
     for (block <- f.body.blocks.values.toSeq.reverseIterator) {
       val newLines = block.lines.zipWithIndex.reverseIterator.map {
-        case (Line(dest, inst), lineIndex) =>
+        case (Line(cm, dest, inst), lineIndex) =>
           val newDest = regEnv(dest)
           val newInst = inst match {
             case CallDir(fn, args, None) =>
@@ -59,7 +59,7 @@ class RegisterAllocator {
               CallDir(fn, args, Some(saves))
             case _ => inst
           }
-          Line(newDest, newInst.mapXID(getOrAllocate))
+          Line(cm, newDest, newInst.mapXID(getOrAllocate))
       }.toList.reverse
       newChart.blocks(block.i) = Block(block.i, newLines, block.input, block.output)
 
@@ -67,20 +67,20 @@ class RegisterAllocator {
       val newJump = f.body.jumps(ji1) match {
         case j1: StartFun => Some(j1)
         case j1: Return => ????(j1)
-        case Branch(_, expr, input, tru, fls) =>
+        case Branch(cm, _, expr, input, tru, fls) =>
           if (newChart.blocks.contains(tru) && newChart.blocks.contains(fls)) {
-            Some(Branch(ji1, expr.mapLR(getOrAllocate)(wrapVC, getOrAllocate), input, tru, fls))
+            Some(Branch(cm, ji1, expr.mapLR(getOrAllocate)(wrapVC, getOrAllocate), input, tru, fls))
           } else {
             None // newJumpの追加はtruとflsの両方が処理された後に行う
           }
-        case Merge(_, inputs, outputID, output) =>
+        case Merge(cm, _, inputs, outputID, output) =>
           val newInputs = inputs.map { case (xid, bi) => (allocate(xid), bi) }
-          Some(Merge(ji1, newInputs, regEnv(outputID), output))
+          Some(Merge(cm, ji1, newInputs, regEnv(outputID), output))
       }
       newJump.foreach(newChart.jumps(ji1) = _)
     }
 
-    FDef(f.name, f.args.map(regEnv), newChart, f.typ)
+    FDef(f.name, f.args.map(regEnv.getOrElse(_, XReg.DUMMY)), newChart, f.typ)
   }
 
   def apply(program: Program, liveness: analyze.Liveness.Info): Program = {

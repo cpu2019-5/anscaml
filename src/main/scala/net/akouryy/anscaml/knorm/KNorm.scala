@@ -10,7 +10,7 @@ final case class KNorm(comment: Comment, raw: KNorm.KRaw) {
 
 object KNorm {
 
-  def apply(raw: KNorm.KRaw): KNorm = KNorm(NoComment, raw)
+  def apply(raw: KNorm.KRaw): KNorm = KNorm(NC, raw)
 
   final case class KCProgram(gConsts: List[(Entry, KClosed)], fDefs: List[CFDef], main: KClosed)
 

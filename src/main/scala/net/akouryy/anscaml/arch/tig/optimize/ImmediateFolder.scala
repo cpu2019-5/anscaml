@@ -120,19 +120,19 @@ class ImmediateFolder(prog: Program) {
 
   private[this] def optJump(c: Chart)(j: Jump): Unit = {
     val newJ = j match {
-      case StartFun(_, _) => j
-      case Return(i, value, input) => Return(i, wrapXID(value), input)
-      case Merge(i, inputs, outputID, output) =>
-        Merge(i, inputs.map { case (xid, index) => (wrapXID(xid), index) }, outputID, output)
-      case Branch(i, Branch.CondVC(op, left, right), input, trueOutput, falseOutput) =>
+      case StartFun(_, _, _) => j
+      case Return(cm, i, value, input) => Return(cm, i, wrapXID(value), input)
+      case Merge(cm, i, inputs, outputID, output) =>
+        Merge(cm, i, inputs.map { case (xid, index) => (wrapXID(xid), index) }, outputID, output)
+      case Branch(cm, i, Branch.CondVC(op, left, right), input, trueOutput, falseOutput) =>
         (xidToConst(left), vcToConst(right)) match {
           case (Some(l), Some(r)) =>
             // 定数標準形(JumpFolder参照)
             val result = Word.fromInt(if (op.fn(l, r)) 1 else 0)
-            Branch(i, Branch.CondVC(Eq, XReg.ZERO, C(result)),
+            Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)),
               input, trueOutput, falseOutput)
           case _ =>
-            Branch(i, Branch.CondVC(op, wrapXID(left), wrapVC(right)),
+            Branch(cm, i, Branch.CondVC(op, wrapXID(left), wrapVC(right)),
               input, trueOutput, falseOutput)
         }
       case c: Branch => c

@@ -10,12 +10,12 @@ object MergeMerge {
   def apply(program: Program): Boolean = {
     var changed = false
     for (f <- program.functions) {
-      for ((_, m0 @ Merge(ji0, inputs0, _, _)) <- f.body.jumps) {
+      for ((_, m0 @ Merge(_, ji0, inputs0, _, _)) <- f.body.jumps) {
         val newInputs0 = inputs0.map(_.swap).to(mutable.SortedMap)
         for {
           (inputID0, bi1) <- inputs0
           Block(_, Nil, ji2, _) <- Some(f.body.blocks(bi1))
-          Merge(_, inputs2, outputID2, _) <- Some(f.body.jumps(ji2))
+          Merge(_, _, inputs2, outputID2, _) <- Some(f.body.jumps(ji2))
           if inputID0 == outputID2
         } {
           newInputs0 -= bi1

@@ -1,5 +1,8 @@
-package net.akouryy.anscaml.arch.tig
+package net.akouryy.anscaml
+package arch.tig
 package emit
+
+import base._
 
 sealed trait FinalLine {
   def toFinalString: String
@@ -16,23 +19,22 @@ final case class FinalLabel(label: String, comment: String) extends FinalLine {
   }
 }
 
-final case class FinalCommand(comment: String, inst: FinalInst, args: List[FinalArg])
+final case class FinalCommand(comment: Comment, inst: FinalInst, args: List[FinalArg])
   extends FinalLine {
 
   require(inst.isValidWith(args), (inst, args))
 
   override def toFinalString: String = {
     val base = f"  $inst%-9s " + args.map(a => f"${a.toFinalString}%9s").mkString(" ")
-    if (comment.nonEmpty) {
-      f"$base%-70s# $comment"
-    } else {
-      base
+    comment match {
+      case NC => base
+      case CM(msg) => f"$base%-70s# $msg"
     }
   }
 }
 
 object FinalCommand {
-  def apply(comment: String, inst: FinalInst, args: FinalArg*) =
+  def apply(comment: Comment, inst: FinalInst, args: FinalArg*) =
     new FinalCommand(comment, inst, args.toList)
 }
 
@@ -42,7 +44,27 @@ object FinalArg {
 
   final case class Reg(r: String) extends FinalArg(r)
 
-  final case class Imm(i: Int) extends FinalArg(i.toString)
+  sealed abstract class Imm(dom: Range, i: Int) extends FinalArg(i.toString) {
+    require(dom contains i, (dom, i))
+  }
+
+  final case class TImm(i: Int) extends Imm(TImm.dom, i)
+
+  object TImm {
+    val dom: Range = -(1 << 5) until (1 << 5)
+  }
+
+  final case class SImm(i: Int) extends Imm(SImm.dom, i)
+
+  object SImm {
+    val dom: Range = -(1 << 15) until (1 << 15)
+  }
+
+  final case class UImm(i: Int) extends Imm(UImm.dom, i)
+
+  object UImm {
+    val dom: Range = 0 until (1 << 16)
+  }
 
   final case class Label(op: LabelOp, l: String) extends FinalArg(op.toFinalString + l)
 
@@ -207,27 +229,27 @@ object FinalInst {
   })
 
   case object addi extends FinalInst({
-    case List(_: Reg, _: Reg, _: Imm) =>
+    case List(_: Reg, _: Reg, _: SImm) =>
   })
 
   case object shai extends FinalInst({
-    case List(_: Reg, _: Reg, _: Imm) =>
+    case List(_: Reg, _: Reg, _: TImm) =>
   })
 
   case object bandi extends FinalInst({
-    case List(_: Reg, _: Reg, _: Imm) =>
+    case List(_: Reg, _: Reg, _: UImm) =>
   })
 
   case object orhi extends FinalInst({
-    case List(_: Reg, _: Reg, _: Imm) =>
+    case List(_: Reg, _: Reg, _: UImm) =>
   })
 
   case object load extends FinalInst({
-    case List(_: Reg, _: Reg, _: Imm) =>
+    case List(_: Reg, _: Reg, _: SImm) =>
   })
 
   case object store extends FinalInst({
-    case List(_: Reg, _: Imm, _: Reg) =>
+    case List(_: Reg, _: SImm, _: Reg) =>
   })
 
   case object jne extends FinalInst({
@@ -243,15 +265,15 @@ object FinalInst {
   })
 
   case object jnei extends FinalInst({
-    case List(_: Reg, _: Imm, Label(LRel, _)) =>
+    case List(_: Reg, _: TImm, Label(LRel, _)) =>
   })
 
   case object jgti extends FinalInst({
-    case List(_: Reg, _: Imm, Label(LRel, _)) =>
+    case List(_: Reg, _: TImm, Label(LRel, _)) =>
   })
 
   case object jlti extends FinalInst({
-    case List(_: Reg, _: Imm, Label(LRel, _)) =>
+    case List(_: Reg, _: TImm, Label(LRel, _)) =>
   })
 
 }

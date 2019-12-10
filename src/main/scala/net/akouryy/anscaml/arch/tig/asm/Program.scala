@@ -1,6 +1,8 @@
 package net.akouryy.anscaml
 package arch.tig.asm
 
+import base._
+
 import scala.collection.mutable
 
 final case class Program(gcSize: Int, tyEnv: Map[XVar, Ty], functions: List[FDef])
@@ -56,18 +58,20 @@ final class Chart {
 /** 基本ブロック */
 final case class Block(i: BlockIndex, lines: List[Line], input: JumpIndex, output: JumpIndex)
 
-final case class Line(dest: XID, inst: Instruction)
+final case class Line(comment: Comment, dest: XID, inst: Instruction)
 
 sealed trait Jump {
+  val comment: Comment
   val i: JumpIndex
 }
 
-final case class StartFun(i: JumpIndex, output: BlockIndex) extends Jump
+final case class StartFun(comment: Comment, i: JumpIndex, output: BlockIndex) extends Jump
 
-final case class Return(i: JumpIndex, value: XID, input: BlockIndex) extends Jump
+final case class Return(comment: Comment, i: JumpIndex, value: XID, input: BlockIndex) extends Jump
 
 final case class Branch(
-  i: JumpIndex, cond: Branch.Cond, input: BlockIndex, tru: BlockIndex, fls: BlockIndex,
+  comment: Comment, i: JumpIndex,
+  cond: Branch.Cond, input: BlockIndex, tru: BlockIndex, fls: BlockIndex,
 ) extends Jump
 
 object Branch {
@@ -109,8 +113,6 @@ object Branch {
 }
 
 final case class Merge(
-  i: JumpIndex,
-  inputs: List[(XID, BlockIndex)],
-  outputID: XID,
-  output: BlockIndex,
+  comment: Comment, i: JumpIndex,
+  inputs: List[(XID, BlockIndex)], outputID: XID, output: BlockIndex,
 ) extends Jump

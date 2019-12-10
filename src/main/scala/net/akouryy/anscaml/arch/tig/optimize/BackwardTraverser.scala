@@ -90,18 +90,19 @@ class BackwardTraverser {
   private[this] def traverseBlock(c: Chart)(b: Block): Unit = {
     val use = c.jumps(b.output) match {
       case j: StartFun => ????(j)
-      case Return(_, value, _) => value.asXVar.to(mutable.Set)
-      case Branch(_, Branch.Cond(_, left, right), _, tru, fls) =>
+      case Return(_, _, value, _) => value.asXVar.to(mutable.Set)
+      case Branch(_, _, Branch.Cond(_, left, right), _, tru, fls) =>
         val u = useSets(tru).to(mutable.Set)
         u ++= useSets(fls)
         u ++= left.asXVar
         u ++= right.asVXVar
         u
-      case Merge(i, inputs, outputID, output) =>
+      case Merge(cm, i, inputs, outputID, output) =>
         val u = useSets(output).to(mutable.Set)
         if (outputID.asXVar.exists(!u.contains(_)) || outputID == XReg.DUMMY) {
           // outputID is not used
           c.jumps(i) = Merge(
+            cm,
             i,
             inputs.map { case (_, index) => (XReg.DUMMY, index) },
             XReg.DUMMY,
@@ -118,10 +119,10 @@ class BackwardTraverser {
     var isBlockChanging = false
 
     val ls = b.lines.reverseIterator.flatMap {
-      case l @ Line(_: XReg, inst) =>
+      case l @ Line(_, _: XReg, inst) =>
         traverseInst(keep = true, use, inst)
         Some(l)
-      case l @ Line(dest: XVar, inst) =>
+      case l @ Line(cm, dest: XVar, inst) =>
         val keep = use.contains(dest)
         use -= dest
 
@@ -131,7 +132,7 @@ class BackwardTraverser {
         if (keep) {
           Some(l)
         } else if (side) {
-          Some(Line(XReg.DUMMY, inst))
+          Some(Line(cm, XReg.DUMMY, inst))
         } else {
           None
         }

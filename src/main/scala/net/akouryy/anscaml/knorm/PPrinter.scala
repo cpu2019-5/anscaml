@@ -81,8 +81,8 @@ object PPrinter {
         }) {}
         pprint.Tree.Apply("CLet*", (kont :: bindingsRev).map(pp.treeify).reverseIterator)
 
-      case KNorm(NoComment, kn) => pp.treeify(kn)
-      case KClosed(NoComment, kc) => pp.treeify(kc)
+      case KNorm(NC, kn) => pp.treeify(kn)
+      case KClosed(NC, kc) => pp.treeify(kc)
 
       case IfCmp(op, ID(left), ID(right), tru, fls) =>
         pprint.Tree.Apply("IfCmp", Iterator(
