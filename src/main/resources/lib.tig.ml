@@ -24,6 +24,9 @@ let rec fisneg x = x <. 0.0 in
 let rec fiszero x = x =. 0.0 in
 let rec xor a b = if a then not b else b in
 
+let rec fhalf x = x *. 0.5 in
+let rec fsqr x = x *. x in
+
 (* http://takashiijiri.com/study/miscs/fastsqrt.html *)
 let rec sqrt x =
   let x_half = x *. 0.5 in

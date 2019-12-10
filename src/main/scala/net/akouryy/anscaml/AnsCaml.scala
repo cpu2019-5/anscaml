@@ -1,5 +1,7 @@
 package net.akouryy.anscaml
 
+import java.io.FileInputStream
+
 import base._
 import net.akouryy.anscaml.arch.tig.emit.Emitter
 
@@ -33,6 +35,14 @@ object AnsCaml {
     val ko = knorm.optimize.Optimizer(config.optimizationCount, alpha)
 
     val cl = new knorm.Closer()(ko)
+
+    config.runKC match {
+      case Some(file) =>
+        val kcOut = new java.io.PrintWriter("../temp/kc.out")
+        kcOut.write(new knorm.debug.KCInterpreter()(cl, new FileInputStream(file)))
+        kcOut.close()
+      case None => // nop
+    }
 
     val asm = new arch.tig.Specializer()(cl)
 

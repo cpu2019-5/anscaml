@@ -117,14 +117,6 @@ class Specializer {
         List(Line(cm :+ "[SP] $ext_fneg", dest, asm.BinOpVTree(asm.FnegCond, x, XReg.C_MINUS_ONE)))
       case ("$ext_fabs", List(x)) =>
         List(Line(cm :+ "[SP] $ext_fabs", dest, asm.BinOpVTree(asm.FnegCond, x, x)))
-      case ("$ext_fsqr", List(x)) =>
-        List(Line(cm :+ "[SP] $ext_fsqr", dest, asm.BinOpVTree(asm.Fmul, x, x)))
-      case ("$ext_fhalf", List(x)) =>
-        val half = XVar.generate("half")
-        List(
-          Line(NC, half, asm.Mvi.float(0.5F)),
-          Line(cm :+ "[SP] $ext_fhalf", dest, asm.BinOpVTree(asm.Fmul, x, half)),
-        )
       case ("$ext_floor", List(x)) =>
         List(Line(cm :+ "[SP] $ext_floor", dest, asm.UnOpTree(asm.Floor, x)))
       case ("$ext_float_of_int", List(x)) =>

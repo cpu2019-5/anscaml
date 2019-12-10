@@ -24,7 +24,7 @@ object CmpOp {
     override def toString = "Eq"
   }
 
-  object Le extends II((x, y) => x < y) {
+  object Le extends II((x, y) => x <= y) {
     override def toString = "Le"
   }
 
@@ -32,7 +32,7 @@ object CmpOp {
     override def toString = "Feq"
   }
 
-  object Fle extends FF((x, y) => x < y) {
+  object Fle extends FF((x, y) => x <= y) {
     override def toString = "Fle"
   }
 

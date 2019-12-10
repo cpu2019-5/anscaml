@@ -13,6 +13,7 @@ object CommandParser {
     outputFile: File = new File("."),
     memorySizeLog2: Int = 19,
     optimizationCount: Int = 100,
+    runKC: Option[File] = None,
     // verbosity: Verbosity = Verbosity.Stats,
   )
 
@@ -42,6 +43,9 @@ object CommandParser {
       opt[Int]('o', "optimize")
         .action((x, c) => c.copy(optimizationCount = x))
         .text("Set maximum iteration counts of optimizations"),
+      opt[File]("kc")
+        .action((x, c) => c.copy(runKC = Some(x)))
+        .text("Input when interpreting intermediate representation `KClosed`"),
       arg[File]("<output>")
         .action((x, c) => c.copy(outputFile = x))
         .text("output file name"),
@@ -52,6 +56,7 @@ object CommandParser {
     )
   }
 
-  def parse(args: Array[String]) =
+  def parse(args: Array[String]) = {
     OParser.parse(cmdParser, args, Config())
+  }
 }
