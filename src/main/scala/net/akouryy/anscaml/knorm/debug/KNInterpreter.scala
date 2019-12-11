@@ -5,49 +5,37 @@ package debug
 import java.io.{FileInputStream, FileOutputStream}
 
 import base._
-import KNorm.{CFDef, KCProgram, KClosed}
-import net.akouryy.anscaml.syntax.{BinOp, CmpOp}
+import syntax.{BinOp, CmpOp}
 
 import scala.collection.mutable
 import scala.util.control.TailCalls._
 
-class KCInterpreter {
+class KNInterpreter {
 
-  import KCInterpreter._
+  import KNInterpreter._
 
   private[this] var input: FileInputStream = _
   private[this] var output: FileOutputStream = _
 
-  private[this] val gConsts = mutable.Map[ID, Value]()
-
-  private[this] var functions: Map[ID, List[Value] => TailRec[Value]] = _
-
   private[this] var roughStep: Int = _
 
   private[this] val stdlib =
-    Map[String, PartialFunction[List[Value], Value]](
-      "$ext_print_char" -> { case List(VInt(i)) => output.write(i % 256); VTuple(Nil) },
-      "$ext_read_char" -> { case List() => VInt(input.read()) },
-      "$ext_fneg" -> { case List(VFloat(f)) => VFloat(-f) },
-      "$ext_fabs" -> { case List(VFloat(f)) => VFloat(f.abs) },
-      "$ext_fsqr" -> { case List(VFloat(f)) => VFloat(f * f) },
-      "$ext_floor" -> { case List(VFloat(f)) => VFloat(f.floor) },
-      "$ext_float_of_int" -> { case List(VInt(i)) => VFloat(i.toFloat) },
-      "$ext_bits_of_float" -> {
+    Map[String, List[Value] => Value](
+      "print_char" -> { case List(VInt(i)) => output.write(i % 256); VTuple(Nil) },
+      "read_char" -> { case List() => VInt(input.read()) },
+      "fneg" -> { case List(VFloat(f)) => VFloat(-f) },
+      "fabs" -> { case List(VFloat(f)) => VFloat(f.abs) },
+      "fsqr" -> { case List(VFloat(f)) => VFloat(f * f) },
+      "floor" -> { case List(VFloat(f)) => VFloat(f.floor) },
+      "float_of_int" -> { case List(VInt(i)) => VFloat(i.toFloat) },
+      "bits_of_float" -> {
         case List(VFloat(f)) => VInt(java.lang.Float.floatToRawIntBits(f))
       },
-      "$ext_float_of_bits" -> { case List(VInt(i)) => VFloat(java.lang.Float.intBitsToFloat(i)) },
+      "float_of_bits" -> { case List(VInt(i)) => VFloat(java.lang.Float.intBitsToFloat(i)) },
     )
 
-  private[this] def interpret(kc: KClosed, env: Map[ID, Value]): TailRec[Value] = {
-    def get(id: ID) = env.getOrElse(id, gConsts.getOrElse(id, ????(kc, id)))
-
-    def getFun(id: ID)(args: List[Value]) = {
-      functions.get(id) match {
-        case Some(f) => /*println(s"${id.str}(${args.mkString(", ")})");*/ f(args)
-        case None => done(stdlib.getOrElse(id.str, ????(kc, id))(args))
-      }
-    }
+  private[this] def interpret(kc: KNorm, env: Map[ID, Value]): TailRec[Value] = {
+    def get(id: ID) = env.getOrElse(id, ????(kc, id))
 
     roughStep += 1
     if ((roughStep & (1 << 20) - 1) == 0) println(s"$roughStep ${env.size}")
@@ -78,10 +66,14 @@ class KCInterpreter {
           case (VArray(a), VInt(i)) => a(i) = get(value); done(VTuple(Nil))
           case (a, i) => ????(kc, a, i)
         }
-      case KNorm.ApplyDirect(fn, args) =>
-        tailcall(getFun(ID(fn))(args map get))
-      case _: KNorm.ApplyClosure => ???
-      case KNorm.CIfCmp(op, left, right, tru, fls) =>
+      case KNorm.Apply(fn, args) =>
+        get(fn) match {
+          case VFun(fn) => fn(args map get)
+          case fn => ????(kc, fn)
+        }
+      case KNorm.ApplyExternal(fn, args) =>
+        done(stdlib.getOrElse(fn.str, ????(kc, fn))(args map get))
+      case KNorm.IfCmp(op, left, right, tru, fls) =>
         val cond = (op, get(left), get(right)) match {
           case (CmpOp.II(fn), VInt(l), VInt(r)) => fn(l, r)
           case (CmpOp.FF(fn), VFloat(l), VFloat(r)) => fn(l, r)
@@ -89,50 +81,39 @@ class KCInterpreter {
         }
         if (cond) interpret(tru, env)
         else interpret(fls, env)
-      case KNorm.CLet(Entry(name, _), bound, kont) =>
+      case KNorm.Let(Entry(name, _), bound, kont) =>
         for {
           b <- tailcall(interpret(bound, env))
           k <- tailcall(interpret(kont, env + (name -> b)))
         } yield k
-      case KNorm.CLetTuple(elems, bound, kont) =>
+      case KNorm.LetTuple(elems, bound, kont) =>
         get(bound) match {
           case VTuple(bs) if elems.size == bs.size =>
             interpret(kont, env ++ elems.zipMap(bs)((e, b) => e.name -> b))
           case b => ????(kc, b)
         }
-      case _: KNorm.CLetClosure => ???
-      case _ => ????(kc)
+      case KNorm.LetRec(KNorm.FDef(Entry(name, _), args, body, _), kont) =>
+        lazy val f: VFun = VFun((act: List[Value]) => {
+          interpret(body, env ++ args.map(_.name).zipStrict(act) + (name -> f))
+        })
+        interpret(kont, env + (name -> f))
     }
   }
 
-  private[this] def interpretGC(entry: Entry, kc: KClosed) = {
-    gConsts(entry.name) = interpret(kc, Map()).result
-  }
-
-  def apply(prog: KCProgram, input: FileInputStream, output: FileOutputStream): String = {
+  def apply(prog: KNorm, input: FileInputStream, output: FileOutputStream): String = {
     this.input = input
     this.output = output
-    gConsts.clear()
     roughStep = 0
 
-    functions = prog.fDefs.map {
-      case CFDef(Entry(name, _), args, _, body) =>
-        name -> ((act: List[Value]) => {
-          interpret(body, args.map(_.name).zipStrict(act).toMap)
-        })
-    }.toMap
+    interpret(prog, Map()).result
 
-    prog.gConsts.foreach(Function.tupled(interpretGC))
-
-    interpret(prog.main, Map()).result
-
-    println(s"[KC Interpreter] Rough Step = $roughStep")
+    println(s"[KN Interpreter] Rough Step = $roughStep")
 
     output.toString
   }
 }
 
-object KCInterpreter {
+object KNInterpreter {
 
   sealed trait Value
 
@@ -141,9 +122,13 @@ object KCInterpreter {
   final case class VFloat(f: Float) extends Value
 
   final case class VArray(v: Array[Value]) extends Value {
-    override def toString: String = s"VArray(${v.mkString(", ")})"
+    override def toString = s"VArray(${v.mkString(", ")})"
   }
 
   final case class VTuple(v: List[Value]) extends Value
+
+  final case class VFun(fn: List[Value] => TailRec[Value]) extends Value {
+    override val toString = "VFun(...)"
+  }
 
 }

@@ -115,41 +115,16 @@ let rec sin [@no_inline] x =
   else
     stdlib_ksin (y -. piq *. 8.0) 0.0 false in
 let rec atan x =
-  let hi0 = 0.46364760399 in
-  let hi1 = 0.78539812565 in
-  let hi2 = 0.98279368877 in
-  let hi3 = 1.5707962513 in
-  let lo0 = 0.0000000050121582440 in
-  let lo1 = 0.000000037748947079 in
-  let lo2 = 0.000000034473217170 in
-  let lo3 = 0.000000075497894159 in
-  let at0 =  0.33333328366 in
-  let at1 = -0.19999158382 in
-  let at2 =  0.14253635705 in
-  let at3 = -0.10648017377 in
-  let at4 =  0.061687607318 in
-  if x <. 0.0 then 0.0 -. atan (0.0 -. x) else
-  if x >=. 67108864.0 then hi3 +. lo3 else
-  if x <. 0.000244140625 (* 2**-12 *) then x else
-  let (idneg, hi, lo, x) =
-    if x <. 0.4375 (* 7/16 *) then
-      (true, 0.0, 0.0, x)
-    else if x <=. 0.6875 (* 11/16 *) then
-      (false, hi0, lo0, (2.0 *. x -. 1.0) /. (2.0 +. x))
-    else if x <=. 1.1875 (* 19/16 *) then
-      (false, hi1, lo1, (x -. 1.0) /. (x +. 1.0))
-    else if x <=. 2.4375 then
-      (false, hi2, lo2, (x -. 1.5) /. (1.0 +. 1.5 *. x))
-    else
-      (false, hi3, lo3, -1.0 /. x) in
-  let z = x *. x in
-  let w = z *. z in
-  let s1 = z *. (at0 +. w *. (at2 +. w *. at4)) in
-	let s2 = w *. (at1 +. w *. at3) in
-  if idneg then
-    x -. x *. (s1 +. s2)
+  let pi = 3.141592653589793238462643383279 in
+  if x <. 0.0 then pi *. 0.5 +. atan (0.0 -. x)
+  else if x <. 0.4375 then
+    let x2 = x *. x in
+    x *. (1.0 -. x2 *. (0.3333333 -. x2 *. (0.2 -. x2 *. (
+      0.142857142 -. x2 *. (0.111111104 -. x2 *. (0.08976446 -. x2 *. 0.060035485))))))
+  else if x <. 2.4375 then
+    pi *. 0.25 +. atan ((x -. 1.0) /. (x +. 1.0))
   else
-    hi -. ((x *. (s1 +. s2) -. lo) -. x) in
+    pi *. 0.5 -. atan (1.0 /. x) in
 
 let rec stdlib_int_of_float_rec [@no_inline] f a b =
   if b - a = 1

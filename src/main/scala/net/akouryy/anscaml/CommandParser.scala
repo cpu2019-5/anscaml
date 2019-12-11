@@ -13,7 +13,10 @@ object CommandParser {
     outputFile: File = new File("."),
     memorySizeLog2: Int = 19,
     optimizationCount: Int = 100,
-    runKC: Option[File] = None,
+    kcIn: Option[File] = None,
+    kcOut: Option[File] = None,
+    knIn: Option[File] = None,
+    knOut: Option[File] = None,
     // verbosity: Verbosity = Verbosity.Stats,
   )
 
@@ -43,9 +46,18 @@ object CommandParser {
       opt[Int]('o', "optimize")
         .action((x, c) => c.copy(optimizationCount = x))
         .text("Set maximum iteration counts of optimizations"),
-      opt[File]("kc")
-        .action((x, c) => c.copy(runKC = Some(x)))
-        .text("Input when interpreting intermediate representation `KClosed`"),
+      opt[File]("kci")
+        .action((x, c) => c.copy(kcIn = Some(x)))
+        .text("Input file when interpreting intermediate representation `KClosed`"),
+      opt[File]("kco")
+        .action((x, c) => c.copy(kcOut = Some(x)))
+        .text("Output file when interpreting intermediate representation `KClosed`"),
+      opt[File]("kni")
+        .action((x, c) => c.copy(knIn = Some(x)))
+        .text("Input file when interpreting intermediate representation `KNorm`"),
+      opt[File]("kno")
+        .action((x, c) => c.copy(knOut = Some(x)))
+        .text("Output file when interpreting intermediate representation `KNorm`"),
       arg[File]("<output>")
         .action((x, c) => c.copy(outputFile = x))
         .text("output file name"),
@@ -53,10 +65,17 @@ object CommandParser {
         .unbounded
         .action((x, c) => c.copy(inputFiles = c.inputFiles :+ x))
         .text("input file names"),
+      checkConfig { c =>
+        if (c.knIn.isDefined != c.knOut.isDefined) {
+          failure("specify both `kni` and `kno`.")
+        } else if (c.kcIn.isDefined != c.kcOut.isDefined) {
+          failure("specify both `kci` and `kco`.")
+        } else success
+      }
     )
   }
 
-  def parse(args: Array[String]) = {
+  def parse(args: Array[String]): Option[Config] = {
     OParser.parse(cmdParser, args, Config())
   }
 }

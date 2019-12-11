@@ -1,6 +1,6 @@
 package net.akouryy.anscaml
 
-import java.io.FileInputStream
+import java.io.{FileInputStream, FileOutputStream}
 
 import base._
 import net.akouryy.anscaml.arch.tig.emit.Emitter
@@ -30,18 +30,30 @@ object AnsCaml {
 
     val kn = knorm.Converter(astTyped)
 
+    (config.knIn, config.knOut) match {
+      case (Some(in), Some(out)) =>
+        val knIn = new FileInputStream(in)
+        val knOut = new FileOutputStream(out)
+        new knorm.debug.KNInterpreter()(kn, knIn, knOut)
+        knOut.close()
+        knIn.close()
+      case _ => // nop
+    }
+
     val alpha = knorm.Alpha(kn)
 
     val ko = knorm.optimize.Optimizer(config.optimizationCount, alpha)
 
     val cl = new knorm.Closer()(ko)
 
-    config.runKC match {
-      case Some(file) =>
-        val kcOut = new java.io.PrintWriter("../temp/kc.out")
-        kcOut.write(new knorm.debug.KCInterpreter()(cl, new FileInputStream(file)))
+    (config.kcIn, config.kcOut) match {
+      case (Some(in), Some(out)) =>
+        val kcIn = new FileInputStream(in)
+        val kcOut = new FileOutputStream(out)
+        new knorm.debug.KCInterpreter()(cl, kcIn, kcOut)
         kcOut.close()
-      case None => // nop
+        kcIn.close()
+      case _ => // nop
     }
 
     val asm = new arch.tig.Specializer()(cl)
@@ -57,7 +69,8 @@ object AnsCaml {
     dot.close()
 
     val dbg = new java.io.PrintWriter("../temp/dbg.txt")
-    PPrinter.writeTo(dbg, arch.tig.analyze.Liveness.analyzeProgram(asm).toList.sortBy(_._1))
+    PPrinter.writeTo(dbg, astTyped)
+    //                    arch.tig.analyze.Liveness.analyzeProgram(asm).toList.sortBy(_._1))
     dbg.close()
 
     val reg = new arch.tig.RegisterAllocator()(asm, arch.tig.analyze.Liveness.analyzeProgram(asm))

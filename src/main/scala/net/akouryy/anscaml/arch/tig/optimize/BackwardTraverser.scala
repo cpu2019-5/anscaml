@@ -128,7 +128,7 @@ class BackwardTraverser {
 
         val side = traverseInst(keep, use, inst)
 
-        isBlockChanging ||= !keep && !side
+        isBlockChanging ||= !keep
         if (keep) {
           Some(l)
         } else if (side) {
