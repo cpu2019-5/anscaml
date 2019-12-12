@@ -7,7 +7,6 @@ import java.io.{FileInputStream, FileOutputStream}
 import base._
 import syntax.{BinOp, CmpOp}
 
-import scala.collection.mutable
 import scala.util.control.TailCalls._
 
 class KNInterpreter {
@@ -38,7 +37,7 @@ class KNInterpreter {
     def get(id: ID) = env.getOrElse(id, ????(kc, id))
 
     roughStep += 1
-    if ((roughStep & (1 << 20) - 1) == 0) println(s"$roughStep ${env.size}")
+    if ((roughStep & (1 << 23) - 1) == 0) println(s"$roughStep ${env.size}")
 
     kc.raw match {
       case KNorm.KInt(i) => done(VInt(i))

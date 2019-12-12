@@ -50,7 +50,7 @@ class KCInterpreter {
     }
 
     roughStep += 1
-    if ((roughStep & (1 << 20) - 1) == 0) println(s"$roughStep ${env.size}")
+    if ((roughStep & (1 << 23) - 1) == 0) println(s"$roughStep ${env.size}")
 
     kc.raw match {
       case KNorm.KInt(i) => done(VInt(i))

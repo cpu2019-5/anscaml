@@ -6,6 +6,8 @@ import scopt.OParser
 object CommandParser {
 
   final case class Config(
+    asmIn: Option[File] = None,
+    asmOut: Option[File] = None,
     doEmitComment: Boolean = true,
     doPrependStandardLibrary: Boolean = true,
     inputFiles: Seq[File] = Seq(),
@@ -46,18 +48,24 @@ object CommandParser {
       opt[Int]('o', "optimize")
         .action((x, c) => c.copy(optimizationCount = x))
         .text("Set maximum iteration counts of optimizations"),
-      opt[File]("kci")
-        .action((x, c) => c.copy(kcIn = Some(x)))
-        .text("Input file when interpreting intermediate representation `KClosed`"),
-      opt[File]("kco")
-        .action((x, c) => c.copy(kcOut = Some(x)))
-        .text("Output file when interpreting intermediate representation `KClosed`"),
       opt[File]("kni")
         .action((x, c) => c.copy(knIn = Some(x)))
         .text("Input file when interpreting intermediate representation `KNorm`"),
       opt[File]("kno")
         .action((x, c) => c.copy(knOut = Some(x)))
         .text("Output file when interpreting intermediate representation `KNorm`"),
+      opt[File]("kci")
+        .action((x, c) => c.copy(kcIn = Some(x)))
+        .text("Input file when interpreting intermediate representation `KClosed`"),
+      opt[File]("kco")
+        .action((x, c) => c.copy(kcOut = Some(x)))
+        .text("Output file when interpreting intermediate representation `KClosed`"),
+      opt[File]("asmi")
+        .action((x, c) => c.copy(asmIn = Some(x)))
+        .text("Input file when interpreting intermediate representation `asm`"),
+      opt[File]("asmo")
+        .action((x, c) => c.copy(asmOut = Some(x)))
+        .text("Output file when interpreting intermediate representation `asm`"),
       arg[File]("<output>")
         .action((x, c) => c.copy(outputFile = x))
         .text("output file name"),
@@ -70,6 +78,8 @@ object CommandParser {
           failure("specify both `kni` and `kno`.")
         } else if (c.kcIn.isDefined != c.kcOut.isDefined) {
           failure("specify both `kci` and `kco`.")
+        } else if (c.asmIn.isDefined != c.asmOut.isDefined) {
+          failure("specify both `asmi` and `asmo`.")
         } else success
       }
     )

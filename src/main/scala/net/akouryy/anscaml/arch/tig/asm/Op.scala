@@ -35,23 +35,39 @@ case object Bor extends BinOpVC {
 
 sealed trait BinOpV extends Product {
   val toInstString: String = productPrefix.toLowerCase
+
+  def fn(l: Word, r: Word): Word
 }
 
-case object Sub extends BinOpV
+case object Sub extends BinOpV {
+  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int - r.int)
+}
 
 // TODO: remove
 
-case object Div extends BinOpV
+case object Div extends BinOpV {
+  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int / r.int)
+}
 
-case object Fadd extends BinOpV
+case object Fadd extends BinOpV {
+  override def fn(l: Word, r: Word): Word = Word.fromFloat(l.float + r.float)
+}
 
-case object Fsub extends BinOpV
+case object Fsub extends BinOpV {
+  override def fn(l: Word, r: Word): Word = Word.fromFloat(l.float - r.float)
+}
 
-case object Fmul extends BinOpV
+case object Fmul extends BinOpV {
+  override def fn(l: Word, r: Word): Word = Word.fromFloat(l.float * r.float)
+}
 
-case object Fdiv extends BinOpV
+case object Fdiv extends BinOpV {
+  override def fn(l: Word, r: Word): Word = Word.fromFloat(l.float / r.float)
+}
 
-case object FnegCond extends BinOpV
+case object FnegCond extends BinOpV {
+  override def fn(l: Word, r: Word): Word = Word.fromFloat(if (r.int >= 0) l.float else -l.float)
+}
 
 sealed trait CmpOp {
   def fn(l: Word, r: Word): Boolean

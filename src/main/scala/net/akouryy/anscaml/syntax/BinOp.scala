@@ -51,7 +51,7 @@ object BinOp {
     override def toString = "Shr"
   }
 
-  object Land extends III((x, y) => x & y) {
+  object Band extends III((x, y) => x & y) {
     override def toString = "Land"
   }
 

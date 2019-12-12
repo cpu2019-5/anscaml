@@ -71,7 +71,7 @@ class PeepHole {
               Let(
                 Entry(z, Typ.TInt(Lit.List[Primitives.PInt](Set(log2 - 1)))),
                 KNorm(KInt(log2 - 1)),
-                KNorm(BinOpTree(BinOp.Land, left, z)),
+                KNorm(BinOpTree(BinOp.Band, left, z)),
               ),
             )
           case _ => norm

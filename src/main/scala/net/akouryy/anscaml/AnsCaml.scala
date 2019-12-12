@@ -62,6 +62,17 @@ object AnsCaml {
     rawDot.write(new arch.tig.GraphDrawer()(asm))
     rawDot.close()
 
+    println((config.asmIn, config.asmOut))
+    (config.asmIn, config.asmOut) match {
+      case (Some(in), Some(out)) =>
+        val asmIn = new FileInputStream(in)
+        val asmOut = new FileOutputStream(out)
+        new arch.tig.asm.AsmInterpreter()(asm, asmIn, asmOut)
+        asmOut.close()
+        asmIn.close()
+      case _ => // nop
+    }
+
     arch.tig.optimize.Optimizer(config.optimizationCount, asm)
 
     val dot = new java.io.PrintWriter("../temp/dbg.dot")

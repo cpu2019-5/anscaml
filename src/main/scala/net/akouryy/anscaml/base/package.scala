@@ -3,6 +3,8 @@ package net.akouryy.anscaml
 package object base {
 
   implicit class RichList[A](val list: List[A]) extends AnyVal {
+    def mkCommaString: String = list.mkString(", ")
+
     def zipStrict[B, C](that: Iterable[B]): List[(A, B)] = {
       require(list.sizeCompare(that) == 0, (list, that))
       list zip that

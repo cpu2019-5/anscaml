@@ -145,7 +145,7 @@ class Specializer {
             currentLines += Line(CM(s"[SP]Negate for Shr"),
               neg, asm.BinOpVTree(asm.Sub, XReg.ZERO, r))
             asm.BinOpVCTree(asm.Sha, l, asm.V(neg))
-          case BinOp.Land => asm.BinOpVCTree(asm.Band, l, asm.V(r))
+          case BinOp.Band => asm.BinOpVCTree(asm.Band, l, asm.V(r))
           case BinOp.Div => // TODO: remove
             asm.BinOpVTree(asm.Div, l, r)
           case BinOp.Mul | BinOp.Mod =>
@@ -167,8 +167,8 @@ class Specializer {
         for (elem <- elems) {
           val e = wrapVar(elem)
           if (tyEnv(e) != asm.TyUnit) {
-            i += 1
             currentLines += Line(NC, XReg.DUMMY, asm.Store(XReg.HEAP, C(Word.fromInt(i)), e))
+            i += 1
           }
         }
         currentLines ++= Seq(
@@ -191,12 +191,12 @@ class Specializer {
         val i = wrapVar(index)
         val v = wrapVar(value)
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
-          val addr = XVar.generate(array + ID.Special.SPECIALIZE_ADDR)
+          val addr = XVar.generate(array.str + ID.Special.SPECIALIZE_ADDR)
           currentLines += Line(NC, addr, asm.BinOpVCTree(asm.Add, a, V(i)))
           currentLines += Line(cm, XReg.DUMMY, asm.Store(addr, C.int(0), v))
         }
       case KNorm.ApplyDirect(fn, args) =>
-        val Typ.TFun(argsTyp, retTyp) =
+        val Typ.TFun(_, retTyp) =
           if (fn.startsWith(ID.Special.EXTERNAL_PREFIX))
             typ.Constrainer.ExtEnv(ID(fn.substring(5)))
           else

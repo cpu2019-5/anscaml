@@ -65,7 +65,7 @@ class Closer {
         KClosed(norm.comment, CIfCmp(op, left, right, close(tru, Local), close(fls, Local)))
       case Let(entry, bound, kont) =>
         if (scope == Global && !bound.raw.mayHaveEffect) {
-          println(s"[KNorm Closer] no mutate: ${entry.name}")
+          // println(s"[KNorm Closer] no mutate: ${entry.name}")
           globalConstsRev ::= (entry, close(bound, Local))
           globalConstNames += entry.name
           close(kont, Global)
