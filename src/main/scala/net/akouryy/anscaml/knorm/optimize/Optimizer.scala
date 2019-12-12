@@ -1,4 +1,5 @@
-package net.akouryy.anscaml.knorm
+package net.akouryy.anscaml
+package knorm
 package optimize
 
 object Optimizer {

@@ -102,7 +102,7 @@ class ImmediateFolder(prog: Program) {
         case Nop | Read => None
         case Write(value) => Some(Write(wrapXID(value)))
         case CallDir(fn, args, None) => Some(CallDir(fn, args.map(wrapXID), None))
-        case inst => ????(inst)
+        case inst => !!!!(inst)
       }
       newInst match {
         case Some(i) if i != l.inst =>

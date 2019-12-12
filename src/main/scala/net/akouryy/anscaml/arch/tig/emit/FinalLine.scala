@@ -12,7 +12,7 @@ final case class FinalLabel(label: String, comment: String) extends FinalLine {
   override def toFinalString: String = {
     val base = s"$label:"
     if (comment.nonEmpty) {
-      f"$base%-70s# $comment"
+      f"$base%-69s # $comment"
     } else {
       base
     }
@@ -28,7 +28,7 @@ final case class FinalCommand(comment: Comment, inst: FinalInst, args: List[Fina
     val base = f"  $inst%-9s " + args.map(a => f"${a.toFinalString}%9s").mkString(" ")
     comment match {
       case NC => base
-      case CM(msg) => f"$base%-70s# $msg"
+      case CM(msg) => f"$base%-69s # $msg"
     }
   }
 }

@@ -35,7 +35,7 @@ object Liveness {
       value.asXVar
     case CallDir(_, args, None) =>
       args.flatMap(_.asXVar)
-    case _ => ????(inst)
+    case _ => !!!!(inst)
   }
 
   private[this] def analyzeBlock(info: MutableInfo, c: Chart, b: Block): Unit = {

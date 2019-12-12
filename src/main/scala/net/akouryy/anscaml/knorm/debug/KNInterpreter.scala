@@ -34,7 +34,7 @@ class KNInterpreter {
     )
 
   private[this] def interpret(kc: KNorm, env: Map[ID, Value]): TailRec[Value] = {
-    def get(id: ID) = env.getOrElse(id, ????(kc, id))
+    def get(id: ID) = env.getOrElse(id, !!!!(kc, id))
 
     roughStep += 1
     if ((roughStep & (1 << 23) - 1) == 0) println(s"$roughStep ${env.size}")
@@ -46,37 +46,37 @@ class KNInterpreter {
         (op, get(left), get(right)) match {
           case (BinOp.III(op), VInt(l), VInt(r)) => done(VInt(op(l, r)))
           case (BinOp.FFF(op), VFloat(l), VFloat(r)) => done(VFloat(op(l, r)))
-          case (_, l, r) => ????(kc, l, r)
+          case (_, l, r) => !!!!(kc, l, r)
         }
       case KNorm.Var(v) => done(get(v))
       case KNorm.KTuple(elems) => done(VTuple(elems map get))
       case KNorm.Array(len, elem) =>
         get(len) match {
           case VInt(l) => done(VArray(Array.fill(l)(get(elem))))
-          case l => ????(kc, l)
+          case l => !!!!(kc, l)
         }
       case KNorm.Get(array, index) =>
         (get(array), get(index)) match {
           case (VArray(a), VInt(i)) => done(a(i))
-          case (a, i) => ????(kc, a, i)
+          case (a, i) => !!!!(kc, a, i)
         }
       case KNorm.Put(array, index, value) =>
         (get(array), get(index)) match {
           case (VArray(a), VInt(i)) => a(i) = get(value); done(VTuple(Nil))
-          case (a, i) => ????(kc, a, i)
+          case (a, i) => !!!!(kc, a, i)
         }
       case KNorm.Apply(fn, args) =>
         get(fn) match {
           case VFun(fn) => fn(args map get)
-          case fn => ????(kc, fn)
+          case fn => !!!!(kc, fn)
         }
       case KNorm.ApplyExternal(fn, args) =>
-        done(stdlib.getOrElse(fn.str, ????(kc, fn))(args map get))
+        done(stdlib.getOrElse(fn.str, !!!!(kc, fn))(args map get))
       case KNorm.IfCmp(op, left, right, tru, fls) =>
         val cond = (op, get(left), get(right)) match {
           case (CmpOp.II(fn), VInt(l), VInt(r)) => fn(l, r)
           case (CmpOp.FF(fn), VFloat(l), VFloat(r)) => fn(l, r)
-          case (_, l, r) => ????(kc, l, r)
+          case (_, l, r) => !!!!(kc, l, r)
         }
         if (cond) interpret(tru, env)
         else interpret(fls, env)
@@ -89,7 +89,7 @@ class KNInterpreter {
         get(bound) match {
           case VTuple(bs) if elems.size == bs.size =>
             interpret(kont, env ++ elems.zipMap(bs)((e, b) => e.name -> b))
-          case b => ????(kc, b)
+          case b => !!!!(kc, b)
         }
       case KNorm.LetRec(KNorm.FDef(Entry(name, _), args, body, _), kont) =>
         lazy val f: VFun = VFun((act: List[Value]) => {

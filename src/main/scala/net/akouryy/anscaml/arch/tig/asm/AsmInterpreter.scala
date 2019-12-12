@@ -21,7 +21,7 @@ class AsmInterpreter {
   private[this] type Vars = Map[XVar, Word]
 
   private[this] def getWith(vars: Vars)(id: XID) = id match {
-    case v: XVar => vars.getOrElse(v, ????(id))
+    case v: XVar => vars.getOrElse(v, !!!!(id))
     case r: XReg => regs(r)
   }
 
@@ -79,7 +79,7 @@ class AsmInterpreter {
           done(vars)
         case Load(addr, index) if !isDummy =>
           val a = get(addr).int + getVC(index).int
-          val v = getMemoryOrElse(a, ????(line, get(addr), getVC(index)))
+          val v = getMemoryOrElse(a, !!!!(line, get(addr), getVC(index)))
           println(s"r $a ${v.int} $roughStep $scope $line")
           done(set(dest, v))
         case UnOpTree(op, value) if !isDummy =>
@@ -122,10 +122,10 @@ class AsmInterpreter {
             res match {
               case Some(res) if !isDummy => set(dest, res)
               case _ if isDummy => vars
-              case _ => ????(line, res)
+              case _ => !!!!(line, res)
             }
           }
-        case _ => ????(line)
+        case _ => !!!!(line)
       }
     }
   }
@@ -142,7 +142,7 @@ class AsmInterpreter {
       incRoughStep(s"$roughStep: jump $ji1; $callStack")
 
       fun.body.jumps(ji1) match {
-        case j1: StartFun => ????(j1)
+        case j1: StartFun => !!!!(j1)
         case Return(_, _, XReg.DUMMY, _) => done(None)
         case Return(_, _, value, _) => done(Some(get(value)))
         case Branch(_, _, Branch.Cond(op, left, right), _, tru2, fls2) =>
@@ -168,7 +168,7 @@ class AsmInterpreter {
 
     incRoughStep(s"$roughStep: fun $name; $callStack")
 
-    val fun = functions.getOrElse(name, ????(name, args))
+    val fun = functions.getOrElse(name, !!!!(name, args))
     val vars: Vars = fun.args.zipStrict(args).flatMap {
       case (v: XVar, actual) => Some(v, actual)
       case (r: XReg, actual) =>

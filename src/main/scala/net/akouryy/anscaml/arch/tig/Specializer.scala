@@ -148,8 +148,7 @@ class Specializer {
           case BinOp.Band => asm.BinOpVCTree(asm.Band, l, asm.V(r))
           case BinOp.Div => // TODO: remove
             asm.BinOpVTree(asm.Div, l, r)
-          case BinOp.Mul | BinOp.Mod =>
-            throw new RuntimeException(s"[Tig Specializer] unimplemented operator $op")
+          case BinOp.Mul | BinOp.Mod => ????(cl)
           case BinOp.Fadd => asm.BinOpVTree(asm.Fadd, l, r)
           case BinOp.Fsub => asm.BinOpVTree(asm.Fsub, l, r)
           case BinOp.Fmul => asm.BinOpVTree(asm.Fmul, l, r)

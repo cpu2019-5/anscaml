@@ -83,13 +83,13 @@ class BackwardTraverser {
       case CallDir(_, args, None) =>
         use ++= args.flatMap(_.asXVar)
         true
-      case inst => ????(inst)
+      case inst => !!!!(inst)
     }
   }
 
   private[this] def traverseBlock(c: Chart)(b: Block): Unit = {
     val use = c.jumps(b.output) match {
-      case j: StartFun => ????(j)
+      case j: StartFun => !!!!(j)
       case Return(_, _, value, _) => value.asXVar.to(mutable.Set)
       case Branch(_, _, Branch.Cond(_, left, right), _, tru, fls) =>
         val u = useSets(tru).to(mutable.Set)

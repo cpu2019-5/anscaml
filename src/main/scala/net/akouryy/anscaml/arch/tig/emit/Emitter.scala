@@ -175,7 +175,7 @@ class Emitter(program: Program) {
             FReg(saves(key)),
             FReg(XReg.STACK), SImm(i))
         }
-      case _ => ????(l)
+      case _ => !!!!(l)
     }
   }
 
@@ -216,7 +216,7 @@ class Emitter(program: Program) {
               FReg(right),
               FLabel(LRel, flsLabel),
             )
-          case _ => ????(jump)
+          case _ => !!!!(jump)
         }
         emitBlock(tru)
         emitBlock(fls)
@@ -227,7 +227,7 @@ class Emitter(program: Program) {
         } else {
           draftCommand(cm, FinalInst.j, FLabel(LAbs, outputLabel))
         }
-      case j => ????(j)
+      case j => !!!!(j)
     }
   }
 
@@ -275,6 +275,12 @@ class Emitter(program: Program) {
 
   def writeTo(writer: PrintWriter): Unit = {
     fixedFLines.foreach(fl => writer.write(fl.toFinalString + "\n"))
+
+    val cnt = fixedFLines.count {
+      case _: FinalCommand => true
+      case _: FinalLabel => false
+    }
+    println(s"[E] Emitted $cnt lines")
   }
 }
 

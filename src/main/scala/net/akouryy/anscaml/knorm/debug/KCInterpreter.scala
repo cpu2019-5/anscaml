@@ -40,12 +40,12 @@ class KCInterpreter {
     )
 
   private[this] def interpret(kc: KClosed, env: Map[ID, Value]): TailRec[Value] = {
-    def get(id: ID) = env.getOrElse(id, gConsts.getOrElse(id, ????(kc, id)))
+    def get(id: ID) = env.getOrElse(id, gConsts.getOrElse(id, !!!!(kc, id)))
 
     def getFun(id: ID)(args: List[Value]) = {
       functions.get(id) match {
         case Some(f) => /*println(s"${id.str}(${args.mkString(", ")})");*/ f(args)
-        case None => done(stdlib.getOrElse(id.str, ????(kc, id))(args))
+        case None => done(stdlib.getOrElse(id.str, !!!!(kc, id))(args))
       }
     }
 
@@ -59,24 +59,24 @@ class KCInterpreter {
         (op, get(left), get(right)) match {
           case (BinOp.III(op), VInt(l), VInt(r)) => done(VInt(op(l, r)))
           case (BinOp.FFF(op), VFloat(l), VFloat(r)) => done(VFloat(op(l, r)))
-          case (_, l, r) => ????(kc, l, r)
+          case (_, l, r) => !!!!(kc, l, r)
         }
       case KNorm.Var(v) => done(get(v))
       case KNorm.KTuple(elems) => done(VTuple(elems map get))
       case KNorm.Array(len, elem) =>
         get(len) match {
           case VInt(l) => done(VArray(Array.fill(l)(get(elem))))
-          case l => ????(kc, l)
+          case l => !!!!(kc, l)
         }
       case KNorm.Get(array, index) =>
         (get(array), get(index)) match {
           case (VArray(a), VInt(i)) => done(a(i))
-          case (a, i) => ????(kc, a, i)
+          case (a, i) => !!!!(kc, a, i)
         }
       case KNorm.Put(array, index, value) =>
         (get(array), get(index)) match {
           case (VArray(a), VInt(i)) => a(i) = get(value); done(VTuple(Nil))
-          case (a, i) => ????(kc, a, i)
+          case (a, i) => !!!!(kc, a, i)
         }
       case KNorm.ApplyDirect(fn, args) =>
         tailcall(getFun(ID(fn))(args map get))
@@ -85,7 +85,7 @@ class KCInterpreter {
         val cond = (op, get(left), get(right)) match {
           case (CmpOp.II(fn), VInt(l), VInt(r)) => fn(l, r)
           case (CmpOp.FF(fn), VFloat(l), VFloat(r)) => fn(l, r)
-          case (_, l, r) => ????(kc, l, r)
+          case (_, l, r) => !!!!(kc, l, r)
         }
         if (cond) interpret(tru, env)
         else interpret(fls, env)
@@ -98,10 +98,10 @@ class KCInterpreter {
         get(bound) match {
           case VTuple(bs) if elems.size == bs.size =>
             interpret(kont, env ++ elems.zipMap(bs)((e, b) => e.name -> b))
-          case b => ????(kc, b)
+          case b => !!!!(kc, b)
         }
       case _: KNorm.CLetClosure => ???
-      case _ => ????(kc)
+      case _ => !!!!(kc)
     }
   }
 

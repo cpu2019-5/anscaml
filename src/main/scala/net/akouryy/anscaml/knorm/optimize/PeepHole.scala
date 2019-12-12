@@ -8,6 +8,7 @@ import typ.{Lit, Typ}
 import KNorm._
 
 import scala.collection.mutable
+import scala.util.control.TailCalls._
 
 class PeepHole {
   private[this] val env = mutable.Map[ID, KRaw]()
@@ -15,10 +16,10 @@ class PeepHole {
   def apply(norm: KNorm): KNorm = {
     println("[KOptimize PeepHole] Start")
     env.clear()
-    optimize(norm)
+    optimize(norm).result
   }
 
-  def optimize(norm: KNorm): KNorm = {
+  def optimize(norm: KNorm): TailRec[KNorm] = {
     def addCmt(msg: String, raw: KRaw) = KNorm(
       norm.comment :+ s"[KNorm PeepHole] $msg",
       raw
@@ -31,12 +32,12 @@ class PeepHole {
 
     norm.raw match {
       case Var(v) =>
-        env.get(v) match {
+        done(env.get(v) match {
           case Some(r @ (KInt(_) | KFloat(_))) => addCmt("lit", r)
           case _ => norm
-        }
+        })
       case BinOpTree(op, left, right) =>
-        (op, env.get(left), env.get(right)) match {
+        done((op, env.get(left), env.get(right)) match {
           case (BinOp.III(fn), Some(KInt(x)), Some(KInt(y))) =>
             addCmt(s"op-$op", KInt(fn(x, y)))
           case (BinOp.FFF(fn), Some(KFloat(x)), Some(KFloat(y))) =>
@@ -75,50 +76,66 @@ class PeepHole {
               ),
             )
           case _ => norm
-        }
+        })
       case IfCmp(op, left, right, tru, fls) =>
         (op, env.get(left), env.get(right)) match {
           case (CmpOp.Eq, Some(BinOpTree(BinOp.Sub, one, x)), Some(KInt(0)))
             if env.get(one).contains(KInt(1)) =>
             // Not
-            addCmt("if-not", IfCmp(CmpOp.Eq, x, right /* zero */ , fls, tru))
+            done(addCmt("if-not", IfCmp(CmpOp.Eq, x, right /* zero */ , fls, tru)))
           case (
             CmpOp.Eq,
             Some(IfCmp(op2, l2, r2, KNorm(_, KInt(1)), KNorm(_, KInt(0)))),
             Some(KInt(0))
             ) if op == CmpOp.Eq =>
             // `if [(l2 <=> r2) = 0] then tru else fls` -> `if [l2 <=> r2] then fls else tru`
-            addCmt("if-cmp-cmp", IfCmp(op2, l2, r2, fls, tru))
+            done(addCmt("if-cmp-cmp", IfCmp(op2, l2, r2, fls, tru)))
           case (CmpOp.II(fn), Some(KInt(x)), Some(KInt(y))) =>
             if (fn(x, y))
-              addCmtNorm("if-true", optimize(tru))
+              optimize(tru).map(addCmtNorm("if-true", _))
             else
-              addCmtNorm("if-false", optimize(fls))
+              optimize(fls).map(addCmtNorm("if-false", _))
           case (CmpOp.FF(fn), Some(KFloat(x)), Some(KFloat(y))) =>
             if (fn(x, y))
-              addCmtNorm("if-true", optimize(tru))
+              optimize(tru).map(addCmtNorm("if-true", _))
             else
-              addCmtNorm("if-false", optimize(fls))
-          case _ => norm.copy(raw = IfCmp(op, left, right, optimize(tru), optimize(fls)))
+              optimize(fls).map(addCmtNorm("if-false", _))
+          case _ =>
+            for {
+              t <- optimize(tru)
+              f <- optimize(fls)
+            } yield {
+              norm.copy(raw = IfCmp(op, left, right, t, f))
+            }
         }
 
       case Let(Entry(name, typ), bound, kont) =>
-        val boundOpt = optimize(bound)
-        env(name) = boundOpt.raw
-        val newTyp = boundOpt.raw match {
-          case KInt(i) => Typ.IntList(i)
-          case KFloat(f) => Typ.FloatList(f)
-          case _ => typ
+        for {
+          boundOpt <- optimize(bound)
+          () = (env(name) = boundOpt.raw)
+          k <- optimize(kont)
+        } yield {
+          val newTyp = boundOpt.raw match {
+            case KInt(i) => Typ.IntList(i)
+            case KFloat(f) => Typ.FloatList(f)
+            case _ => typ
+          }
+          norm.copy(raw = Let(Entry(name, newTyp), boundOpt, k))
         }
-        norm.copy(raw = Let(Entry(name, newTyp), boundOpt, optimize(kont)))
       case LetTuple(elems, bound, kont) =>
         // 面倒なのでenvは更新しない
-        norm.copy(raw = LetTuple(elems, bound, optimize(kont)))
+        for (k <- optimize(kont)) yield {
+          norm.copy(raw = LetTuple(elems, bound, k))
+        }
       case LetRec(FDef(entry, args, body, noInline), kont) =>
         // 関数はenvに含めない
-        norm.copy(raw = LetRec(FDef(entry, args, optimize(body), noInline), optimize(kont)))
-
-      case _ => norm
+        for {
+          b <- optimize(body)
+          k <- optimize(kont)
+        } yield {
+          norm.copy(raw = LetRec(FDef(entry, args, b, noInline), k))
+        }
+      case _ => done(norm)
     }
   }
 
