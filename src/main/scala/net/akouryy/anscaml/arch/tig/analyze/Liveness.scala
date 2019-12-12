@@ -41,10 +41,10 @@ object Liveness {
   private[this] def analyzeBlock(info: MutableInfo, c: Chart, b: Block): Unit = {
     var live: LiveSet = c.jumps(b.output) match {
       case _: StartFun => ???
-      case Return(_, value, _) => value.asXVar.to(Set)
-      case Branch(_, Branch.Cond(_, left, right), _, tru, fls) =>
+      case Return(_, _, value, _) => value.asXVar.to(Set)
+      case Branch(_, _, Branch.Cond(_, left, right), _, tru, fls) =>
         info(tru).head ++ info(fls).head ++ left.asXVar ++ right.asVXVar
-      case Merge(_, inputs, outputID, output) =>
+      case Merge(_, _, inputs, outputID, output) =>
         info(output).head -- outputID.asXVar ++ inputs.find(_._2 == b.i).get._1.asXVar
     }
     val liveOut = live

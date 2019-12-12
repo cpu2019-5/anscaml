@@ -6,7 +6,7 @@ import asm._
 import base._
 
 object LastOptimizer {
-  def apply(program: Program): Program = {
+  def apply(program: Program): Program =
     program.copy(functions = program.functions.map { f =>
       def updateLines(bi: BlockIndex, fn: List[Line] => List[Line]) = {
         val b = f.body.blocks(bi)
@@ -30,9 +30,11 @@ object LastOptimizer {
             if (src == XReg.DUMMY) {
               j
             } else {
-              if (src != XReg.RETURN) {
+              assert(src == XReg.RETURN)
+
+              /*if (src != XReg.RETURN) {
                 updateLines(bi, lines => lines :+ Line(NC, XReg.RETURN, Mv(src)))
-              }
+              }*/
               Return(cm, ji, XReg.RETURN, bi)
             }
           case Merge(cm, _, inputs, dest, obi) =>
@@ -48,12 +50,11 @@ object LastOptimizer {
 
       f.body.blocks.mapValuesInPlace { (_, b) =>
         b.copy(lines = b.lines.filter {
-          case Line(_, x, Mv(y)) if x == y => false
+          // case Line(_, x, Mv(y)) if x == y => false
           case _ => true
         })
       }
 
       f.copy(args = (1 to f.args.size).map(XReg(_)).toList)
     })
-  }
 }

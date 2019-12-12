@@ -26,7 +26,7 @@ object PPrinter {
             pprint.Tree.Infix(pprinter.treeify(name.str), ":", pprinter.treeify(typ))
           ))
       }) orElse syntax.PPrinter.handle(pprinter) orElse knorm.PPrinter.handle(pprinter)
-        orElse arch.tig.PPrinter.handle(pprinter),
+      orElse arch.tig.PPrinter.handle(pprinter),
 
     defaultWidth = 130,
   )
@@ -38,5 +38,5 @@ object PPrinter {
     writer.println()
   }
 
-  def pprintln(x: Any): Unit = pprinter.pprintln(x)
+  def pprintln(x: Any): Unit = pprinter.pprintln(x, height = 100000)
 }

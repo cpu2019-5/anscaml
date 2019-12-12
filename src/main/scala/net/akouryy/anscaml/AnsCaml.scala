@@ -42,9 +42,13 @@ object AnsCaml {
 
     val alpha = knorm.Alpha(kn)
 
+    // PPrinter.pprintln(alpha)
+
     val ko = knorm.optimize.Optimizer(config.optimizationCount, alpha)
 
     val cl = new knorm.Closer()(ko)
+
+    // PPrinter.pprintln(cl)
 
     (config.kcIn, config.kcOut) match {
       case (Some(in), Some(out)) =>

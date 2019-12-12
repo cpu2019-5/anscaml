@@ -46,14 +46,9 @@ class AsmInterpreter {
   private[this] def interpret(scope: String, varsRec: TailRec[Vars], line: Line): TailRec[Vars] = {
     varsRec.flatMap { vars =>
       incRoughStep(s"$roughStep: ${vars.size}; $callStack")
-      //      if (roughStep > 71936) ???
-      //
-      //      if (roughStep >= 71920) {
-      //        println(roughStep)
-      //        println(s"    $line")
-      //        println(s"    $vars")
-      //        println()
-      //      }
+      if (false && roughStep <= 600) {
+        println(s"[$roughStep]    $line")
+      }
 
       val get = getWith(vars) _
       val set = setWith(vars) _
@@ -68,33 +63,24 @@ class AsmInterpreter {
         case Mvi(value) if !isDummy =>
           done(set(dest, value))
         case NewArray(len, elem) if !isDummy =>
-          val h = regs(XReg.HEAP)
+          val h = regs(XReg.HEAP).int
+          val ld = len.fold(v => if (get(v).int == 0) 1 else 0, _ => 0)
           val l = getVC(len).int
-          for (i <- 0 until l) memory(h.int + i) = get(elem)
-          regs(XReg.HEAP) = Word.fromInt(h.int + l)
-          done(set(dest, h))
+          for (i <- 0 until l + ld) {
+            println(s"w ${h + i} ${get(elem).int} a$roughStep $h $l $ld $scope $line")
+            memory(h + i) = get(elem)
+          }
+          regs(XReg.HEAP) = Word.fromInt(h + l + ld)
+          done(set(dest, Word.fromInt(h + ld)))
         case Store(addr, index, value) if isDummy =>
           val a = get(addr).int + getVC(index).int
-          //          if (a == 0 || a == 44861 || a == 44862) {
-          //            println(s"[$roughStep] store mem[$a] from ${memory(a)} to ${get(value)}: $line\n")
-          //          }
+          println(s"w $a ${get(value).int} $roughStep $scope $line")
           memory(a) = get(value)
           done(vars)
         case Load(addr, index) if !isDummy =>
-          //          addr match {
-          //            case XVar(ID("dirvecsA$gciG" | "dgroupA" | "$CrkA")) =>
-          //              println(
-          //                s"""[$roughStep] load mem[${get(addr)} + ${getVC(index)} = ${
-          //                  get(addr).int + getVC(index).int
-          //                }] = ${memory(get(addr).int + getVC(index).int)}
-          //                   |    ${memory(0)};; $line
-          //                   |""".stripMargin
-          //              )
-          //            case _ =>
-          //          }
-
-          val v = getMemoryOrElse(get(addr).int + getVC(index).int,
-            ????(line, get(addr), getVC(index)))
+          val a = get(addr).int + getVC(index).int
+          val v = getMemoryOrElse(a, ????(line, get(addr), getVC(index)))
+          println(s"r $a ${v.int} $roughStep $scope $line")
           done(set(dest, v))
         case UnOpTree(op, value) if !isDummy =>
           val r = op match {
@@ -135,7 +121,7 @@ class AsmInterpreter {
             callStack = callStack.tail
             res match {
               case Some(res) if !isDummy => set(dest, res)
-              case None if isDummy => vars
+              case _ if isDummy => vars
               case _ => ????(line, res)
             }
           }

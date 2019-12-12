@@ -25,6 +25,7 @@ class Emitter(program: Program) {
   private[this] val emittedBlocks = mutable.Set[BlockIndex]()
   private[this] val currentStack = mutable.ArrayBuffer[ID]()
   private[this] val currentStackInv = mutable.Map[ID, Int]()
+  private[this] var currentStackMaxSize: MaxStackSize = _
   private[this] val currentFLines =
     mutable.ListBuffer[MaxStackSize => FinalLine]()
 
@@ -43,11 +44,11 @@ class Emitter(program: Program) {
   private[this] def draftMv(comment: Comment, dest: XReg, src: XReg) =
     draftCommand(comment, FInst.band, FReg(dest), FReg(XReg.C_MINUS_ONE), FReg(src))
 
-  private[this] def draftMvi(cm: Comment, dest: XReg, value: Int) = {
-    val lowerMask = (1 << 16) - 1
+  private[this] def draftMvi(cm: Comment, dest: XReg, word: Word) = {
+    val value = word.int
     val higher = value >>> 16
-    val lower = value & lowerMask
-    val cm2 = cm :+ s"mvi $value"
+    val lower = value & (1 << 16) - 1
+    val cm2 = cm :+ s"[E] mvi $word"
     val higherLHS =
       if (lower != 0) {
         draftCommand(cm2, FInst.bandi, FReg(dest), FReg(XReg.C_MINUS_ONE), UImm(lower))
@@ -75,20 +76,17 @@ class Emitter(program: Program) {
     val toDummy = l.dest == XReg.DUMMY
     l.inst match {
       case Mv(id: XReg) if !toDummy => draftMv(cm, dest, id)
-      case Mvi(value) if !toDummy =>
-        draftMvi(cm, dest, value.int)
+      case Mvi(value) if !toDummy => draftMvi(cm, dest, value)
       case NewArray(V(len: XReg), elem: XReg) if !toDummy =>
         // do-whileループでtmpが0以上である間拡張を繰り返す
         // len=0のとき1回ループしてしまうが、未定義領域に1個書き込むだけなので許容
-        val bodyLabel =
-          ID.generate(ID(s"${currentFun.name}.${ID.Special.EMIT_ARRAY_BODY}")).str
-        draftMv(NC, XReg.LAST_TMP, len)
+        val bodyLabel = ID.generate(ID(s"${currentFun.name}.${ID.Special.EMIT_ARRAY_BODY}")).str
+        draftMv(CM(s"[E] NewArray"), XReg.LAST_TMP, len)
         draftLabel(bodyLabel)
         draftCommand(NC, FInst.store, FReg(XReg.HEAP), SImm(0), FReg(elem))
         draftCommand(NC, FInst.addi, FReg(XReg.HEAP), FReg(XReg.HEAP), SImm(1))
         draftCommand(NC, FInst.addi, FReg(XReg.LAST_TMP), FReg(XReg.LAST_TMP), SImm(-1))
-        draftCommand(NC, FInst.jgt,
-          FReg(XReg.LAST_TMP), FReg(XReg.ZERO), FLabel(LRel, bodyLabel))
+        draftCommand(NC, FInst.jgt, FReg(XReg.LAST_TMP), FReg(XReg.ZERO), FLabel(LRel, bodyLabel))
         draftCommand(cm, FInst.sub, FReg(dest), FReg(XReg.HEAP), FReg(len))
       case NewArray(C(len), elem: XReg) if !toDummy =>
         for (i <- 0 until len.int) {
@@ -120,14 +118,15 @@ class Emitter(program: Program) {
       case BinOpVTree(op, left: XReg, right: XReg) if !toDummy =>
         draftCommand(cm, FInst.fromBinOpV(op), FReg(dest), FReg(left), FReg(right))
       case Nop if toDummy => // nop
-      case Read =>
-        draftCommand(cm, FInst.read, FReg(if (toDummy) XReg.ZERO else dest))
-      case Write(value: XReg) if toDummy =>
-        draftCommand(cm, FInst.write, FReg(value))
-      case CallDir(ID.Special.ASM_EXIT_FUN, Nil, Some(_)) if toDummy =>
-        draftCommand(cm, FInst.exit)
+      case Read => draftCommand(cm, FInst.read, FReg(if (toDummy) XReg.ZERO else dest))
+      case Write(value: XReg) if toDummy => draftCommand(cm, FInst.write, FReg(value))
+      case CallDir(ID.Special.ASM_EXIT_FUN, Nil, Some(_)) if toDummy => draftCommand(cm, FInst.exit)
       case CallDir(fn, args, Some(saves)) /* destはdummyでもそうでなくてもよい */ =>
         // TODO: tail call
+
+        currentStack.clear()
+        currentStackInv.clear()
+
         val savedKeyPositions = saves.keys.flatMap { k =>
           currentStackInv.get(k).map(k -> _)
         }.to(mutable.Map)
@@ -150,6 +149,10 @@ class Emitter(program: Program) {
           }
           currentStackInv(key) = i
         }
+
+        currentStackMaxSize = MaxStackSize(
+          currentStackMaxSize.n.max(StackMetaDataSize + currentStack.size)
+        )
 
         val argMoves = moveSimultaneously(
           args.zipWithIndex.map {
@@ -199,7 +202,7 @@ class Emitter(program: Program) {
                     FInst.negCJumpFromCmpOpVC(op), FReg(left), TImm(c.int), FLabel(LRel, flsLabel),
                   )
                 } else {
-                  draftMvi(NC, XReg.LAST_TMP, c.int)
+                  draftMvi(NC, XReg.LAST_TMP, c)
                   draftCommand(cm,
                     FInst.negVJumpFromCmpOpVC(op), FReg(left), FReg(XReg.LAST_TMP),
                     FLabel(LRel, flsLabel),
@@ -244,6 +247,7 @@ class Emitter(program: Program) {
     currentStack.clear()
     currentStackInv.clear()
     currentFLines.clear()
+    currentStackMaxSize = MaxStackSize(0)
 
     draftLabel(fun.name)
 
@@ -264,7 +268,7 @@ class Emitter(program: Program) {
 
     emitBlock(fun.body.blocks.firstKey)
 
-    fixedFLines ++= currentFLines.map(_ (MaxStackSize(StackMetaDataSize + currentStack.size)))
+    fixedFLines ++= currentFLines.map(_ (currentStackMaxSize))
   }
 
   program.functions.foreach(emitFunction)

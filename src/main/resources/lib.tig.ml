@@ -29,6 +29,7 @@ let rec fsqr x = x *. x in
 
 (* http://takashiijiri.com/study/miscs/fastsqrt.html *)
 let rec sqrt x =
+  if x <. 0.0 then 0.0 else
   let x_half = x *. 0.5 in
   let r = float_of_bits (1597463007 - (bits_of_float x) / 2) in
   let r = r *. (1.5 -. x_half *. r *. r) in

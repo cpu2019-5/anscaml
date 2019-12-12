@@ -28,16 +28,16 @@ class GraphDrawer {
 
       for (j <- f.body.jumps.valuesIterator) {
         res ++= (j match {
-          case asm.StartFun(i, ob) =>
+          case asm.StartFun(_, i, ob) =>
             val args = f.args.mkString(", ")
             s"""$i[label = "StartFun.${i.indexString}"; shape = component];
                |$i -> $ob [label = "($args)"];
                |""".stripMargin
-          case asm.Return(i, v, ib) =>
+          case asm.Return(_, i, v, ib) =>
             s"""$i[label = "Return.${i.indexString}"; shape = lpromoter];
                |$ib -> $i [label="$v"];
                |""".stripMargin
-          case asm.Branch(i, asm.Branch.Cond(op, l, r), ib, tob, fob) =>
+          case asm.Branch(_, i, asm.Branch.Cond(op, l, r), ib, tob, fob) =>
             s"""$i[
                |  label = "Branch.${i.indexString}\n$l $op $r";
                |  shape = trapezium; style = rounded;
@@ -46,7 +46,7 @@ class GraphDrawer {
                |$i -> $tob [label=true];
                |$i -> $fob [label=false];
                |""".stripMargin
-          case asm.Merge(i, inputs, v, ob) =>
+          case asm.Merge(_, i, inputs, v, ob) =>
             val inputEdges =
               inputs.map(ib => s"""${ib._2} -> $i [label="${ib._1}"];""").mkString
             s"""$i[label = "Merge.${i.indexString}"; shape = invtrapezium; style = rounded];
