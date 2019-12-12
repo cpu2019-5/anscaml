@@ -114,17 +114,24 @@ class AsmInterpreter {
               throw e
           }
         case Nop if isDummy => done(vars)
-        case Read if !isDummy =>
-          done(set(dest, Word.fromInt(input.read())))
+        case Read =>
+          if (isDummy) {
+            input.read()
+            done(vars)
+          } else {
+            done(set(dest, Word.fromInt(input.read())))
+          }
         case Write(value) if isDummy =>
           output.write(get(value).int % 256)
           done(vars)
-        case CallDir(fn, args, None) =>
-          //          println(s"${memory(0)}; $fn(${args.map(get).mkString(", ")})")
-          // TODO: save registers
+        case CallDir(fn, args, savesOpt) =>
           callStack ::= fn
+          val saves = savesOpt.toList.flatten.toMap
+          val saved = saves.map { case (k, r) => k -> get(r) }
           for (res <- tailcall(interpretFn(fn, args map get))) yield {
-            //if (fn == "sqrtA") println((line, args map get, res))
+            for ((k, v) <- saved) {
+              regs(saves(k)) = v
+            }
             callStack = callStack.tail
             res match {
               case Some(res) if !isDummy => set(dest, res)
