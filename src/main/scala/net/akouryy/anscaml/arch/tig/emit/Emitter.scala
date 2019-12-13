@@ -214,12 +214,12 @@ class Emitter(program: Program) {
                   FLabel(LRel, flsLabel),
                 )
               case C(c) =>
-                if (TImm.dom contains c) {
+                if (TImm.dom contains (c.int: Int)) {
                   draftCommand(cm,
                     FInst.negCJumpFromCmpOpVC(op), FReg(left), TImm(c.int), FLabel(LRel, flsLabel),
                   )
                 } else {
-                  draftMvi(NC, XReg.LAST_TMP, c)
+                  draftMvi(CM(s"[E] jump imm out of domain: $c"), XReg.LAST_TMP, c)
                   draftCommand(cm,
                     FInst.negVJumpFromCmpOpVC(op), FReg(left), FReg(XReg.LAST_TMP),
                     FLabel(LRel, flsLabel),

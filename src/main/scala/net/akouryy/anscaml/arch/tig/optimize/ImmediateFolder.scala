@@ -146,16 +146,13 @@ class ImmediateFolder(prog: Program) {
       case Return(cm, i, value, input) => Return(cm, i, wrapXID(value), input)
       case Merge(cm, i, inputs, outputID, output) =>
         Merge(cm, i, inputs.map { case (xid, index) => (wrapXID(xid), index) }, outputID, output)
-      case Branch(cm, i, Branch.CondVC(op, left, right), input, trueOutput, falseOutput) =>
+      case Branch(cm, i, Branch.CondVC(op, left, right), input, tru, fls) =>
         (xidToConst(left), vcToConst(right)) match {
           case (Some(l), Some(r)) =>
             // 定数標準形(JumpFolder参照)
             val result = Word.fromInt(if (op.fn(l, r)) 0 else -1)
-            Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)),
-              input, trueOutput, falseOutput)
-          case _ =>
-            Branch(cm, i, Branch.CondVC(op, wrapXID(left), wrapVC(right)),
-              input, trueOutput, falseOutput)
+            Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)), input, tru, fls)
+          case _ => Branch(cm, i, Branch.CondVC(op, wrapXID(left), wrapVC(right)), input, tru, fls)
         }
       case Branch(cm, i, Branch.CondV(op, left, right), input, tru, fls) =>
         (xidToConst(left), xidToConst(right)) match {
@@ -163,7 +160,7 @@ class ImmediateFolder(prog: Program) {
             // 定数標準形(JumpFolder参照)
             val result = Word.fromInt(if (op.fn(l, r)) 0 else -1)
             Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)), input, tru, fls)
-          case _ => Branch(cm, i, Branch.CondV(op, wrapXID(left), wrapXID(right)), input, tru,fls)
+          case _ => Branch(cm, i, Branch.CondV(op, wrapXID(left), wrapXID(right)), input, tru, fls)
         }
     }
 
