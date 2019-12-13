@@ -37,13 +37,23 @@ class ImmediateFolder(prog: Program) {
     case V(v: XVar) => immEnv.get(v).foldF(C, V(v))
   }
 
+  private[this] def addImm(dest: XID, imm: Word) = dest match {
+    case dest: XVar =>
+      immEnv(dest) = imm
+      XReg.fromConstants.get(imm) match {
+        case Some(r) => constRegEnv(dest) = r
+        case None => // pass
+      }
+    case _: XReg => // pass
+  }
+
   private[this] def optBlock(c: Chart)(b: Block): Unit = {
     var blockChanged = false
 
-    val ls = b.lines.map { l =>
-      val newInst = l.inst match {
+    val ls = b.lines.map { line =>
+      val newInst: Option[Instruction] = line.inst match {
         case Mv(v: XVar) =>
-          l.dest match {
+          line.dest match {
             case _: XReg => // pass
             case dest: XVar =>
               constRegEnv ++= constRegEnv.get(v).map(dest -> _)
@@ -51,27 +61,15 @@ class ImmediateFolder(prog: Program) {
           }
           None
         case Mv(r: XReg) =>
-          l.dest match {
-            case _: XReg => // pass
-            case dest: XVar =>
-              XReg.toConstants.get(r) match {
-                case Some(i) =>
-                  constRegEnv(dest) = r
-                  immEnv(dest) = i
-                case None => // pass
-              }
+          (line.dest, XReg.toConstants.get(r)) match {
+            case (dest: XVar, Some(i)) =>
+              constRegEnv(dest) = r
+              immEnv(dest) = i
+            case _ => // pass
           }
           None
         case Mvi(w) =>
-          l.dest match {
-            case _: XReg => // pass
-            case dest: XVar =>
-              immEnv(dest) = w
-              XReg.fromConstants.get(w) match {
-                case Some(r) => constRegEnv(dest) = r
-                case None => // pass
-              }
-          }
+          addImm(line.dest, w)
           None
         case NewArray(len, elem) => Some(NewArray(wrapVC(len), wrapXID(elem)))
         case Store(addr, C(index), value) =>
@@ -84,7 +82,7 @@ class ImmediateFolder(prog: Program) {
         case Load(addr, index) =>
           (xidToConst(addr), vcToConst(index)) match {
             case (Some(a), Some(i)) =>
-              Some(Load(XReg.ZERO, C(Word.fromInt(a.int + i.int))))
+              Some(Load(XReg.ZERO, C.int(a.int + i.int)))
             case (Some(a), None) =>
               Some(Load(wrapXID(index.asInstanceOf[V].v), C(a)))
             case _ =>
@@ -94,21 +92,35 @@ class ImmediateFolder(prog: Program) {
         case BinOpVCTree(op, left, right) =>
           (xidToConst(left), vcToConst(right)) match {
             case (Some(l), Some(r)) =>
-              Some(Mvi(op.fn(l, r)))
+              val imm = op.fn(l, r)
+              addImm(line.dest, imm)
+              Some(Mvi(imm))
+            case (Some(l), None) if op.isCommutative =>
+              Some(BinOpVCTree(op, right.asV.get, C(l)))
             case _ =>
               Some(BinOpVCTree(op, wrapXID(left), wrapVC(right)))
           }
-        case BinOpVTree(op, left, right) => Some(BinOpVTree(op, wrapXID(left), wrapXID(right)))
+        case BinOpVTree(op, left, right) =>
+          (op, xidToConst(left), xidToConst(right)) match {
+            case (_, Some(l), Some(r)) =>
+              val imm = op.fn(l, r)
+              addImm(line.dest, imm)
+              Some(Mvi(imm))
+            case (Sub, _, Some(r)) if emit.FinalArg.SImm.dom contains -r.int =>
+              Some(BinOpVCTree(Add, wrapXID(left), C.int(-r.int)))
+            case _ =>
+              Some(BinOpVTree(op, wrapXID(left), wrapXID(right)))
+          }
         case Nop | Read => None
         case Write(value) => Some(Write(wrapXID(value)))
         case CallDir(fn, args, None) => Some(CallDir(fn, args.map(wrapXID), None))
         case inst => !!!!(inst)
       }
       newInst match {
-        case Some(i) if i != l.inst =>
+        case Some(i) if i != line.inst =>
           blockChanged = true
-          l.copy(inst = i)
-        case _ => l
+          line.copy(inst = i)
+        case _ => line
       }
     }
 

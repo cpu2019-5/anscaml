@@ -12,10 +12,14 @@ case object Itof extends UnOp
 /** 即値を取れる純粋二項演算 */
 sealed trait BinOpVC {
   def fn(l: Word, r: Word): Word
+
+  val isCommutative: Boolean
 }
 
 case object Add extends BinOpVC {
   override def fn(l: Word, r: Word): Word = Word.fromInt(l.int + r.int)
+
+  override val isCommutative = true
 }
 
 case object Sha extends BinOpVC {
@@ -23,14 +27,20 @@ case object Sha extends BinOpVC {
     if (r.int >= 0) l.int << r.int
     else l.int >> -r.int
   )
+
+  override val isCommutative = false
 }
 
 case object Band extends BinOpVC {
   override def fn(l: Word, r: Word): Word = Word.fromInt(l.int & r.int)
+
+  override val isCommutative = true
 }
 
 case object Bor extends BinOpVC {
   override def fn(l: Word, r: Word): Word = Word.fromInt(l.int | r.int)
+
+  override val isCommutative = true
 }
 
 sealed trait BinOpV extends Product {

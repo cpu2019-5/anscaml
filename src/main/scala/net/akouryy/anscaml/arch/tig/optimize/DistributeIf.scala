@@ -4,6 +4,8 @@ package optimize
 
 import asm._
 
+import scala.collection.mutable
+
 /**
   * before
   * {{{
@@ -43,15 +45,16 @@ object DistributeIf {
         Block(_, Nil, ji1, _) <- f.body.blocks.get(bi2).orElse(???)
         Merge(cm1, _, inputs1, outputID1: XVar, _) <- f.body.jumps.get(ji1).orElse(???)
         if outputID1 == expr.left &&
-           !useSets.get(tbi4).exists(_ contains outputID1) &&
-           !useSets.get(fbi4).exists(_ contains outputID1)
+           V(outputID1) != expr.rightVC &&
+           !useSets(tbi4).contains(outputID1) &&
+           !useSets(fbi4).contains(outputID1)
       } {
         val _ = outputID1 // scala/bug#11175 unused var false positive
 
         changed = true
 
-        var truInputList = List[(XID, BlockIndex)]()
-        var flsInputList = List[(XID, BlockIndex)]()
+        val truInputList = mutable.ListBuffer[(XID, BlockIndex)]()
+        val flsInputList = mutable.ListBuffer[(XID, BlockIndex)]()
         val truMergeIndex = JumpIndex.generate(ji3)
         val flsMergeIndex = JumpIndex.generate(ji3)
 
@@ -67,12 +70,14 @@ object DistributeIf {
           f.body.blocks(truGlueIndex) = Block(truGlueIndex, Nil, condIndex, truMergeIndex)
           f.body.blocks(flsGlueIndex) = Block(flsGlueIndex, Nil, condIndex, flsMergeIndex)
 
-          truInputList ::= (xid0, truGlueIndex)
-          flsInputList ::= (xid0, flsGlueIndex)
+          truInputList += ((xid0, truGlueIndex))
+          flsInputList += ((xid0, flsGlueIndex))
         }
 
-        f.body.jumps(truMergeIndex) = Merge(cm1, truMergeIndex, truInputList, XReg.DUMMY, tbi4)
-        f.body.jumps(flsMergeIndex) = Merge(cm1, flsMergeIndex, flsInputList, XReg.DUMMY, fbi4)
+        f.body.jumps(truMergeIndex) =
+          Merge(cm1, truMergeIndex, truInputList.toList, XReg.DUMMY, tbi4)
+        f.body.jumps(flsMergeIndex) =
+          Merge(cm1, flsMergeIndex, flsInputList.toList, XReg.DUMMY, fbi4)
 
         f.body.blocks(tbi4) = f.body.blocks(tbi4).copy(input = truMergeIndex)
         f.body.blocks(fbi4) = f.body.blocks(fbi4).copy(input = flsMergeIndex)

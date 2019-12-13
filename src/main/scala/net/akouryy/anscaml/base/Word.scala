@@ -13,7 +13,7 @@ final case class Word private(int: Int, float: Float) {
   override def toString: String =
     if (int == 0) {
       "0"
-    } else if (isGoodFloat || true) {
+    } else if (isGoodFloat) {
       s"$int:$float"
     } else {
       s"$int:"

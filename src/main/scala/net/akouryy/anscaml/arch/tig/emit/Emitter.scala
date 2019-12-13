@@ -41,8 +41,11 @@ class Emitter(program: Program) {
   private[this] def blockLabel(bi: BlockIndex) =
     s"${currentFun.name}.${bi.indexString}"
 
-  private[this] def draftMv(comment: Comment, dest: XReg, src: XReg) =
-    draftCommand(comment, FInst.band, FReg(dest), FReg(XReg.C_MINUS_ONE), FReg(src))
+  private[this] def draftMv(comment: Comment, dest: XReg, src: XReg) = {
+    if(dest != src) {
+      draftCommand(comment, FInst.band, FReg(dest), FReg(XReg.C_MINUS_ONE), FReg(src))
+    }
+  }
 
   private[this] def draftMvi(cm: Comment, dest: XReg, word: Word) = {
     val value = word.int
