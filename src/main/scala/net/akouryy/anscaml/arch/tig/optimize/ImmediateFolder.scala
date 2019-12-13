@@ -13,7 +13,7 @@ class ImmediateFolder(prog: Program) {
     immEnv.clear()
     changed = false
 
-    for (FDef(_, _, body, _) <- prog.functions) {
+    for (FDef(_, _, body, _, _) <- prog.functions) {
       body.blocks.valuesIterator.foreach(optBlock(body))
       body.jumps.valuesIterator.foreach(optJump(body))
     }

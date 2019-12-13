@@ -61,6 +61,7 @@ class Specializer {
   private[this] var currentBlockIndex: asm.BlockIndex = _
   private[this] var currentInputJumpIndex: asm.JumpIndex = _
   private[this] var currentLines = mutable.ListBuffer[asm.Line]()
+  private[this] var currentFunIsLeaf: Boolean = _
 
   private[this] def wrapVar(v: ID): XVar = {
     val vv = XVar(v)
@@ -205,7 +206,9 @@ class Specializer {
         }
         val as = args map wrapVar
         specializeInlineStdlib(cm, dest, fn, as) match {
-          case Nil => currentLines += Line(cm, dest, asm.CallDir(fn, as, None)) // no stdlib
+          case Nil =>
+            currentFunIsLeaf = false
+            currentLines += Line(cm, dest, asm.CallDir(fn, as, None)) // no stdlib
           case lines => currentLines ++= lines
         }
       case KNorm.ApplyClosure(_, _) => ???
@@ -306,6 +309,7 @@ class Specializer {
 
     currentChart = new asm.Chart
     currentBlockIndex = asm.BlockIndex.generate()
+    currentFunIsLeaf = true
 
     // 最初のStartFunジャンプを登録
     val startFunJumpIndex = JumpIndex.generate()
@@ -342,6 +346,7 @@ class Specializer {
       cFDef.args.map(a => XVar(a.name)),
       currentChart,
       fnTyp,
+      asm.FDefInfo(isLeaf = currentFunIsLeaf),
     )
   }
 

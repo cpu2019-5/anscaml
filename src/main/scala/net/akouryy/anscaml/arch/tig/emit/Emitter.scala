@@ -27,14 +27,15 @@ class Emitter(program: Program) {
   private[this] val currentStackInv = mutable.Map[ID, Int]()
   private[this] var currentStackMaxSize: MaxStackSize = _
   private[this] val currentFLines =
-    mutable.ListBuffer[MaxStackSize => FinalLine]()
+    mutable.ListBuffer[MaxStackSize => Seq[FinalLine]]()
 
-  private[this] def draft(fLine: FinalLine): Unit = currentFLines += (_ => fLine)
+  private[this] def draft(fLine: FinalLine): Unit = currentFLines += (_ => Seq(fLine))
 
   private[this] def draftCommand(comment: Comment, inst: FInst, args: FinalArg*): Unit =
     draft(FinalCommand(comment, inst, args: _*))
 
-  private[this] def draftLabel(label: String): Unit = currentFLines += (_ => FinalLabel(label, ""))
+  private[this] def draftLabel(label: String): Unit =
+    currentFLines += (_ => Seq(FinalLabel(label, "")))
 
   private[this] def FReg(xReg: XReg) = FinalArg.Reg(xReg.toString)
 
@@ -42,7 +43,7 @@ class Emitter(program: Program) {
     s"${currentFun.name}.${bi.indexString}"
 
   private[this] def draftMv(comment: Comment, dest: XReg, src: XReg) = {
-    if(dest != src) {
+    if (dest != src) {
       draftCommand(comment, FInst.band, FReg(dest), FReg(XReg.C_MINUS_ONE), FReg(src))
     }
   }
@@ -64,16 +65,20 @@ class Emitter(program: Program) {
     }
   }
 
-  private[this] def draftRevertStack(): Unit = {
-    currentFLines += { case MaxStackSize(sz) =>
-      FinalCommand(CM("[E] revert stack"),
-        FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), SImm(+sz))
+  private[this] def draftRevertStack(): Unit =
+    if (!currentFun.info.isLeaf) {
+      currentFLines += { case MaxStackSize(sz) =>
+        if (sz == 0) Nil
+        else List(
+          FinalCommand(CM("[E] revert stack"),
+            FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), SImm(+sz))
+        )
+      }
+      draftCommand(CM("[E] restore LR"),
+        FInst.load, FReg(XReg.LINK), FReg(XReg.STACK), SImm(LinkRegOffset))
     }
-    draftCommand(CM("[E] restore LR"),
-      FInst.load, FReg(XReg.LINK), FReg(XReg.STACK), SImm(LinkRegOffset))
-  }
 
-  private[this] def emitLine(l: Line): Unit = {
+  private[this] def emitLine(l: Line, isTail: Boolean): Unit = {
     val cm = l.comment
     val dest = l.dest.asXReg.get
     val toDummy = l.dest == XReg.DUMMY
@@ -124,9 +129,20 @@ class Emitter(program: Program) {
       case Read => draftCommand(cm, FInst.read, FReg(if (toDummy) XReg.ZERO else dest))
       case Write(value: XReg) if toDummy => draftCommand(cm, FInst.write, FReg(value))
       case CallDir(ID.Special.ASM_EXIT_FUN, Nil, Some(_)) if toDummy => draftCommand(cm, FInst.exit)
-      case CallDir(fn, args, Some(saves)) /* destはdummyでもそうでなくてもよい */ =>
-        // TODO: tail call
+      case CallDir(fn, args, Some(saves)) if isTail /* destはdummyでもそうでなくてもよい */ =>
+        if (!Seq(XReg.DUMMY, XReg.RETURN).contains(dest)) !!!!(l)
 
+        val argMoves = moveSimultaneously(
+          args.zipWithIndex.map {
+            case (a, i) => Move(a.asXReg.get, XReg.NORMAL_REGS(i))
+          }
+        )
+
+        draftRevertStack()
+        for (Move(s, d) <- argMoves) draftMv(CM("[E] move arg"), d, s)
+        draftCommand(cm :+ "[E] tail call", FInst.j, FLabel(LAbs, fn))
+
+      case CallDir(fn, args, Some(saves)) /* destはdummyでもそうでなくてもよい */ =>
         currentStack.clear()
         currentStackInv.clear()
 
@@ -237,7 +253,15 @@ class Emitter(program: Program) {
   private[this] def emitBlock(bi: BlockIndex) = {
     val b = currentFun.body.blocks(bi)
     draftLabel(blockLabel(bi))
-    b.lines.foreach(emitLine)
+    b.lines.zipWithIndex.foreach { case (line, i) =>
+      val isTail =
+        i == b.lines.length - 1 &&
+        (currentFun.body.jumps(b.output) match {
+          case _: Return => true
+          case _ => false
+        })
+      emitLine(line, isTail)
+    }
     emittedBlocks += bi
     emitJump(b.output)
   }
@@ -262,16 +286,23 @@ class Emitter(program: Program) {
       draftCommand(CM(s"[E] bottom of stack = 2^$ml2"),
         FinalInst.orhi, FReg(XReg.STACK), FReg(XReg.ZERO), UImm(1 << ml2 - 16))
     }
-    draftCommand(CM("[E] save LR"),
-      FInst.store, FReg(XReg.STACK), SImm(LinkRegOffset), FReg(XReg.LINK))
-    currentFLines += { case MaxStackSize(sz) =>
-      FinalCommand(CM("[E] extend stack"),
-        FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), SImm(-sz))
+    if (!fun.info.isLeaf) {
+      draftCommand(CM("[E] save LR"),
+        FInst.store, FReg(XReg.STACK), SImm(LinkRegOffset), FReg(XReg.LINK))
+      currentFLines += { case MaxStackSize(sz) =>
+        if (sz == 0) Nil
+        else List(
+          FinalCommand(CM("[E] extend stack"),
+            FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), SImm(-sz))
+        )
+      }
+    } else {
+      println(fun.name)
     }
 
     emitBlock(fun.body.blocks.firstKey)
 
-    fixedFLines ++= currentFLines.map(_ (currentStackMaxSize))
+    fixedFLines ++= currentFLines.flatMap(_ (currentStackMaxSize))
   }
 
   program.functions.foreach(emitFunction)

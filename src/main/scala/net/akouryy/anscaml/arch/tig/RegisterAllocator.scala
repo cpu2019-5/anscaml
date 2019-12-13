@@ -80,7 +80,7 @@ class RegisterAllocator {
       newJump.foreach(newChart.jumps(ji1) = _)
     }
 
-    FDef(f.name, f.args.map(regEnv.getOrElse(_, XReg.DUMMY)), newChart, f.typ)
+    FDef(f.name, f.args.map(regEnv.getOrElse(_, XReg.DUMMY)), newChart, f.typ, f.info)
   }
 
   def apply(program: Program, liveness: analyze.Liveness.Info): Program = {

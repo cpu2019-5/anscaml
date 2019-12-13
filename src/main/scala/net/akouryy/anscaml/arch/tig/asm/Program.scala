@@ -7,8 +7,6 @@ import scala.collection.mutable
 
 final case class Program(gcSize: Int, tyEnv: Map[XVar, Ty], functions: List[FDef])
 
-final case class FDef(name: String, args: List[XID], body: Chart, typ: Fn)
-
 final case class BlockIndex(indices: List[Int]) extends Ordered[BlockIndex] {
   override def toString: String = s"Block$indexString"
 

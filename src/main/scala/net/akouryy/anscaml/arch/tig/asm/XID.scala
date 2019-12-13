@@ -47,8 +47,8 @@ final case class XReg(id: Int) extends XID {
 object XReg {
   val REG_SIZE = 64
 
-  val VALID_REGS: IndexedSeq[XReg] = (-1 until REG_SIZE).map(XReg.apply)
-  val NORMAL_REGS: IndexedSeq[XReg] = (1 to 27).map(XReg.apply)
+  val VALID_REGS: IndexedSeq[XReg] = -1 until REG_SIZE map XReg.apply
+  val NORMAL_REGS: IndexedSeq[XReg] = (1 to 27) ++ (32 to 61) map XReg.apply
 
   val DUMMY = XReg(-1)
   val ZERO = XReg(0)
