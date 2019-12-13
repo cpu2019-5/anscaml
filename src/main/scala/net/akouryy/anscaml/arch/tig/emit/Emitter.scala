@@ -129,7 +129,7 @@ class Emitter(program: Program) {
       case Read => draftCommand(cm, FInst.read, FReg(if (toDummy) XReg.ZERO else dest))
       case Write(value: XReg) if toDummy => draftCommand(cm, FInst.write, FReg(value))
       case CallDir(ID.Special.ASM_EXIT_FUN, Nil, Some(_)) if toDummy => draftCommand(cm, FInst.exit)
-      case CallDir(fn, args, Some(saves)) if isTail /* destはdummyでもそうでなくてもよい */ =>
+      case CallDir(fn, args, Some(_)) if isTail /* destはdummyでもそうでなくてもよい */ =>
         if (!Seq(XReg.DUMMY, XReg.RETURN).contains(dest)) !!!!(l)
 
         val argMoves = moveSimultaneously(
@@ -199,10 +199,8 @@ class Emitter(program: Program) {
   }
 
   private[this] def emitJump(ji: JumpIndex): Unit = {
-    val retReg = XReg.NORMAL_REGS(0)
-
     currentFun.body.jumps(ji) match {
-      case Return(cm, _, XReg.DUMMY | `retReg`, _) =>
+      case Return(cm, _, XReg.DUMMY | XReg.RETURN, _) =>
         draftRevertStack()
         draftCommand(cm, FinalInst.jr, FReg(XReg.LINK))
       case jump @ Branch(cm, _, cond, _, tru, fls) =>

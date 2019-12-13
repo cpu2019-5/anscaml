@@ -101,6 +101,7 @@ object FinalInst {
     asm.Fmul -> fmul,
     asm.Fdiv -> fdiv,
     asm.FnegCond -> fnegcond,
+    asm.FaddAbs -> faddabs,
   )
 
   val vFromBinOpVC: Map[asm.BinOpVC, FinalInst] = Map(
@@ -181,6 +182,10 @@ object FinalInst {
   })
 
   case object fnegcond extends FinalInst({
+    case List(_: Reg, _: Reg, _: Reg) =>
+  })
+
+  case object faddabs extends FinalInst({
     case List(_: Reg, _: Reg, _: Reg) =>
   })
 

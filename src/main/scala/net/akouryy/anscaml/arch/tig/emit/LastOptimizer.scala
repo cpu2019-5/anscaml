@@ -46,13 +46,6 @@ object LastOptimizer {
         }
       }
 
-      f.body.blocks.mapValuesInPlace { (_, b) =>
-        b.copy(lines = b.lines.filter {
-          // case Line(_, x, Mv(y)) if x == y => false
-          case _ => true
-        })
-      }
-
       f.copy(args = (1 to f.args.size).map(XReg(_)).toList)
     })
 }

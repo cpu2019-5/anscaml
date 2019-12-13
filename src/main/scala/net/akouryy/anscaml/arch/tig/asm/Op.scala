@@ -79,6 +79,10 @@ case object FnegCond extends BinOpV {
   override def fn(l: Word, r: Word): Word = Word.fromFloat(if (r.int >= 0) l.float else -l.float)
 }
 
+case object FaddAbs extends BinOpV {
+  override def fn(l: Word, r: Word): Word = Word.fromFloat((l.float + r.float).abs)
+}
+
 sealed trait CmpOp {
   def fn(l: Word, r: Word): Boolean
 }

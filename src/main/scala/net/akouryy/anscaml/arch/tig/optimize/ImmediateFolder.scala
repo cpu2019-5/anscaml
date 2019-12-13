@@ -9,11 +9,13 @@ import scala.collection.mutable
 
 class ImmediateFolder(prog: Program) {
   def apply(): Boolean = {
-    constRegEnv.clear()
-    immEnv.clear()
     changed = false
 
     for (FDef(_, _, body, _, _) <- prog.functions) {
+      constRegEnv.clear()
+      immEnv.clear()
+      otherEnv.clear()
+
       body.blocks.valuesIterator.foreach(optBlock(body))
       body.jumps.valuesIterator.foreach(optJump(body))
     }
@@ -23,6 +25,8 @@ class ImmediateFolder(prog: Program) {
 
   private[this] val constRegEnv = mutable.Map[XVar, XReg]()
   private[this] val immEnv = mutable.Map[XVar, Word]()
+
+  private[this] val otherEnv = mutable.Map[XVar, Instruction]()
   private[this] var changed = false
 
   private[this] def xidToConst(xid: XID): Option[Word] = xid.fold(immEnv.get, XReg.toConstants.get)
@@ -109,13 +113,19 @@ class ImmediateFolder(prog: Program) {
             case (Sub, _, Some(r)) if emit.FinalArg.SImm.dom contains -r.int =>
               Some(BinOpVCTree(Add, wrapXID(left), C.int(-r.int)))
             case _ =>
-              Some(BinOpVTree(op, wrapXID(left), wrapXID(right)))
+              (op, left.asXVar.flatMap(otherEnv.get), right) match {
+                case (FnegCond, Some(BinOpVTree(Fadd, al, ar)), _) if left == right /* 絶対値 */ =>
+                  Some(BinOpVTree(FaddAbs, al, ar))
+                case _ => Some(BinOpVTree(op, wrapXID(left), wrapXID(right)))
+              }
           }
         case Nop | Read => None
         case Write(value) => Some(Write(wrapXID(value)))
         case CallDir(fn, args, None) => Some(CallDir(fn, args.map(wrapXID), None))
         case inst => !!!!(inst)
       }
+
+      line.dest.asXVar.foreach(otherEnv(_) = newInst.getOrElse(line.inst))
       newInst match {
         case Some(i) if i != line.inst =>
           blockChanged = true
