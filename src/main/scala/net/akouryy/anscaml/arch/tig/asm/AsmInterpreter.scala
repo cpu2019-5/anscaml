@@ -154,9 +154,9 @@ class AsmInterpreter {
           val vs = outputID match {
             case XReg.DUMMY => None
             case r: XReg =>
-              regs(r) = get(inputs.find(_._2 == bi0).get._1)
+              regs(r) = get(inputs.find(_.bi == bi0).get.xid)
               None
-            case v: XVar => Some(v -> get(inputs.find(_._2 == bi0).get._1))
+            case v: XVar => Some(v -> get(inputs.find(_.bi == bi0).get.xid))
           }
           tailcall(interpretBlock(fun, bi2, varsOut ++ vs))
       }

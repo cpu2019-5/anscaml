@@ -291,7 +291,10 @@ class Specializer {
           asm.Merge(
             NC,
             mergeJumpIndex,
-            List(trueDest -> trueLastBlockIndex, falseDest -> falseLastBlockIndex),
+            List(
+              asm.MergeInput(trueLastBlockIndex, trueDest),
+              asm.MergeInput(falseLastBlockIndex, falseDest),
+            ),
             dest, kontBlockIndex,
           )
 

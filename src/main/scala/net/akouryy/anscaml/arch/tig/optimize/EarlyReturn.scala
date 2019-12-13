@@ -24,7 +24,7 @@ object EarlyReturn {
                 chart.jumps.remove(ji0)
                 chart.blocks.remove(bi1)
                 chart.jumps.remove(ji2)
-                for ((mergingID, bi3) <- inputs) {
+                for (MergeInput(bi3, mergingID) <- inputs) {
                   val ji4 = JumpIndex.generate()
                   chart.jumps(ji4) = Return(cm0, ji4, mergingID, bi3)
                   chart.blocks(bi3) = chart.blocks(bi3).copy(output = ji4)

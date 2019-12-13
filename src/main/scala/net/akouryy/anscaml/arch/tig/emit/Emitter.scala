@@ -237,9 +237,9 @@ class Emitter(program: Program) {
         }
         emitBlock(tru)
         emitBlock(fls)
-      case Merge(cm, _, inputs, XReg.DUMMY, output) if inputs.forall(_._1 == XReg.DUMMY) =>
+      case Merge(cm, _, inputs, XReg.DUMMY, output) if inputs.forall(_.xid == XReg.DUMMY) =>
         val outputLabel = blockLabel(output)
-        if (inputs.forall(emittedBlocks contains _._2)) {
+        if (inputs.forall(emittedBlocks contains _.bi)) {
           emitBlock(output)
         } else {
           draftCommand(cm, FinalInst.j, FLabel(LAbs, outputLabel))

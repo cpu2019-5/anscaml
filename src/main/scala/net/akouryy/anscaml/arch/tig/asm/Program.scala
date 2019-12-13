@@ -116,7 +116,15 @@ object Branch {
 
 final case class Merge(
   comment: Comment, i: JumpIndex,
-  inputs: List[(XID, BlockIndex)], outputID: XID, output: BlockIndex,
+  inputs: List[MergeInput], outputID: XID, output: BlockIndex,
 ) extends Jump {
-  assert(inputs.forall(_._2 < output))
+  assert(inputs.forall(_.bi < output))
+}
+
+final case class MergeInput(bi: BlockIndex, xid: XID) {
+  def toPair: (BlockIndex, XID) = (bi, xid)
+
+  def mapBI(fn: BlockIndex => BlockIndex) = MergeInput(fn(bi), xid)
+
+  def mapXID(fn: XID => XID) = MergeInput(bi, fn(xid))
 }

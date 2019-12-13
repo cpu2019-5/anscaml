@@ -45,7 +45,7 @@ object Liveness {
       case Branch(_, _, Branch.Cond(_, left, right), _, tru, fls) =>
         info(tru).head ++ info(fls).head ++ left.asXVar ++ right.asVXVar
       case Merge(_, _, inputs, outputID, output) =>
-        info(output).head -- outputID.asXVar ++ inputs.find(_._2 == b.i).get._1.asXVar
+        info(output).head -- outputID.asXVar ++ inputs.find(_.bi == b.i).get.xid.asXVar
     }
     val liveOut = live
     val liveInsRev = b.lines.reverseIterator.map { line =>

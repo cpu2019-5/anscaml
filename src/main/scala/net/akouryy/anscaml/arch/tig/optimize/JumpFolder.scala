@@ -28,7 +28,7 @@ class JumpFolder {
           chart.jumps -= ji1
           removeBlock(chart, bi2)
         } else {
-          chart.jumps(ji1) = m.copy(inputs = inputs.filter(_._2 != bi0))
+          chart.jumps(ji1) = m.copy(inputs = inputs.filter(_.bi != bi0))
         }
     }
   }
@@ -44,9 +44,7 @@ class JumpFolder {
       case _: StartFun => ???
       case j: Return => j.copy(input = bi0)
       case j: Branch => j.copy(input = bi0)
-      case j: Merge => j.copy(inputs =
-        j.inputs.map { case xid -> bi => xid -> (if (bi == bi2) bi0 else bi) }
-      )
+      case j: Merge => j.copy(inputs = j.inputs.map(_.mapBI(bi => if (bi == bi2) bi0 else bi)))
     }
   }
 
@@ -67,7 +65,8 @@ class JumpFolder {
 
           removeBlock(f.body, toRemove)
 
-        case Merge(_, ji1, List(id0 -> bi0), id2, bi2) if id0 == id2 || id2 == XReg.DUMMY =>
+        case Merge(_, ji1, List(MergeInput(bi0, id0)), id2, bi2)
+          if id0 == id2 || id2 == XReg.DUMMY =>
           f.body.jumps -= ji1
           concatBlock(f.body, bi0, bi2)
 

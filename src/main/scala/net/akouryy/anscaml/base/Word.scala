@@ -12,9 +12,7 @@ final case class Word private(int: Int) {
     int == 0 || java.lang.Float.MIN_NORMAL <= float.abs && float.abs <= Float.MaxValue
 
   override def toString: String =
-    if (int == 0) {
-      "0"
-    } else if (isGoodFloat) {
+    if (int != 0 && isGoodFloat) {
       s"$int:$float"
     } else {
       s"$int:"

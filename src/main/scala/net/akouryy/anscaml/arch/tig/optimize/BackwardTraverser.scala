@@ -104,14 +104,14 @@ class BackwardTraverser {
           c.jumps(i) = Merge(
             cm,
             i,
-            inputs.map { case (_, index) => (XReg.DUMMY, index) },
+            inputs.map(_.mapXID(_ => XReg.DUMMY)),
             XReg.DUMMY,
             output
           )
         } else {
           // outputID is provably used
           u --= outputID.asXVar
-          u ++= inputs.find(_._2 == b.i).get._1.asXVar
+          u ++= inputs.find(_.bi == b.i).get.xid.asXVar
         }
         u
     }

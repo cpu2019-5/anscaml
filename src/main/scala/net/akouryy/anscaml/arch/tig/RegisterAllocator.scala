@@ -74,7 +74,7 @@ class RegisterAllocator {
             None // newJumpの追加はtruとflsの両方が処理された後に行う
           }
         case Merge(cm, _, inputs, outputID, output) =>
-          val newInputs = inputs.map { case (xid, bi) => (allocate(xid), bi) }
+          val newInputs = inputs.map(_.mapXID(allocate))
           Some(Merge(cm, ji1, newInputs, regEnv(outputID), output))
       }
       newJump.foreach(newChart.jumps(ji1) = _)

@@ -53,12 +53,12 @@ object DistributeIf {
 
         changed = true
 
-        val truInputList = mutable.ListBuffer[(XID, BlockIndex)]()
-        val flsInputList = mutable.ListBuffer[(XID, BlockIndex)]()
+        val truInputList = mutable.ListBuffer[MergeInput]()
+        val flsInputList = mutable.ListBuffer[MergeInput]()
         val truMergeIndex3 = JumpIndex.generate(ji3)
         val flsMergeIndex3 = JumpIndex.generate(ji3)
 
-        for ((xid0, bi0) <- inputs1) {
+        for (MergeInput(bi0, xid0) <- inputs1) {
           val condIndex1 = JumpIndex.generate(ji1)
           val truGlueIndex2 = BlockIndex.generate(bi2)
           val flsGlueIndex2 = BlockIndex.generate(bi2)
@@ -71,8 +71,8 @@ object DistributeIf {
           f.body.blocks(truGlueIndex2) = Block(truGlueIndex2, Nil, condIndex1, truMergeIndex3)
           f.body.blocks(flsGlueIndex2) = Block(flsGlueIndex2, Nil, condIndex1, flsMergeIndex3)
 
-          truInputList += ((xid0, truGlueIndex2))
-          flsInputList += ((xid0, flsGlueIndex2))
+          truInputList += MergeInput(truGlueIndex2, xid0)
+          flsInputList += MergeInput(flsGlueIndex2, xid0)
         }
 
         f.body.jumps(truMergeIndex3) =

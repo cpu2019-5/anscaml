@@ -37,11 +37,11 @@ object LastOptimizer {
             }
           case Merge(cm, _, inputs, dest, obi) =>
             Merge(cm, ji, inputs.map {
-              case (inputXID, ibi) =>
+              case MergeInput(ibi, inputXID) =>
                 if (inputXID != dest) {
                   updateLines(ibi, lines => lines :+ Line(NC, dest, Mv(inputXID)))
                 }
-                (XReg.DUMMY, ibi)
+                MergeInput(ibi, XReg.DUMMY)
             }, XReg.DUMMY, obi)
         }
       }

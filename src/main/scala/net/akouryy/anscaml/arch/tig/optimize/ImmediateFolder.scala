@@ -152,7 +152,12 @@ class ImmediateFolder(prog: Program) {
       case StartFun(_, _, _) => j
       case Return(cm, i, value, input) => Return(cm, i, wrapXID(value), input)
       case Merge(cm, i, inputs, outputID, output) =>
-        Merge(cm, i, inputs.map { case (xid, index) => (wrapXID(xid), index) }, outputID, output)
+        Merge(
+          cm, i,
+          inputs.map(_.mapXID(wrapXID)),
+          outputID,
+          output
+        )
       case Branch(cm, i, Branch.CondVC(op, left, right), input, tru, fls) =>
         (xidToConst(left), vcToConst(right)) match {
           case (Some(l), Some(r)) =>

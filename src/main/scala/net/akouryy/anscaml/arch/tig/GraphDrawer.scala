@@ -48,7 +48,7 @@ class GraphDrawer {
                |""".stripMargin
           case asm.Merge(_, i, inputs, v, ob) =>
             val inputEdges =
-              inputs.map(ib => s"""${ib._2} -> $i [label="${ib._1}"];""").mkString
+              inputs.map(ib => s"""${ib.bi} -> $i [label="${ib.xid}"];""").mkString
             s"""$i[label = "Merge.${i.indexString}"; shape = invtrapezium; style = rounded];
                |$inputEdges
                |$i -> $ob [label="$v"];
