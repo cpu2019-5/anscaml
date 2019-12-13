@@ -157,7 +157,14 @@ class ImmediateFolder(prog: Program) {
             Branch(cm, i, Branch.CondVC(op, wrapXID(left), wrapVC(right)),
               input, trueOutput, falseOutput)
         }
-      case c: Branch => c
+      case Branch(cm, i, Branch.CondV(op, left, right), input, tru, fls) =>
+        (xidToConst(left), xidToConst(right)) match {
+          case (Some(l), Some(r)) =>
+            // 定数標準形(JumpFolder参照)
+            val result = Word.fromInt(if (op.fn(l, r)) 0 else -1)
+            Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)), input, tru, fls)
+          case _ => Branch(cm, i, Branch.CondV(op, wrapXID(left), wrapXID(right)), input, tru,fls)
+        }
     }
 
     if (newJ != j) {

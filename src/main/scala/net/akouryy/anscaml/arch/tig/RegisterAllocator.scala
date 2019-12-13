@@ -80,6 +80,13 @@ class RegisterAllocator {
       newJump.foreach(newChart.jumps(ji1) = _)
     }
 
+    val regCnt = regEnv.flatMap {
+      case (_: XVar, reg) => Some(reg.id)
+      case _ => None
+    }.max
+
+    println(s"[RA] ${f.name}: $regCnt")
+
     FDef(f.name, f.args.map(regEnv.getOrElse(_, XReg.DUMMY)), newChart, f.typ, f.info)
   }
 
