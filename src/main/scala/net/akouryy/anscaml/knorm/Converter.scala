@@ -40,9 +40,9 @@ object Converter {
     }
 
   private[this] def convertTyp(typ: Typ): Typ = typ match {
-    case Typ.BoolAll => Typ.IntList(0, 1)
-    case Typ.TBool(Lit.List(ls)) => Typ.IntList(ls.map(if (_) 1 else 0).toSeq: _*)
-    case Typ.TBool(Lit.Var(_)) => ???
+    case Typ.BoolAll => Typ.IntList(0, -1)
+    case Typ.TBool(Lit.List(ls)) => Typ.IntList(ls.map(if (_) -1 else 0).toSeq: _*)
+    case Typ.TBool(Lit.Var(_)) => !!!!(typ)
     case _ => typ.recursively(convertTyp)
   }
 
@@ -53,11 +53,11 @@ object Converter {
 
     ast match {
       case LitBool(b) =>
-        val i = if (b) 1 else 0
+        val i = if (b) -1 else 0
         (Typ.IntList(i), KNorm.KInt(i))
       case LitInt(i) => (Typ.IntList(i), KNorm.KInt(i))
       case LitFloat(f) => (Typ.FloatList(f), KNorm.KFloat(f))
-      case Not(s) => convert(env, BinOpTree(BinOp.Sub, LitInt(1), s))
+      case Not(s) => convert(env, BinOpTree(BinOp.Sub, LitInt(-1), s))
       case BinOpTree(op, left, right) =>
         for {
           (x, env2) <- insert(convert(env, left), env)

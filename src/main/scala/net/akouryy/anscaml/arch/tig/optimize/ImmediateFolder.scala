@@ -74,7 +74,7 @@ class ImmediateFolder(prog: Program) {
           None
         case Mvi(w) =>
           addImm(line.dest, w)
-          None
+          XReg.fromConstants.get(w).map(Mv)
         case NewArray(len, elem) => Some(NewArray(wrapVC(len), wrapXID(elem)))
         case Store(addr, C(index), value) =>
           xidToConst(addr) match {
@@ -150,7 +150,7 @@ class ImmediateFolder(prog: Program) {
         (xidToConst(left), vcToConst(right)) match {
           case (Some(l), Some(r)) =>
             // 定数標準形(JumpFolder参照)
-            val result = Word.fromInt(if (op.fn(l, r)) 0 else 1)
+            val result = Word.fromInt(if (op.fn(l, r)) 0 else -1)
             Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)),
               input, trueOutput, falseOutput)
           case _ =>

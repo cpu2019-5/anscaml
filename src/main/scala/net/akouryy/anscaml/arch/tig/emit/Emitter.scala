@@ -44,7 +44,7 @@ class Emitter(program: Program) {
 
   private[this] def draftMv(comment: Comment, dest: XReg, src: XReg) = {
     if (dest != src) {
-      draftCommand(comment, FInst.band, FReg(dest), FReg(XReg.C_MINUS_ONE), FReg(src))
+      draftCommand(comment, FInst.band, FReg(dest), FReg(src), FReg(src))
     }
   }
 
