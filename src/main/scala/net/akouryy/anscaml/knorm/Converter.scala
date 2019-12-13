@@ -82,7 +82,7 @@ object Converter {
           }
         }
       case If(cond, tru, fls) =>
-        convert(env, If(CmpOpTree(CmpOp.Eq, cond, LitBool(false)), fls, tru))
+        convert(env, If(CmpOpTree(CmpOp.Le, cond, LitInt(-1)), tru, fls))
       case Let(entry, bound, kont) =>
         val newEntry = convertEntry(entry)
         val (_, be) = convert(env, bound)

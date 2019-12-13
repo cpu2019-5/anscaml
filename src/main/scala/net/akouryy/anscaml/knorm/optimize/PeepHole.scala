@@ -79,17 +79,16 @@ class PeepHole {
         })
       case IfCmp(op, left, right, tru, fls) =>
         (op, env.get(left), env.get(right)) match {
-          case (CmpOp.Eq, Some(BinOpTree(BinOp.Sub, minus_one, x)), Some(KInt(0)))
+          case (CmpOp.Le, Some(BinOpTree(BinOp.Sub, minus_one, x)), Some(KInt(-1)))
             if env.get(minus_one).contains(KInt(-1)) =>
-            // Not
-            done(addCmt("if-not", IfCmp(CmpOp.Eq, x, right /* zero */ , fls, tru)))
+            done(addCmt("if-not", IfCmp(CmpOp.Eq, x, right /* -1 */ , fls, tru)))
           case (
-            CmpOp.Eq,
+            CmpOp.Le,
             Some(IfCmp(op2, l2, r2, KNorm(_, KInt(-1)), KNorm(_, KInt(0)))),
-            Some(KInt(0))
-            ) if op == CmpOp.Eq =>
-            // `if [(l2 <=> r2) = 0] then tru else fls` -> `if [l2 <=> r2] then fls else tru`
-            done(addCmt("if-cmp-cmp", IfCmp(op2, l2, r2, fls, tru)))
+            Some(KInt(-1))
+            ) =>
+            // `if [(l2 <=> r2) <= -1]` -> `if [l2 <=> r2]`
+            done(addCmt("if-cmp-cmp", IfCmp(op2, l2, r2, tru, fls)))
           case (CmpOp.II(fn), Some(KInt(x)), Some(KInt(y))) =>
             if (fn(x, y))
               optimize(tru).map(addCmtNorm("if-true", _))

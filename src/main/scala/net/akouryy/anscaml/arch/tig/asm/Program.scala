@@ -54,7 +54,9 @@ final class Chart {
 }
 
 /** 基本ブロック */
-final case class Block(i: BlockIndex, lines: List[Line], input: JumpIndex, output: JumpIndex)
+final case class Block(i: BlockIndex, lines: List[Line], input: JumpIndex, output: JumpIndex) {
+  assert(input < output)
+}
 
 final case class Line(comment: Comment, dest: XID, inst: Instruction)
 
@@ -70,7 +72,9 @@ final case class Return(comment: Comment, i: JumpIndex, value: XID, input: Block
 final case class Branch(
   comment: Comment, i: JumpIndex,
   cond: Branch.Cond, input: BlockIndex, tru: BlockIndex, fls: BlockIndex,
-) extends Jump
+) extends Jump {
+  assert(input < tru && input < fls)
+}
 
 object Branch {
 
@@ -113,4 +117,6 @@ object Branch {
 final case class Merge(
   comment: Comment, i: JumpIndex,
   inputs: List[(XID, BlockIndex)], outputID: XID, output: BlockIndex,
-) extends Jump
+) extends Jump {
+  assert(inputs.forall(_._2 < output))
+}

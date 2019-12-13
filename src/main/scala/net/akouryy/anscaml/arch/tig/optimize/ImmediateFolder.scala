@@ -161,9 +161,9 @@ class ImmediateFolder(prog: Program) {
             Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)), input, tru, fls)
           case _ =>
             (op, getOther(left), right) match {
-              case (Eq, Some(BinOpVTree(Sub, XReg.C_MINUS_ONE, orig)), C(Word(0))) =>
+              case (Le, Some(BinOpVTree(Sub, XReg.C_MINUS_ONE, orig)), C(Word(-1))) =>
                 // 否定を除去してジャンプ先入れ替え
-                Branch(cm, i, Branch.CondVC(Eq, orig, C.int(0)), input, fls, tru)
+                Branch(cm :+ "[IF] if-not", i, Branch.CondVC(Le, orig, C.int(-1)), input, fls, tru)
               case _ =>
                 Branch(cm, i, Branch.CondVC(op, wrapXID(left), wrapVC(right)), input, tru, fls)
             }
