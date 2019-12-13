@@ -1,8 +1,10 @@
 package net.akouryy.anscaml.base
 
+import scala.annotation.unused
+
 final case class Word private(int: Int, float: Float) {
 
-  @annotation.unused
+  @unused
   private[this] def copy(_int: Int, _float: Float): Word = ???
 
   def isGoodFloat: Boolean =
@@ -29,5 +31,5 @@ object Word {
     }
   }
 
-  private[this] def apply(v: Int): Word = ???
+  @unused private[this] def apply(v: Int): Word = ???
 }

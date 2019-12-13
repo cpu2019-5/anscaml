@@ -30,11 +30,9 @@ object LastOptimizer {
             if (src == XReg.DUMMY) {
               j
             } else {
-              assert(src == XReg.RETURN)
-
-              /*if (src != XReg.RETURN) {
+              if (src != XReg.RETURN) {
                 updateLines(bi, lines => lines :+ Line(NC, XReg.RETURN, Mv(src)))
-              }*/
+              }
               Return(cm, ji, XReg.RETURN, bi)
             }
           case Merge(cm, _, inputs, dest, obi) =>
