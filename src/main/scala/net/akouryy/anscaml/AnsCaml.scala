@@ -62,7 +62,7 @@ object AnsCaml {
 
     val asm = new arch.tig.Specializer()(cl)
 
-    //*
+    /*
     val rawDot = new java.io.PrintWriter("../temp/raw.dot")
     rawDot.write(new arch.tig.GraphDrawer()(asm))
     rawDot.close()
@@ -70,7 +70,7 @@ object AnsCaml {
 
     arch.tig.optimize.Optimizer(config.optimizationCount, asm)
 
-    //*
+    /*
     val dot = new java.io.PrintWriter("../temp/dbg.dot")
     dot.write(new arch.tig.GraphDrawer()(asm))
     dot.close()
@@ -90,7 +90,7 @@ object AnsCaml {
 
     val lo = arch.tig.emit.LastOptimizer(reg)
 
-    //*
+    /*
     val rDot = new java.io.PrintWriter("../temp/reg.dot")
     rDot.write(new arch.tig.GraphDrawer()(lo))
     rDot.close()
