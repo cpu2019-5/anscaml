@@ -12,8 +12,8 @@ object Optimizer {
       val changedMM = MergeMerge(asm)
       val changedIF = new ImmediateFolder(asm)()
       val changedJF = new JumpFolder()(asm)
-      val (changedBT, useSets @ _) = new BackwardTraverser()(asm)
-      val changedDI = false // DistributeIf(asm, useSets)
+      val (changedBT, useSets) = new BackwardTraverser()(asm)
+      val changedDI = DistributeIf(asm, useSets)
       if (!changedER && !changedMM && !changedDI && !changedIF && !changedBT && !changedJF) return
     }
   }

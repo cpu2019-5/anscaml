@@ -150,7 +150,7 @@ class ImmediateFolder(prog: Program) {
         (xidToConst(left), vcToConst(right)) match {
           case (Some(l), Some(r)) =>
             // 定数標準形(JumpFolder参照)
-            val result = Word.fromInt(if (op.fn(l, r)) 1 else 0)
+            val result = Word.fromInt(if (op.fn(l, r)) 0 else 1)
             Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)),
               input, trueOutput, falseOutput)
           case _ =>

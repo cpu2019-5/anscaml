@@ -41,11 +41,11 @@ object DistributeIf {
     var changed = false
     for (f <- program.functions) {
       for {
-        Branch(cm3, ji3, expr, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
+        Branch(cm3, ji3, expr3, bi2, tbi4, fbi4) <- f.body.jumps.valuesIterator
         Block(_, Nil, ji1, _) <- f.body.blocks.get(bi2).orElse(???)
         Merge(cm1, _, inputs1, outputID1: XVar, _) <- f.body.jumps.get(ji1).orElse(???)
-        if outputID1 == expr.left &&
-           V(outputID1) != expr.rightVC &&
+        if outputID1 == expr3.left &&
+           V(outputID1) != expr3.rightVC &&
            !useSets(tbi4).contains(outputID1) &&
            !useSets(fbi4).contains(outputID1)
       } {
@@ -55,32 +55,33 @@ object DistributeIf {
 
         val truInputList = mutable.ListBuffer[(XID, BlockIndex)]()
         val flsInputList = mutable.ListBuffer[(XID, BlockIndex)]()
-        val truMergeIndex = JumpIndex.generate(ji3)
-        val flsMergeIndex = JumpIndex.generate(ji3)
+        val truMergeIndex3 = JumpIndex.generate(ji3)
+        val flsMergeIndex3 = JumpIndex.generate(ji3)
 
         for ((xid0, bi0) <- inputs1) {
-          val condIndex = JumpIndex.generate(ji1)
-          val truGlueIndex = BlockIndex.generate(bi2)
-          val flsGlueIndex = BlockIndex.generate(bi2)
+          val condIndex1 = JumpIndex.generate(ji1)
+          val truGlueIndex2 = BlockIndex.generate(bi2)
+          val flsGlueIndex2 = BlockIndex.generate(bi2)
 
-          f.body.blocks(bi0) = f.body.blocks(bi0).copy(output = condIndex)
-          f.body.jumps(condIndex) = Branch(
-            cm3, condIndex, expr.mapL(_ => xid0), bi0, truGlueIndex, flsGlueIndex,
+          f.body.blocks(bi0) = f.body.blocks(bi0).copy(output = condIndex1)
+          f.body.jumps(condIndex1) = Branch(
+            cm3, condIndex1, expr3.mapL { l => assert(l == outputID1); xid0 }, bi0, truGlueIndex2,
+            flsGlueIndex2,
           )
-          f.body.blocks(truGlueIndex) = Block(truGlueIndex, Nil, condIndex, truMergeIndex)
-          f.body.blocks(flsGlueIndex) = Block(flsGlueIndex, Nil, condIndex, flsMergeIndex)
+          f.body.blocks(truGlueIndex2) = Block(truGlueIndex2, Nil, condIndex1, truMergeIndex3)
+          f.body.blocks(flsGlueIndex2) = Block(flsGlueIndex2, Nil, condIndex1, flsMergeIndex3)
 
-          truInputList += ((xid0, truGlueIndex))
-          flsInputList += ((xid0, flsGlueIndex))
+          truInputList += ((xid0, truGlueIndex2))
+          flsInputList += ((xid0, flsGlueIndex2))
         }
 
-        f.body.jumps(truMergeIndex) =
-          Merge(cm1, truMergeIndex, truInputList.toList, XReg.DUMMY, tbi4)
-        f.body.jumps(flsMergeIndex) =
-          Merge(cm1, flsMergeIndex, flsInputList.toList, XReg.DUMMY, fbi4)
+        f.body.jumps(truMergeIndex3) =
+          Merge(cm1, truMergeIndex3, truInputList.toList, outputID1, tbi4)
+        f.body.jumps(flsMergeIndex3) =
+          Merge(cm1, flsMergeIndex3, flsInputList.toList, outputID1, fbi4)
 
-        f.body.blocks(tbi4) = f.body.blocks(tbi4).copy(input = truMergeIndex)
-        f.body.blocks(fbi4) = f.body.blocks(fbi4).copy(input = flsMergeIndex)
+        f.body.blocks(tbi4) = f.body.blocks(tbi4).copy(input = truMergeIndex3)
+        f.body.blocks(fbi4) = f.body.blocks(fbi4).copy(input = flsMergeIndex3)
 
         f.body.blocks -= bi2
         f.body.jumps --= Set(ji1, ji3)
