@@ -204,7 +204,7 @@ class Emitter(program: Program) {
         draftRevertStack()
         draftCommand(cm, FinalInst.jr, FReg(XReg.LINK))
       case jump @ Branch(cm, _, cond, _, tru, fls) =>
-        val flsLabel = blockLabel(fls)
+        val flsLabel = blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, fls))
         cond match {
           case Branch.CondVC(op, left: XReg, right) =>
             right match {

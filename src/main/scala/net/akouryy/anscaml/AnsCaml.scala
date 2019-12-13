@@ -66,7 +66,7 @@ object AnsCaml {
     val rawDot = new java.io.PrintWriter("../temp/raw.dot")
     rawDot.write(new arch.tig.GraphDrawer()(asm))
     rawDot.close()
-    */
+    // */
 
     arch.tig.optimize.Optimizer(config.optimizationCount, asm)
 
@@ -74,7 +74,7 @@ object AnsCaml {
     val dot = new java.io.PrintWriter("../temp/dbg.dot")
     dot.write(new arch.tig.GraphDrawer()(asm))
     dot.close()
-    */
+    // */
 
     val reg = new arch.tig.RegisterAllocator()(asm, arch.tig.analyze.Liveness.analyzeProgram(asm))
 
@@ -94,7 +94,7 @@ object AnsCaml {
     val rDot = new java.io.PrintWriter("../temp/reg.dot")
     rDot.write(new arch.tig.GraphDrawer()(lo))
     rDot.close()
-    */
+    // */
 
     val out = new java.io.PrintWriter(config.outputFile)
     new Emitter(lo).writeTo(out)

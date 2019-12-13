@@ -41,6 +41,8 @@ class ImmediateFolder(prog: Program) {
     case V(v: XVar) => immEnv.get(v).foldF(C, V(v))
   }
 
+  private[this] def getOther(xid: XID) = xid.asXVar.flatMap(otherEnv.get)
+
   private[this] def addImm(dest: XID, imm: Word) = dest match {
     case dest: XVar =>
       immEnv(dest) = imm
@@ -113,7 +115,7 @@ class ImmediateFolder(prog: Program) {
             case (Sub, _, Some(r)) if emit.FinalArg.SImm.dom contains -r.int =>
               Some(BinOpVCTree(Add, wrapXID(left), C.int(-r.int)))
             case _ =>
-              (op, left.asXVar.flatMap(otherEnv.get), right) match {
+              (op, getOther(left), right) match {
                 case (FnegCond, Some(BinOpVTree(Fadd, al, ar)), _) if left == right /* 絶対値 */ =>
                   Some(BinOpVTree(FaddAbs, al, ar))
                 case _ => Some(BinOpVTree(op, wrapXID(left), wrapXID(right)))
@@ -125,7 +127,12 @@ class ImmediateFolder(prog: Program) {
         case inst => !!!!(inst)
       }
 
-      line.dest.asXVar.foreach(otherEnv(_) = newInst.getOrElse(line.inst))
+      line.dest.asXVar.foreach {
+        otherEnv(_) = newInst.getOrElse(line.inst) match {
+          case ins @ Mv(x) => getOther(x) getOrElse ins
+          case ins => ins
+        }
+      }
       newInst match {
         case Some(i) if i != line.inst =>
           blockChanged = true
@@ -152,7 +159,14 @@ class ImmediateFolder(prog: Program) {
             // 定数標準形(JumpFolder参照)
             val result = Word.fromInt(if (op.fn(l, r)) 0 else -1)
             Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)), input, tru, fls)
-          case _ => Branch(cm, i, Branch.CondVC(op, wrapXID(left), wrapVC(right)), input, tru, fls)
+          case _ =>
+            (op, getOther(left), right) match {
+              case (Eq, Some(BinOpVTree(Sub, XReg.C_MINUS_ONE, orig)), C(Word(0))) =>
+                // 否定を除去してジャンプ先入れ替え
+                Branch(cm, i, Branch.CondVC(Eq, orig, C.int(0)), input, fls, tru)
+              case _ =>
+                Branch(cm, i, Branch.CondVC(op, wrapXID(left), wrapVC(right)), input, tru, fls)
+            }
         }
       case Branch(cm, i, Branch.CondV(op, left, right), input, tru, fls) =>
         (xidToConst(left), xidToConst(right)) match {
