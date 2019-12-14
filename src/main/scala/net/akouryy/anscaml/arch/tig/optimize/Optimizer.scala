@@ -14,7 +14,9 @@ object Optimizer {
       val changedJF = new JumpFolder()(asm)
       val (changedBT, useSets) = new BackwardTraverser()(asm)
       val changedDI = DistributeIf(asm, useSets)
-      if (!changedER && !changedMM && !changedDI && !changedIF && !changedBT && !changedJF) return
+      val changedXF = ComplexFolder(asm)
+      if (!changedER && !changedMM && !changedDI && !changedIF && !changedBT && !changedJF
+          && !changedXF) return
     }
   }
 }

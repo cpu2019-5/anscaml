@@ -56,6 +56,8 @@ final class Chart {
 /** 基本ブロック */
 final case class Block(i: BlockIndex, lines: List[Line], input: JumpIndex, output: JumpIndex) {
   assert(input < output)
+
+  def :+(line: Line): Block = copy(lines = lines :+ line)
 }
 
 final case class Line(comment: Comment, dest: XID, inst: Instruction)
