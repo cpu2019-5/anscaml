@@ -65,6 +65,14 @@ final case class Line(comment: Comment, dest: XID, inst: Instruction)
 sealed trait Jump {
   val comment: Comment
   val i: JumpIndex
+
+  def convertInput(from: BlockIndex, to: BlockIndex): Jump = this match {
+    case j @ Return(_, _, _, `from`) => j.copy(input = to)
+    case j @ Branch(_, _, _, `from`, _, _) => j.copy(input = to)
+    case j @ Merge(_, _, inputs, _, _) if inputs.exists(_.bi == from) =>
+      j.copy(inputs = inputs.map(_.mapBI(bi => if (bi == from) to else bi)))
+    case _ => !!!!(this, from, to)
+  }
 }
 
 final case class StartFun(comment: Comment, i: JumpIndex, output: BlockIndex) extends Jump

@@ -11,6 +11,8 @@ class RegisterAllocator {
   type IGraph = Map[XVar, Set[XVar]]
 
   private[this] var liveness: analyze.Liveness.Info = _
+  private[this] var regCntMax: Int = _
+  private[this] var regCntSum: Int = _
 
   private[this] def interferenceGraph(f: FDef): IGraph = {
     val g = mutable.Map[XVar, Set[XVar]]().withDefault(_ => Set())
@@ -83,17 +85,20 @@ class RegisterAllocator {
     val regCnt = regEnv.flatMap {
       case (_: XVar, reg) => Some(reg.id)
       case _ => None
-    }.max
+    }.maxOption.getOrElse(0)
 
-    println(s"[RA] ${f.name}: $regCnt")
+    regCntMax = regCntMax max regCnt
+    regCntSum += regCnt
 
     FDef(f.name, f.args.map(regEnv.getOrElse(_, XReg.DUMMY)), newChart, f.typ, f.info)
   }
 
   def apply(program: Program, liveness: analyze.Liveness.Info): Program = {
     this.liveness = liveness
+    regCntMax = 0
+    regCntSum = 0
 
-    Program(
+    val res = Program(
       program.gcSize,
       program.tyEnv,
       program.functions.map { f =>
@@ -101,5 +106,9 @@ class RegisterAllocator {
         allocateInFun(f, interference)
       },
     )
+
+    println(s"[RA] max: $regCntMax, ave: ${regCntSum * 1.0 / program.functions.length}")
+
+    res
   }
 }

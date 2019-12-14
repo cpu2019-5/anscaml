@@ -31,7 +31,7 @@ object ComplexFolder {
           }
         case _ => None
       }
-      j3 @ Merge(_, _, inputs3, _, _) <- Some(fun(ji3))
+      j3 @ (_ @ Merge(_, _, inputs3, _, _)) <- Some(fun(ji3))
       if inputs3.contains(MergeInput(tbi2, tRet2)) && inputs3.contains(MergeInput(fbi2, fRet2))
     } {
       fun.blocks --= Seq(tbi2, fbi2)
@@ -70,15 +70,25 @@ object ComplexFolder {
 
     for ((bi, b) <- fun.blocks) {
       env.clear()
-      fun.blocks(bi) = b.copy(lines = b.lines.map { oldLine =>
-        val line = oldLine.copy(inst = oldLine.inst.mapXID(wrap))
-        line match {
-          case Line(_, dest: XVar, Mv(src: XVar)) => env(dest) = src
-          case Line(_, _, _: CallDir) => env.clear()
-          case Line(_, _, inst) =>
+      val lastMoves = mutable.ListBuffer[Line]()
+      fun.blocks(bi) = b.copy(lines =
+        b.lines.flatMap { oldLine =>
+          val line = oldLine.copy(inst = oldLine.inst.mapXID(wrap))
+          line match {
+            case Line(_, dest: XVar, Mv(src: XVar)) =>
+              env(dest) = src
+              lastMoves += line
+              Nil
+            case Line(_, _, _: CallDir) =>
+              env.clear()
+              val res = (lastMoves += line).toList
+              lastMoves.clear()
+              res
+            case _ => List(line)
+          }
         }
-        line
-      })
+        ++ lastMoves
+      )
       fun.jumps(b.output) = fun(b.output) match {
         case j: StartFun => !!!!(j)
         case j @ Return(_, _, value, _) => j.copy(value = wrap(value))
@@ -92,6 +102,40 @@ object ComplexFolder {
     }
   }
 
+  private[this] def foldCommonInstAfterBranch(fun: FDef) = {
+    for {
+      Branch(_, ji1, _, bi0, tbi2, fbi2) <- fun.jumps.valuesIterator // 0: 上
+      tb2 @ Block(_, Line(tcm, tDest2: XVar, commonInst) :: tLines2, _, _) <- Some(fun(tbi2))
+      fb2 @ Block(_, Line(fcm, fDest2: XVar, `commonInst`) :: fLines2, _, _) <- Some(fun(fbi2))
+    } {
+      val newDest = XVar.generate(tDest2.idStr)
+      fun(bi0) :+= Line(tcm :+ "[XF] if-common" + fcm, newDest, commonInst)
+      fun.blocks(tbi2) = tb2.copy(lines = Line(NC, tDest2, Mv(newDest)) :: tLines2)
+      fun.blocks(fbi2) = fb2.copy(lines = Line(NC, fDest2, Mv(newDest)) :: fLines2)
+    }
+  }
+
+  private[this] def foldSingleMerge(fun: FDef) = {
+    for {
+      Merge(_, ji1, List(MergeInput(bi0, in1)), out1, bi2) <- fun.jumps.valuesIterator
+    } {
+      val b0 = fun(bi0)
+      val b2 = fun(bi2)
+      val ji3 = b2.output
+      val j3 = fun(ji3)
+      fun.blocks(bi0) = b0.copy(
+        lines =
+          b0.lines
+          ++ Option.when(in1 != out1 && out1 != XReg.DUMMY)(Line(NC, out1, Mv(in1)))
+          ::: b2.lines,
+        output = ji3,
+      )
+      fun.jumps -= ji1
+      fun.blocks -= bi2
+      fun.jumps(ji3) = j3.convertInput(bi2, bi0)
+    }
+  }
+
   def apply(program: Program): Boolean = {
     var changed = false
 
@@ -101,6 +145,8 @@ object ComplexFolder {
 
       foldFNegCond(f)
       foldMovesInStrictBlock(f)
+      foldCommonInstAfterBranch(f)
+      foldSingleMerge(f)
 
       changed ||= oldBlocks != f.blocks || oldJumps != f.jumps
     }
