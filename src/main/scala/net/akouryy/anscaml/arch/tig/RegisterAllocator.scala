@@ -44,7 +44,7 @@ class RegisterAllocator {
     def wrapVC(vc: VC): VC = vc.fold(v => V(getOrAllocate(v)), _ => vc)
 
     for ((_ -> Return(cm, ji, value, input)) <- f.body.jumps) {
-      newChart.jumps(ji) = Return(cm, ji, allocate(value), input)
+      newChart.jumps(ji) = Return(cm, ji, getOrAllocate(value), input)
     }
 
     for (block <- f.body.blocks.values.toSeq.reverseIterator) {
@@ -74,7 +74,7 @@ class RegisterAllocator {
             None // newJumpの追加はtruとflsの両方が処理された後に行う
           }
         case Merge(cm, _, inputs, outputID, output) =>
-          val newInputs = inputs.map(_.mapXID(allocate))
+          val newInputs = inputs.map(_.mapXID(getOrAllocate))
           Some(Merge(cm, ji1, newInputs, regEnv(outputID), output))
       }
       newJump.foreach(newChart.jumps(ji1) = _)

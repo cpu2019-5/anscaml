@@ -6,6 +6,8 @@ import asm._
 import Branch.{CondV, CondVC}
 import base._
 
+import scala.collection.mutable
+
 object ComplexFolder {
 
   private[this] def foldFNegCond(fun: FDef) = {
@@ -19,18 +21,12 @@ object ComplexFolder {
         case _ => None
       }
       (arg2, tRet2, fRet2, isResultCorrect, ji3) <- (fun(tbi2), fun(fbi2)) match {
-        case (Block(_, List(tLine3), _, tji3), Block(_, List(fLine3), _, fji3)) if tji3 == fji3 =>
-          (tLine3, fLine3) match {
-            case (
-              Line(_, tRet2, Mv(tArg2)),
-              Line(_, fRet2, BinOpVTree(FnegCond, fArg2, XReg.C_MINUS_ONE)),
-              ) if tArg2 == fArg2 =>
-              Some((tArg2, tRet2, fRet2, !negativeArg1ToTru, tji3))
-            case (
-              Line(_, tRet2, BinOpVTree(FnegCond, tArg2, XReg.C_MINUS_ONE)),
-              Line(_, fRet2, Mv(fArg2)),
-              ) if tArg2 == fArg2 =>
-              Some((tArg2, tRet2, fRet2, negativeArg1ToTru, tji3))
+        case (Block(_, tLines3, _, tji3), Block(_, fLines3, _, fji3)) if tji3 == fji3 =>
+          (tLines3, fLines3) match {
+            case (Nil, List(Line(_, fRet2, BinOpVTree(FnegCond, fArg2, XReg.C_MINUS_ONE)))) =>
+              Some((fArg2, fArg2, fRet2, !negativeArg1ToTru, tji3))
+            case (List(Line(_, tRet2, BinOpVTree(FnegCond, tArg2, XReg.C_MINUS_ONE))), Nil) =>
+              Some((tArg2, tRet2, tArg2, negativeArg1ToTru, tji3))
             case _ => None
           }
         case _ => None
@@ -67,6 +63,35 @@ object ComplexFolder {
     }
   }
 
+  private[this] def foldMovesInStrictBlock(fun: FDef) = {
+    val env = mutable.Map[XVar, XVar]()
+
+    def wrap(x: XID) = x.fold(env.getOrElse(_, x), identity)
+
+    for ((bi, b) <- fun.blocks) {
+      env.clear()
+      fun.blocks(bi) = b.copy(lines = b.lines.map { oldLine =>
+        val line = oldLine.copy(inst = oldLine.inst.mapXID(wrap))
+        line match {
+          case Line(_, dest: XVar, Mv(src: XVar)) => env(dest) = src
+          case Line(_, _, _: CallDir) => env.clear()
+          case Line(_, _, inst) =>
+        }
+        line
+      })
+      fun.jumps(b.output) = fun(b.output) match {
+        case j: StartFun => !!!!(j)
+        case j @ Return(_, _, value, _) => j.copy(value = wrap(value))
+        case j @ Branch(_, _, CondVC(op, left, right), _, _, _) =>
+          j.copy(cond = CondVC(op, wrap(left), right.mapV(wrap)))
+        case j @ Branch(_, _, CondV(op, left, right), _, _, _) =>
+          j.copy(cond = CondV(op, wrap(left), wrap(right)))
+        case j @ Merge(_, _, inputs, _, _) =>
+          j.copy(inputs = inputs.map(m => m.copy(xid = wrap(m.xid))))
+      }
+    }
+  }
+
   def apply(program: Program): Boolean = {
     var changed = false
 
@@ -75,6 +100,7 @@ object ComplexFolder {
       val oldJumps = f.jumps.toMap
 
       foldFNegCond(f)
+      foldMovesInStrictBlock(f)
 
       changed ||= oldBlocks != f.blocks || oldJumps != f.jumps
     }

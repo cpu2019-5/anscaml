@@ -15,6 +15,8 @@ sealed trait VC {
     case V(v) => ifV(v)
     case C(c) => ifC(c)
   }
+
+  def mapV(ifV: XID => XID): VC = fold(v => V(ifV(v)), C)
 }
 
 final case class V(v: XID) extends VC
