@@ -111,7 +111,7 @@ class PeepHole {
       case Let(Entry(name, typ), bound, kont) =>
         for {
           boundOpt <- optimize(bound)
-          () = (env(name) = boundOpt.raw)
+          () = env(name) = boundOpt.raw
           k <- optimize(kont)
         } yield {
           val newTyp = boundOpt.raw match {

@@ -39,9 +39,6 @@ class RegisterAllocator {
         regEnv(v) = XReg.NORMAL_REGS.find(r => !used.contains(r)).getOrElse(
           ????(s"Spill: $v vs ${interference(v)}")
         )
-        if (regEnv(v).id >= 38)
-          println(v, interference.getOrElse(v, Set()),
-            interference.getOrElse(v, Set()).map(regEnv.get))
         regEnv(v)
     }
 
@@ -111,7 +108,7 @@ class RegisterAllocator {
         val regCnt = regEnv.flatMap {
           case (_: XVar, reg) => Some(reg.id)
           case _ => None
-        }.maxOption.getOrElse(0)
+        }.toSet.size
 
         regCntMax = regCntMax max regCnt
         regCntSum += regCnt

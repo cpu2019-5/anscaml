@@ -34,7 +34,7 @@ class TypFolder {
         if (annot.contains(Annot.TypFold)) fnEnv(entry.name) = fDef
         LetRec(FDef(entry, args, fold(body), annot), fold(kont))
 
-      case Apply(fn, List(arg)) =>
+      case Apply(fn, List(arg), _) =>
         (fnEnv.get(fn), typEnv.get(arg)) match {
           case (Some(fDef), Some(Typ.TInt(Lit.List(s)))) /*if s.sizeIs >= 2*/ =>
             println(s"[KOptimize TypFolder] fold ${fn.str} for ${arg.str} in {${

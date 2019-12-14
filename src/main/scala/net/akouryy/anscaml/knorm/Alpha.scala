@@ -26,7 +26,7 @@ object Alpha {
         case IfCmp(op, left, right, tru, fls) =>
           IfCmp(op, find(left), find(right), convert(tru, env), convert(fls, env))
         case Var(v) => Var(find(v))
-        case Apply(fn, args) => Apply(find(fn), args.map(find))
+        case Apply(fn, args, isRecCall) => Apply(find(fn), args.map(find), isRecCall)
         case KTuple(elems) => KTuple(elems.map(find))
         case Array(len, elem) => Array(find(len), find(elem))
         case Get(array, index) => Get(find(array), find(index))

@@ -8,8 +8,18 @@ import typ.{Lit, Typ}
 object Converter {
   type TypedK = (Typ, KNorm.KRaw)
 
-  private[this] def insert(tk: TypedK, env: Map[ID, Typ]) =
-    Mapper[(ID, Map[ID, Typ]), TypedK, TypedK](kont =>
+  private[this] final case class Env(typs: Map[ID, Typ], scopeFns: List[ID]) {
+    def +(it: (ID, Typ)): Env = copy(typs = typs + it)
+
+    def +(entry: Entry): Env = copy(typs = typs + entry.toPair)
+
+    def ++(its: IterableOnce[(ID, Typ)]): Env = copy(typs = typs ++ its)
+
+    def ++(entries: Iterable[Entry]): Env = copy(typs = typs ++ entries.map(_.toPair))
+  }
+
+  private[this] def insert(tk: TypedK, env: Env) =
+    Mapper[(ID, Env), TypedK, TypedK](kont =>
       tk match {
         case (_, KNorm.Var(x)) => kont(x, env)
         case (t, e) =>
@@ -19,8 +29,8 @@ object Converter {
       }
     )
 
-  private[this] def insertMulti(subjects: List[Syntax], env: Map[ID, Typ]) =
-    Mapper[(List[ID], Map[ID, Typ]), TypedK, TypedK] { kont =>
+  private[this] def insertMulti(subjects: List[Syntax], env: Env) =
+    Mapper[(List[ID], Env), TypedK, TypedK] { kont =>
       val extraInfo = subjects.map(convert(env, _) match {
         case (_, KNorm.Var(x)) => Left(x)
         case (t, e) => Right(ID.generate(), t, e)
@@ -48,7 +58,7 @@ object Converter {
 
   private[this] def convertEntry(entry: Entry) = Entry(entry.name, convertTyp(entry.typ))
 
-  private[this] def convert(env: Map[ID, Typ], ast: Syntax): TypedK = {
+  private[this] def convert(env: Env, ast: Syntax): TypedK = {
     import Syntax._
 
     ast match {
@@ -86,27 +96,29 @@ object Converter {
       case Let(entry, bound, kont) =>
         val newEntry = convertEntry(entry)
         val (_, be) = convert(env, bound)
-        val (kt, ke) = convert(env + newEntry.toPair, kont)
+        val (kt, ke) = convert(env + newEntry, kont)
         (kt, KNorm.Let(newEntry, KNorm(be), KNorm(ke)))
       case Var(x) =>
-        (env(x), KNorm.Var(x)) // TODO?: external function
+        (env.typs(x), KNorm.Var(x)) // TODO?: external function
       case LetRec(FDef(entry, args, body, noInline), kont) =>
         val newEntry = convertEntry(entry)
         val newArgs = args.map(convertEntry)
-        val envWithFn = env + newEntry.toPair
-        val (_, be) = convert(envWithFn ++ newArgs.map(_.toPair), body)
+        val envWithFn = env + newEntry
+        val envBody =
+          (envWithFn ++ newArgs).copy(scopeFns = entry.name :: env.scopeFns)
+        val (_, be) = convert(envBody, body)
         val (kt, ke) = convert(envWithFn, kont)
 
         val Typ.TFun(argsTyp, retTyp) = newEntry.typ
         val kEntry = newEntry.copy(typ = Typ.TFun(argsTyp.filter(_ != Typ.TUnit), retTyp))
         val filteredArgs = newArgs.filter(_.typ != Typ.TUnit)
         (kt, KNorm.LetRec(KNorm.FDef(kEntry, filteredArgs, KNorm(be), noInline), KNorm(ke)))
-      case Apply(Var(fn), args) if !(env contains fn) =>
+      case Apply(Var(fn), args) if !env.typs.contains(fn) =>
         val Typ.TFun(_, retTyp) = typ.Constrainer.ExtEnv(fn)
         for {
           (xs, env2) <- insertMulti(args, env)
         } yield {
-          (retTyp, KNorm.ApplyExternal(fn, xs.filter(x => env2(x) != Typ.TUnit)))
+          (retTyp, KNorm.ApplyExternal(fn, xs.filter(x => env2.typs(x) != Typ.TUnit)))
         }
       case Apply(fn, args) =>
         val fnr @ (Typ.TFun(_, retTyp), _) = convert(env, fn): @unchecked
@@ -114,11 +126,14 @@ object Converter {
           (x, env2) <- insert(fnr, env)
           (ys, env3) <- insertMulti(args, env2)
         } yield {
-          (retTyp, KNorm.Apply(x, ys.filter(y => env3(y) != Typ.TUnit)))
+          (
+            retTyp,
+            KNorm.Apply(x, ys.filter(y => env3.typs(y) != Typ.TUnit), env.scopeFns.contains(x)),
+          )
         }
       case Tuple(es) =>
         for ((xs, env2) <- insertMulti(es, env)) yield (
-          Typ.TTuple(xs.map(env2)),
+          Typ.TTuple(xs.map(env2.typs)),
           KNorm.KTuple(xs)
         )
       case LetTuple(elems, bound, kont) =>
@@ -127,7 +142,7 @@ object Converter {
             convert(env2, kont) // xは副作用のために束縛されるが使用はされない
           } else {
             val newElems = elems.map(convertEntry)
-            val (kt, ke) = convert(env2 ++ newElems.map(_.toPair), kont)
+            val (kt, ke) = convert(env2 ++ newElems, kont)
             (kt, KNorm.LetTuple(newElems, x, KNorm(ke)))
           }
         }
@@ -161,6 +176,6 @@ object Converter {
 
   def apply(ast: Syntax): KNorm = {
     println("[KNorm Converter] start")
-    KNorm(convert(Map(), ast)._2)
+    KNorm(convert(Env(Map(), Nil), ast)._2)
   }
 }

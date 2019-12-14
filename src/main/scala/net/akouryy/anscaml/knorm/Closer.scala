@@ -36,7 +36,7 @@ class Closer {
       case Array(x, y) => Set(x, y)
       case Get(x, y) => Set(x, y)
       case Put(x, y, z) => Set(x, y, z)
-      case Apply(fn, args) => Set(fn) &~ directFunctions &~ localFns | args.toSet
+      case Apply(fn, args, _) => Set(fn) &~ directFunctions &~ localFns | args.toSet
       case ApplyExternal(_, args) => args.toSet
       case IfCmp(_, x, y, tru, fls) =>
         Set(x, y) | indirectFVs(tru, localFns) | indirectFVs(fls, localFns)
@@ -53,7 +53,7 @@ class Closer {
   private[this] def close(norm: KNorm, scope: Scope): KClosed =
     norm.raw match {
       case raw: KCRaw => KClosed(norm.comment, raw)
-      case Apply(fn, args) =>
+      case Apply(fn, args, _) =>
         if (directFunctions contains fn) {
           KClosed(norm.comment, ApplyDirect(fn.str, args))
         } else {

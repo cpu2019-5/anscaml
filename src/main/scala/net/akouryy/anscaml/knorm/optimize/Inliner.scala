@@ -25,7 +25,7 @@ class Inliner {
 
   import Inliner._
 
-  private[this] val bodyEnv = mutable.Map[ID, FDef]()
+  private[this] val bodyEnv = mutable.Map[ID, (Int, FDef)]()
 
   def apply(kn: KNorm): KNorm = {
     println("[KOptimize Inliner] Start")
@@ -43,18 +43,20 @@ class Inliner {
     case LetRec(fDef @ FDef(Entry(name, _), _, body, annot), kont) =>
       if (!annot.contains(Annot.NoInline) && size(body) <= AnsCaml.config.inlineLimit) {
         // TODO: sizeIs
-        bodyEnv(name) = fDef
+        bodyEnv(name) = (size(body), fDef)
       }
       kn.copy(raw = LetRec(fDef.copy(body = embed(name, body)), embed(scopeFn, kont)))
 
-    case Apply(fn, args) if bodyEnv contains fn =>
-      // println(s"[KOptimize Inliner] ${fn.name} in ${scopeFn.name}")
-      val fDef = bodyEnv(fn)
-      val body = Alpha.convert(fDef.body, fDef.args.map(_.name).zip(args).toMap)
-      KNorm(
-        kn.comment + body.comment :+ s"[KO Inliner] ${fn.str} in ${scopeFn.str}",
-        body.raw
-      )
+    case Apply(fn, args, isRecCall) =>
+      bodyEnv.get(fn) match {
+        case Some((size, fDef)) if size <= AnsCaml.config.inlineLimit / (if (isRecCall) 5 else 1) =>
+          val body = Alpha.convert(fDef.body, fDef.args.map(_.name).zip(args).toMap)
+          KNorm(
+            kn.comment + body.comment :+ s"[KO Inliner] ${fn.str} in ${scopeFn.str}",
+            body.raw
+          )
+        case _ => kn
+      }
     case _ => kn
   }
 }
