@@ -26,71 +26,74 @@ class RegisterAllocator {
     g.toMap
   }
 
-  private[this] def allocateInFun(f: FDef, interference: IGraph): FDef = {
-    val newChart = new Chart
+  private[this] def allocateInFun(
+    f: FDef, interference: IGraph, // preferences: Map[XVar, Map[XID, Int]],
+  ): Map[XID, XReg] = {
     val regEnv = XReg.VALID_REGS.map(r => (r: XID) -> r).to(mutable.Map)
 
-    def allocate(xid: XID): XReg = xid match {
-      case xid: XReg => xid
+    def allocate(xid: XID) = xid match {
+      case _: XReg =>
       case v: XVar =>
         assert(!regEnv.contains(v))
         val used = interference.getOrElse(v, Set()).flatMap(regEnv.get)
         regEnv(v) = XReg.NORMAL_REGS.find(r => !used.contains(r)).getOrElse(
           ????(s"Spill: $v vs ${interference(v)}")
         )
+        if (regEnv(v).id >= 38)
+          println(v, interference.getOrElse(v, Set()),
+            interference.getOrElse(v, Set()).map(regEnv.get))
         regEnv(v)
     }
 
-    def getOrAllocate(xid: XID): XReg = regEnv.getOrElse(xid, allocate(xid))
+    f.args.foreach(allocate)
 
-    def wrapVC(vc: VC): VC = vc.fold(v => V(getOrAllocate(v)), _ => vc)
-
-    for ((_ -> Return(cm, ji, value, input)) <- f.body.jumps) {
-      newChart.jumps(ji) = Return(cm, ji, getOrAllocate(value), input)
-    }
-
-    for (block <- f.body.blocks.values.toSeq.reverseIterator) {
-      val newLines = block.lines.zipWithIndex.reverseIterator.map {
-        case (Line(cm, dest, inst), lineIndex) =>
-          val newDest = regEnv(dest)
-          val newInst = inst match {
-            case CallDir(fn, args, None) =>
-              val saves =
-                (liveness(block.i)(lineIndex + 1 /* 出口生存 */) -- dest.asXVar)
-                  .map(v => v.id -> regEnv(v)).toMap
-              CallDir(fn, args, Some(saves))
-            case _ => inst
-          }
-          Line(cm, newDest, newInst.mapXID(getOrAllocate))
-      }.toList.reverse
-      newChart.blocks(block.i) = Block(block.i, newLines, block.input, block.output)
-
-      val ji1 = block.input
-      val newJump = f.body.jumps(ji1) match {
-        case j1: StartFun => Some(j1)
-        case j1: Return => !!!!(j1)
-        case Branch(cm, _, expr, input, tru, fls) =>
-          if (newChart.blocks.contains(tru) && newChart.blocks.contains(fls)) {
-            Some(Branch(cm, ji1, expr.mapLR(getOrAllocate)(wrapVC, getOrAllocate), input, tru, fls))
-          } else {
-            None // newJumpの追加はtruとflsの両方が処理された後に行う
-          }
-        case Merge(cm, _, inputs, outputID, output) =>
-          val newInputs = inputs.map(_.mapXID(getOrAllocate))
-          Some(Merge(cm, ji1, newInputs, regEnv(outputID), output))
+    for (block <- f.blocks.values) {
+      f(block.input) match {
+        case j: Merge => allocate(j.outputID)
+        case _ =>
       }
-      newJump.foreach(newChart.jumps(ji1) = _)
+      for (Line(_, dest, _) <- block.lines) {
+        allocate(dest)
+      }
     }
 
-    val regCnt = regEnv.flatMap {
-      case (_: XVar, reg) => Some(reg.id)
-      case _ => None
-    }.maxOption.getOrElse(0)
+    regEnv.toMap
+  }
 
-    regCntMax = regCntMax max regCnt
-    regCntSum += regCnt
+  private[this] def applyAllocation(f: FDef, regEnv: Map[XID, XReg]): FDef = {
+    def wrap(xid: XID): XReg = xid.fold(regEnv, identity)
 
-    FDef(f.name, f.args.map(regEnv.getOrElse(_, XReg.DUMMY)), newChart, f.typ, f.info)
+    def wrapVC(vc: VC): VC = vc.mapV(wrap)
+
+    val newChart = new Chart
+
+    for (b <- f.blocks.values) {
+      newChart.blocks(b.i) = b.copy(lines = b.lines.zipWithIndex.map { case (line, lineIndex) =>
+        val newInst = line.inst match {
+          case CallDir(fn, args, None) =>
+            val saves =
+              (liveness(b.i)(lineIndex + 1 /* 出口生存 */) -- line.dest.asXVar)
+                .map(v => v.id -> regEnv(v)).toMap
+            CallDir(fn, args, Some(saves))
+          case inst => inst
+        }
+        Line(line.comment, wrap(line.dest), newInst.mapXID(wrap))
+      })
+    }
+
+    for (j <- f.jumps.values) {
+      newChart.jumps(j.i) = j match {
+        case j: StartFun => j
+        case Branch(cm, _, expr, input, tru, fls) =>
+          Branch(cm, j.i, expr.mapLR(wrap)(wrapVC, wrap), input, tru, fls)
+        case Merge(cm, _, inputs, outputID, output) =>
+          val newInputs = inputs.map(_.mapXID(wrap))
+          Merge(cm, j.i, newInputs, wrap(outputID), output)
+        case Return(cm, _, value, input) => Return(cm, j.i, wrap(value), input)
+      }
+    }
+
+    FDef(f.name, f.args.map(wrap), newChart, f.typ, f.info)
   }
 
   def apply(program: Program, liveness: analyze.Liveness.Info): Program = {
@@ -103,11 +106,23 @@ class RegisterAllocator {
       program.tyEnv,
       program.functions.map { f =>
         val interference = interferenceGraph(f)
-        allocateInFun(f, interference)
+        val regEnv = allocateInFun(f, interference)
+
+        val regCnt = regEnv.flatMap {
+          case (_: XVar, reg) => Some(reg.id)
+          case _ => None
+        }.maxOption.getOrElse(0)
+
+        regCntMax = regCntMax max regCnt
+        regCntSum += regCnt
+
+        applyAllocation(f, regEnv)
       },
     )
 
-    println(s"[RA] max: $regCntMax, ave: ${regCntSum * 1.0 / program.functions.length}")
+    println(s"[RA] max: $regCntMax, ave: ${
+      regCntSum * 1.0 / program.functions.length
+    }")
 
     res
   }
