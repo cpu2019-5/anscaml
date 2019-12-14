@@ -132,8 +132,8 @@ class Specializer {
   private[this] def specializeExpr(dest: XID, cl: KClosed): Unit = {
     val cm = cl.comment
     cl.raw match {
-      case KNorm.KInt(i) => currentLines += Line(cm, dest, asm.Mvi.int(i))
-      case KNorm.KFloat(f) => currentLines += Line(cm, dest, asm.Mvi.float(f))
+      case KNorm.KInt(i) => currentLines += Line(cm, dest, asm.Mvi.int(i)); ()
+      case KNorm.KFloat(f) => currentLines += Line(cm, dest, asm.Mvi.float(f)); ()
       case KNorm.BinOpTree(op, left, right) =>
         val l = wrapVar(left)
         val r = wrapVar(right)
@@ -155,12 +155,14 @@ class Specializer {
           case BinOp.Fmul => asm.BinOpVTree(asm.Fmul, l, r)
           case BinOp.Fdiv => asm.BinOpVTree(asm.Fdiv, l, r)
         })
+        ()
       case KNorm.Var(v) =>
         val x = wrapVar(v)
         currentLines += Line(cm, dest, tyEnv(x) match {
           case asm.TyUnit => asm.Nop
           case _ => asm.Mv(x)
         })
+        ()
       case KNorm.KTuple(Nil) => assert(dest == XReg.DUMMY)
       case KNorm.KTuple(elems) =>
         var i = 0
@@ -175,15 +177,17 @@ class Specializer {
           Line(cm, dest, asm.Mv(XReg.HEAP)),
           Line(NC, XReg.HEAP, asm.BinOpVCTree(asm.Add, XReg.HEAP, asm.C(Word.fromInt(i)))),
         )
+        ()
       case KNorm.Array(len, elem) =>
         val l = wrapVar(len)
         val e = wrapVar(elem)
         currentLines += Line(cm, dest, asm.NewArray(V(l), e))
+        ()
       case KNorm.Get(array, index) =>
         val a = wrapVar(array)
         val i = wrapVar(index)
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
-          currentLines += Line(cm, dest, asm.Load(a, V(i)))
+          val _ = currentLines += Line(cm, dest, asm.Load(a, V(i)))
         }
       case KNorm.Put(array, index, value) =>
         assert(dest == XReg.DUMMY)
@@ -194,6 +198,7 @@ class Specializer {
           val addr = XVar.generate(array.str + ID.Special.SPECIALIZE_ADDR)
           currentLines += Line(NC, addr, asm.BinOpVCTree(asm.Add, a, V(i)))
           currentLines += Line(cm, XReg.DUMMY, asm.Store(addr, C.int(0), v))
+          ()
         }
       case KNorm.ApplyDirect(fn, args) =>
         val Typ.TFun(_, retTyp) =
@@ -211,6 +216,7 @@ class Specializer {
             currentLines += Line(cm, dest, asm.CallDir(fn, as, None)) // no stdlib
           case lines => currentLines ++= lines
         }
+        ()
       case KNorm.ApplyClosure(_, _) => ???
       case KNorm.CLet(Entry(_, typ.Typ.TUnit), bound, kont) =>
         specializeExpr(XReg.DUMMY, bound)

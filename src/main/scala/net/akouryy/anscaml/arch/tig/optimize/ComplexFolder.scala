@@ -110,8 +110,13 @@ object ComplexFolder {
     } {
       val newDest = XVar.generate(tDest2.idStr)
       fun(bi0) :+= Line(tcm :+ "[XF] if-common" + fcm, newDest, commonInst)
-      fun.blocks(tbi2) = tb2.copy(lines = Line(NC, tDest2, Mv(newDest)) :: tLines2)
-      fun.blocks(fbi2) = fb2.copy(lines = Line(NC, fDest2, Mv(newDest)) :: fLines2)
+      if (tLines2.sizeCompare(fLines2) >= 0) {
+        fun.blocks(tbi2) = tb2.copy(lines = Line(NC, tDest2, Alias(newDest)) :: tLines2)
+        fun.blocks(fbi2) = fb2.copy(lines = Line(NC, fDest2, Mv(newDest)) :: fLines2)
+      } else {
+        fun.blocks(tbi2) = tb2.copy(lines = Line(NC, tDest2, Mv(newDest)) :: tLines2)
+        fun.blocks(fbi2) = fb2.copy(lines = Line(NC, fDest2, Alias(newDest)) :: fLines2)
+      }
     }
   }
 

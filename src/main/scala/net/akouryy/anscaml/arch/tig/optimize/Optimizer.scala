@@ -15,6 +15,7 @@ object Optimizer {
       val (changedBT, useSets) = new BackwardTraverser()(asm)
       val changedDI = DistributeIf(asm, useSets)
       val changedXF = ComplexFolder(asm)
+      AliasSolver(asm)
       if (!changedER && !changedMM && !changedDI && !changedIF && !changedBT && !changedJF
           && !changedXF) return
     }

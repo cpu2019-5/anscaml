@@ -23,6 +23,8 @@ sealed trait Instruction {
 
 final case class Mv(id: XID) extends Instruction
 
+final case class Alias(id: XID) extends Instruction
+
 final case class Mvi(value: Word) extends Instruction
 
 object Mvi {
