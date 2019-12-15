@@ -31,7 +31,7 @@ object ComplexFolder {
           }
         case _ => None
       }
-      j3 @ (_ @ Merge(_, _, inputs3, _, _)) <- Some(fun(ji3))
+      j3 @ Merge(_, _, inputs3, _, _) <- Some(fun(ji3))
       if inputs3.contains(MergeInput(tbi2, tRet2)) && inputs3.contains(MergeInput(fbi2, fRet2))
     } {
       fun.blocks --= Seq(tbi2, fbi2)
@@ -109,7 +109,7 @@ object ComplexFolder {
       fb2 @ Block(_, Line(fcm, fDest2: XVar, `commonInst`) :: fLines2, _, _) <- Some(fun(fbi2))
     } {
       val newDest = XVar.generate(tDest2.idStr)
-      fun(bi0) :+= Line(tcm :+ "[XF] if-common" + fcm, newDest, commonInst)
+      fun(bi0) :+= Line((tcm :+ "[XF] if-common") + fcm, newDest, commonInst)
       if (tLines2.sizeCompare(fLines2) >= 0) {
         fun.blocks(tbi2) = tb2.copy(lines = Line(NC, tDest2, Alias(newDest)) :: tLines2)
         fun.blocks(fbi2) = fb2.copy(lines = Line(NC, fDest2, Mv(newDest)) :: fLines2)

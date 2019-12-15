@@ -79,8 +79,8 @@ class PeepHole {
         })
       case IfCmp(op, left, right, tru, fls) =>
         (op, env.get(left), env.get(right)) match {
-          case (CmpOp.Le, Some(BinOpTree(BinOp.Sub, minus_one, x)), Some(KInt(-1)))
-            if env.get(minus_one).contains(KInt(-1)) =>
+          case (CmpOp.Le, Some(BinOpTree(BinOp.Sub, minusOne, x)), Some(KInt(-1)))
+            if env.get(minusOne).contains(KInt(-1)) =>
             done(addCmt("if-not", IfCmp(CmpOp.Eq, x, right /* -1 */ , fls, tru)))
           case (
             CmpOp.Le,

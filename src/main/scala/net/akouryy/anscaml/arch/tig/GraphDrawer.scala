@@ -38,8 +38,14 @@ class GraphDrawer {
                |$ib -> $i [label="$v"];
                |""".stripMargin
           case asm.Branch(_, i, asm.Branch.Cond(op, l, r), ib, tob, fob) =>
+            val opStr = op match {
+              case asm.Eq => "=="
+              case asm.Le => "<="
+              case asm.FLe => "<=."
+            }
+
             s"""$i[
-               |  label = "Branch.${i.indexString}\n$l $op $r";
+               |  label = "Branch.${i.indexString}\n$l $opStr $r";
                |  shape = trapezium; style = rounded;
                |];
                |$ib -> $i;

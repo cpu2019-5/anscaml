@@ -9,6 +9,8 @@ case object Floor extends UnOp
 
 case object Itof extends UnOp
 
+case object FInv extends UnOp
+
 /** 即値を取れる純粋二項演算 */
 sealed trait BinOpVC {
   def fn(l: Word, r: Word): Word

@@ -65,7 +65,7 @@ class KNInterpreter {
           case (VArray(a), VInt(i)) => a(i) = get(value); done(VTuple(Nil))
           case (a, i) => !!!!(kc, a, i)
         }
-      case KNorm.Apply(fn, args) =>
+      case KNorm.Apply(fn, args, _) =>
         get(fn) match {
           case VFun(fn) => fn(args map get)
           case fn => !!!!(kc, fn)

@@ -91,6 +91,7 @@ object FinalInst {
   val fromUnOp: Map[asm.UnOp, FinalInst] = Map(
     asm.Floor -> floor,
     asm.Itof -> itof,
+    asm.FInv -> finv,
   )
 
   val fromBinOpV: Map[asm.BinOpV, FinalInst] = Map(
