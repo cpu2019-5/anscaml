@@ -10,6 +10,6 @@ object Util {
       i += 1
       x /= 2
     }
-    return Some(i)
+    Some(i)
   }
 }

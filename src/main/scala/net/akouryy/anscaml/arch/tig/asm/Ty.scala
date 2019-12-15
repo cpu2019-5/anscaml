@@ -1,7 +1,6 @@
 package net.akouryy.anscaml
 package arch.tig.asm
 
-import base._
 import net.akouryy.anscaml.typ.Typ
 
 /** 関数を含まないアセンブリの型 */

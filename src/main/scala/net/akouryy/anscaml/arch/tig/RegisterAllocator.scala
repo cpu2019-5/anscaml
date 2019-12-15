@@ -4,18 +4,23 @@ package arch.tig
 import asm._
 import base._
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 
 class RegisterAllocator {
 
-  type IGraph = Map[XVar, Set[XVar]]
+  import RegisterAllocator._
+
+  type IGraph = Map[XVar, Set[XID]]
 
   private[this] var liveness: analyze.Liveness.Info = _
+  private[this] val safeRegsMap =
+    mutable.Map[String, immutable.SortedSet[XReg]]()
+  private[this] var currentSafeRegs: immutable.SortedSet[XReg] = _
   private[this] var regCntMax: Int = _
   private[this] var regCntSum: Int = _
 
-  private[this] def interferenceGraph(f: FDef): IGraph = {
-    val g = mutable.Map[XVar, Set[XVar]]().withDefault(_ => Set())
+  private[this] def interferenceGraph(f: FDef, avoidCallerSave: Boolean): IGraph = {
+    val g = mutable.Map[XVar, Set[XID]]().withDefault(_ => Set())
     for {
       bi <- f.body.blocks.keysIterator
       live <- liveness(bi)
@@ -23,6 +28,17 @@ class RegisterAllocator {
       w <- live
       if v != w
     } g(v) += w
+    if (avoidCallerSave) {
+      for {
+        b <- f.body.blocks.valuesIterator
+        liveList = liveness(b.i)
+        ((liveIn, liveOut), Line(_, _, CallDir(callee, _, _)))
+          <- liveList.zip(liveList.tail).zipStrict(b.lines)
+        v <- liveIn & liveOut
+        w <- XReg.NORMAL_REGS_SET --
+             safeRegsMap.getOrElse(callee, throw new SpillError(s"unsafe function $callee"))
+      } g(v) += w
+    }
     g.toMap
   }
 
@@ -35,9 +51,9 @@ class RegisterAllocator {
       case _: XReg =>
       case v: XVar =>
         assert(!regEnv.contains(v))
-        val used = interference.getOrElse(v, Set()).flatMap(regEnv.get)
+        val used = interference.getOrElse(v, Set()).flatMap(_.fold(regEnv.get, Some(_)))
         regEnv(v) = XReg.NORMAL_REGS.find(r => !used.contains(r)).getOrElse(
-          ????(s"Spill: $v vs ${interference(v)}")
+          throw new SpillError(s"Spill: $v vs ${interference(v)}")
         )
         regEnv(v)
     }
@@ -62,16 +78,25 @@ class RegisterAllocator {
 
     def wrapVC(vc: VC): VC = vc.mapV(wrap)
 
+    currentSafeRegs = XReg.NORMAL_REGS_SET
+
     val newChart = new Chart
 
     for (b <- f.blocks.values) {
       newChart.blocks(b.i) = b.copy(lines = b.lines.zipWithIndex.map { case (line, lineIndex) =>
         val newInst = line.inst match {
-          case CallDir(fn, args, None) =>
+          case CallDir(callee, args, None) =>
+            if (callee != f.name) { // 再帰呼び出しはsafeRegsに関与しない
+              currentSafeRegs &= safeRegsMap.getOrElse(callee, Set())
+            }
+            val calleeSafeRegs: Set[XReg] = safeRegsMap.getOrElse(callee, Set())
             val saves =
               (liveness(b.i)(lineIndex + 1 /* 出口生存 */) -- line.dest.asXVar)
-                .map(v => v.id -> regEnv(v)).toMap
-            CallDir(fn, args, Some(saves))
+                .flatMap { v =>
+                  val r: XReg = regEnv(v)
+                  Option.unless(calleeSafeRegs contains r)(v.id -> r)
+                }.toMap
+            CallDir(callee, args, Some(saves))
           case inst => inst
         }
         Line(line.comment, wrap(line.dest), newInst.mapXID(wrap))
@@ -90,20 +115,31 @@ class RegisterAllocator {
       }
     }
 
-    FDef(f.name, f.args.map(wrap), newChart, f.typ, f.info)
+    FDef(
+      f.name, f.args.map(wrap), newChart, f.typ,
+      f.info.copy(safeRegs =
+        currentSafeRegs -- regEnv.filter(_._1.isInstanceOf[XVar]).values.to(immutable.SortedSet)
+      ),
+    )
   }
 
   def apply(program: Program, liveness: analyze.Liveness.Info): Program = {
     this.liveness = liveness
+    safeRegsMap.clear()
     regCntMax = 0
     regCntSum = 0
 
     val res = Program(
       program.gcSize,
       program.tyEnv,
-      program.functions.map { f =>
-        val interference = interferenceGraph(f)
-        val regEnv = allocateInFun(f, interference)
+      program.functions.mapInReversedOrder { f =>
+        val regEnv = try {
+          allocateInFun(f, interferenceGraph(f, avoidCallerSave = true))
+        } catch {
+          case e: SpillError =>
+            println(s"[RA] ${f.name}: ${e.getMessage}")
+            allocateInFun(f, interferenceGraph(f, avoidCallerSave = false))
+        }
 
         val regCnt = regEnv.flatMap {
           case (_: XVar, reg) => Some(reg.id)
@@ -113,7 +149,12 @@ class RegisterAllocator {
         regCntMax = regCntMax max regCnt
         regCntSum += regCnt
 
-        applyAllocation(f, regEnv)
+        val newF = applyAllocation(f, regEnv)
+
+        safeRegsMap(newF.name) = newF.info.safeRegs
+        // println(newF.name, XReg.toRangeString(newF.info.safeRegs))
+
+        newF
       },
     )
 
@@ -123,4 +164,10 @@ class RegisterAllocator {
 
     res
   }
+}
+
+object RegisterAllocator {
+
+  private final class SpillError(message: String) extends RuntimeException(message)
+
 }

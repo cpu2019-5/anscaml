@@ -15,6 +15,7 @@ object CommandParser {
     outputFile: File = new File("."),
     memorySizeLog2: Int = 19,
     optimizationCount: Int = 100,
+    xGenerateAsmGraphs: Boolean = false,
     kcIn: Option[File] = None,
     kcOut: Option[File] = None,
     knIn: Option[File] = None,
@@ -48,6 +49,9 @@ object CommandParser {
       opt[Int]('o', "optimize")
         .action((x, c) => c.copy(optimizationCount = x))
         .text("Set maximum iteration counts of optimizations"),
+      opt[Unit]("Xdots")
+        .action((_, c) => c.copy(xGenerateAsmGraphs = true))
+        .text("Generate basic-block graphs"),
       opt[File]("kni")
         .action((x, c) => c.copy(knIn = Some(x)))
         .text("Input file when interpreting intermediate representation `KNorm`"),

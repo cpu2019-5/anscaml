@@ -5,10 +5,10 @@ import asm.{BlockIndex, C, JumpIndex, Line, Ty, V, XID, XReg, XVar}
 import base._
 import knorm.KNorm
 import KNorm.{KCProgram, KClosed}
-import net.akouryy.anscaml.syntax.BinOp
-import net.akouryy.anscaml.typ.Typ
+import syntax.BinOp
+import typ.Typ
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 
 object Specializer {
 
@@ -355,7 +355,7 @@ class Specializer {
       cFDef.args.map(a => XVar(a.name)),
       currentChart,
       fnTyp,
-      asm.FDefInfo(isLeaf = currentFunIsLeaf),
+      asm.FDefInfo(isLeaf = currentFunIsLeaf, safeRegs = immutable.SortedSet[XReg]()),
     )
   }
 

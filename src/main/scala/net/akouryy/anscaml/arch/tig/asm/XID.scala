@@ -3,6 +3,8 @@ package arch.tig.asm
 
 import base._
 
+import scala.collection.immutable
+
 sealed trait XID {
   val idStr: String
 
@@ -33,7 +35,7 @@ object XVar {
     XVar(ID.generate(ID(str), allowEmptySuffix))
 }
 
-final case class XReg(id: Int) extends XID {
+final case class XReg(id: Int) extends XID with Ordered[XReg] {
 
   import XReg._
 
@@ -42,6 +44,8 @@ final case class XReg(id: Int) extends XID {
   override val idStr: String = if (id == -1) "$reg_x" else s"$$reg$id"
 
   override def toString: String = if (id == -1) "%rx" else s"%r$id"
+
+  override def compare(that: XReg): Int = id compare that.id
 }
 
 object XReg {
@@ -49,6 +53,8 @@ object XReg {
 
   val VALID_REGS: IndexedSeq[XReg] = -1 until REG_SIZE map XReg.apply
   val NORMAL_REGS: IndexedSeq[XReg] = (1 to 27) ++ (32 to 61) map XReg.apply
+
+  val NORMAL_REGS_SET: immutable.SortedSet[XReg] = NORMAL_REGS.to(immutable.SortedSet)
 
   val DUMMY = XReg(-1)
   val ZERO = XReg(0)
@@ -67,4 +73,25 @@ object XReg {
   )
 
   val toConstants: Map[XReg, Word] = fromConstants.map(_.swap)
+
+  def toRangeString(rs: Iterable[XReg]): String = {
+    var start: Option[Int] = None
+    var last: Option[Int] = None
+    val sb = new StringBuilder()
+    for (XReg(i) <- rs) {
+      if (!last.contains(i - 1)) {
+        for (j <- start) {
+          val k = last.get
+          sb ++= (if (j == k) s"r$j," else s"r$j-r$k,")
+        }
+        start = Some(i)
+      }
+      last = Some(i)
+    }
+    for (j <- start) {
+      val k = last.get
+      sb ++= (if (j == k) s"r$j" else s"r$j-r$k")
+    }
+    s"XRegs($sb)"
+  }
 }

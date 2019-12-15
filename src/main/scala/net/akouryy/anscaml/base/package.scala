@@ -13,6 +13,10 @@ package object base {
     def zipMap[B, C](that: Iterable[B])(fn: (A, B) => C): List[C] = {
       zipStrict(that).map(fn.tupled)
     }
+
+    def mapInReversedOrder[B](fn: A => B, result: List[B] = Nil): List[B] = {
+      list.reverseIterator.map(fn).toList.reverse
+    }
   }
 
   implicit class RichOption[A](val option: Option[A]) extends AnyVal {

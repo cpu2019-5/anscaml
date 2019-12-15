@@ -2,10 +2,8 @@ package net.akouryy.anscaml
 
 import java.io.{FileInputStream, FileOutputStream}
 
-import base._
-import net.akouryy.anscaml.arch.tig.emit.Emitter
-
 import scala.io.Source
+import scala.util.Using
 
 object AnsCaml {
   val VERSION = "2.0"
@@ -32,11 +30,9 @@ object AnsCaml {
 
     (config.knIn, config.knOut) match {
       case (Some(in), Some(out)) =>
-        val knIn = new FileInputStream(in)
-        val knOut = new FileOutputStream(out)
-        new knorm.debug.KNInterpreter()(kn, knIn, knOut)
-        knOut.close()
-        knIn.close()
+        Using.resources(new FileInputStream(in), new FileOutputStream(out)) {
+          new knorm.debug.KNInterpreter()(kn, _, _)
+        }
       case _ => // nop
     }
 
@@ -62,43 +58,41 @@ object AnsCaml {
 
     val asm = new arch.tig.Specializer()(cl)
 
-    /*
-    val rawDot = new java.io.PrintWriter("../temp/raw.dot")
-    rawDot.write(new arch.tig.GraphDrawer()(asm))
-    rawDot.close()
-    // */
+    if (config.xGenerateAsmGraphs) {
+      Using.resource(new java.io.PrintWriter("../temp/raw.dot")) {
+        _.write(new arch.tig.GraphDrawer()(asm))
+      }
+    }
 
     arch.tig.optimize.Optimizer(config.optimizationCount, asm)
 
-    /*
-    val dot = new java.io.PrintWriter("../temp/dbg.dot")
-    dot.write(new arch.tig.GraphDrawer()(asm))
-    dot.close()
-    // */
+    if (config.xGenerateAsmGraphs) {
+      Using.resource(new java.io.PrintWriter("../temp/dbg.dot")) {
+        _.write(new arch.tig.GraphDrawer()(asm))
+      }
+    }
 
     val reg = new arch.tig.RegisterAllocator()(asm, arch.tig.analyze.Liveness.analyzeProgram(asm))
 
     (config.asmIn, config.asmOut) match {
       case (Some(in), Some(out)) =>
-        val asmIn = new FileInputStream(in)
-        val asmOut = new FileOutputStream(out)
-        new arch.tig.asm.AsmInterpreter()(reg, asmIn, asmOut)
-        asmOut.close()
-        asmIn.close()
+        Using.resources(new FileInputStream(in), new FileOutputStream(out)) {
+          new arch.tig.asm.AsmInterpreter()(reg, _, _)
+        }
       case _ => // nop
     }
 
     val lo = arch.tig.emit.LastOptimizer(reg)
 
-    /*
-    val rDot = new java.io.PrintWriter("../temp/reg.dot")
-    rDot.write(new arch.tig.GraphDrawer()(lo))
-    rDot.close()
-    // */
+    if (config.xGenerateAsmGraphs) {
+      Using.resource(new java.io.PrintWriter("../temp/reg.dot")) {
+        _.write(new arch.tig.GraphDrawer()(lo))
+      }
+    }
 
-    val out = new java.io.PrintWriter(config.outputFile)
-    new Emitter(lo).writeTo(out)
-    out.close()
+    Using.resource(new java.io.PrintWriter(config.outputFile)) {
+      new arch.tig.emit.Emitter(lo).writeTo(_)
+    }
 
     val t = System.nanoTime() - startTime
     println(s"time: ${t / 1e9}s")

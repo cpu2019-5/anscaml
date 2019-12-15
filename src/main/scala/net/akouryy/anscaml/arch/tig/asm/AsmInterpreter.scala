@@ -86,6 +86,7 @@ class AsmInterpreter {
           val r = op match {
             case Floor => Word.fromFloat(get(value).float.floor)
             case Itof => Word.fromFloat(get(value).int.toFloat)
+            case FInv => Word.fromFloat(1.0F / get(value).float)
           }
           done(set(dest, r))
         case BinOpVCTree(op, left, right) if !isDummy =>

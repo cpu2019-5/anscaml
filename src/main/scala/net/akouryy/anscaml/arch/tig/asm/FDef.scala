@@ -1,7 +1,7 @@
 package net.akouryy.anscaml
 package arch.tig.asm
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 
 final case class FDef(name: String, args: List[XID], body: Chart, typ: Fn, info: FDefInfo) {
   def blocks: mutable.SortedMap[BlockIndex, Block] = body.blocks
@@ -22,4 +22,4 @@ final case class FDef(name: String, args: List[XID], body: Chart, typ: Fn, info:
 
 }
 
-final case class FDefInfo(isLeaf: Boolean)
+final case class FDefInfo(isLeaf: Boolean, safeRegs: immutable.SortedSet[XReg])
