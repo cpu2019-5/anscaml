@@ -115,17 +115,21 @@ let rec sin [@no_inline] x =
     0.0 -. stdlib_kcos (y -. piq *. 6.0) 0.0
   else
     stdlib_ksin (y -. piq *. 8.0) 0.0 false in
+
+let rec stdlib_atan_base x =
+  let x2 = x *. x in
+  x *. (1.0 -. x2 *. (0.3333333 -. x2 *. (0.2 -. x2 *. (
+    0.142857142 -. x2 *. (0.111111104 -. x2 *. (0.08976446 -. x2 *. 0.060035485)))))) in
 let rec atan x =
   let pi = 3.141592653589793238462643383279 in
-  if x <. 0.0 then pi *. 0.5 +. atan (0.0 -. x)
+  if x <. 0.0 then
+    pi *. 0.5 +. stdlib_atan_base (0.0 -. x)
   else if x <. 0.4375 then
-    let x2 = x *. x in
-    x *. (1.0 -. x2 *. (0.3333333 -. x2 *. (0.2 -. x2 *. (
-      0.142857142 -. x2 *. (0.111111104 -. x2 *. (0.08976446 -. x2 *. 0.060035485))))))
+    stdlib_atan_base x
   else if x <. 2.4375 then
-    pi *. 0.25 +. atan ((x -. 1.0) /. (x +. 1.0))
+    pi *. 0.25 +. stdlib_atan_base ((x -. 1.0) /. (x +. 1.0))
   else
-    pi *. 0.5 -. atan (1.0 /. x) in
+    pi *. 0.5 -. stdlib_atan_base (1.0 /. x) in
 
 let rec stdlib_int_of_float_rec [@no_inline] f a b =
   if b - a = 1
