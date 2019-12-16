@@ -21,13 +21,13 @@ sealed trait BinOpVC {
 }
 
 case object Add extends BinOpVC {
-  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int + r.int)
+  override def fn(l: Word, r: Word): Word = Word(l.int + r.int)
 
   override val isCommutative = true
 }
 
 case object Sha extends BinOpVC {
-  override def fn(l: Word, r: Word): Word = Word.fromInt(
+  override def fn(l: Word, r: Word): Word = Word(
     if (r.int >= 0) l.int << r.int
     else l.int >> -r.int
   )
@@ -36,13 +36,13 @@ case object Sha extends BinOpVC {
 }
 
 case object Band extends BinOpVC {
-  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int & r.int)
+  override def fn(l: Word, r: Word): Word = Word(l.int & r.int)
 
   override val isCommutative = true
 }
 
 case object Bor extends BinOpVC {
-  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int | r.int)
+  override def fn(l: Word, r: Word): Word = Word(l.int | r.int)
 
   override val isCommutative = true
 }
@@ -54,13 +54,13 @@ sealed trait BinOpV extends Product {
 }
 
 case object Sub extends BinOpV {
-  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int - r.int)
+  override def fn(l: Word, r: Word): Word = Word(l.int - r.int)
 }
 
 // TODO: remove
 
 case object Div extends BinOpV {
-  override def fn(l: Word, r: Word): Word = Word.fromInt(l.int / r.int)
+  override def fn(l: Word, r: Word): Word = Word(l.int / r.int)
 }
 
 case object Fadd extends BinOpV {

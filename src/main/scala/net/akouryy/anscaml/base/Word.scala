@@ -1,12 +1,7 @@
 package net.akouryy.anscaml.base
 
-import scala.annotation.unused
-
-final case class Word private(int: Int) {
+final case class Word(int: Int) {
   val float: Float = java.lang.Float.intBitsToFloat(int)
-
-  @unused
-  private[this] def copy(_int: Int): Word = ???
 
   def isGoodFloat: Boolean =
     int == 0 || java.lang.Float.MIN_NORMAL <= float.abs && float.abs <= Float.MaxValue
@@ -20,8 +15,6 @@ final case class Word private(int: Int) {
 }
 
 object Word {
-  def fromInt(int: Int) = new Word(int)
-
   def fromFloat(float: Float): Word = {
     if (float == 0.0F) {
       new Word(0)
@@ -30,5 +23,8 @@ object Word {
     }
   }
 
-  @unused private[this] def apply(v: Int): Word = ???
+  object WithFloat {
+    def unapply(w: Word): Option[Float] = Some(w.float)
+  }
+
 }

@@ -12,7 +12,6 @@ class ImmediateFolder(prog: Program) {
     changed = false
 
     for (FDef(_, _, body, _, _) <- prog.functions) {
-      constRegEnv.clear()
       immEnv.clear()
       otherEnv.clear()
 
@@ -23,7 +22,24 @@ class ImmediateFolder(prog: Program) {
     changed
   }
 
-  private[this] val constRegEnv = mutable.Map[XVar, XReg]()
+  private[this] object Fixed {
+    def unapply(xid: XID): Option[Word] = xid.fold(immEnv.get, XReg.toConstants.get)
+
+    def unapply(vc: VC): Option[Word] = vc.fold(unapply, Some(_))
+  }
+
+  private[this] object FixedRegByWord {
+    def unapply(w: Word): Option[XReg] = XReg.fromConstants.get(w)
+  }
+
+  private[this] object FixedReg {
+    def unapply(xid: XID): Option[XReg] = Fixed.unapply(xid).flatMap(FixedRegByWord.unapply)
+  }
+
+  private[this] object BoundTo {
+    def unapply(xv: XVar): Option[Instruction] = otherEnv.get(xv)
+  }
+
   private[this] val immEnv = mutable.Map[XVar, Word]()
 
   private[this] val otherEnv = mutable.Map[XVar, Instruction]()
@@ -31,25 +47,20 @@ class ImmediateFolder(prog: Program) {
 
   private[this] def xidToConst(xid: XID): Option[Word] = xid.fold(immEnv.get, XReg.toConstants.get)
 
-  private[this] def vcToConst(vc: VC): Option[Word] = vc.fold(xidToConst, Some(_))
-
-  private[this] def wrapXID(xid: XID): XID = xid.fold(v => constRegEnv.getOrElse(v, v), identity)
+  private[this] def wrapXID(xid: XID): XID = xid match {
+    case FixedReg(xr) => xr
+    case _ => xid
+  }
 
   private[this] def wrapVC(vc: VC): VC = vc match {
     case _: C => vc
     case V(r: XReg) => V(r)
-    case V(v: XVar) => immEnv.get(v).foldF(C, V(v))
+    case V(Fixed(c)) => C(c)
+    case V(x) => V(x)
   }
 
-  private[this] def getOther(xid: XID) = xid.asXVar.flatMap(otherEnv.get)
-
   private[this] def addImm(dest: XID, imm: Word) = dest match {
-    case dest: XVar =>
-      immEnv(dest) = imm
-      XReg.fromConstants.get(imm) match {
-        case Some(r) => constRegEnv(dest) = r
-        case None => // pass
-      }
+    case dest: XVar => immEnv(dest) = imm
     case _: XReg => // pass
   }
 
@@ -57,95 +68,80 @@ class ImmediateFolder(prog: Program) {
     var blockChanged = false
 
     val ls = b.lines.flatMap { line =>
-      val newInst: Option[(List[Line], Instruction)] = line.inst match {
-        case Mv(v: XVar) =>
-          line.dest match {
-            case _: XReg => // pass
-            case dest: XVar =>
-              constRegEnv ++= constRegEnv.get(v).map(dest -> _)
-              immEnv ++= immEnv.get(v).map(dest -> _)
-          }
-          None
-        case Mv(r: XReg) =>
-          (line.dest, XReg.toConstants.get(r)) match {
-            case (dest: XVar, Some(i)) =>
-              constRegEnv(dest) = r
-              immEnv(dest) = i
-            case _ => // pass
-          }
-          None
+      val inst = line.inst
+      var newPrecedingLines = List[Line]()
+      val newInst: Instruction = inst match {
+        case Mv(Fixed(w)) =>
+          addImm(line.dest, w)
+          inst
+        case Mv(_) => inst
+
+        case Mvi(w @ FixedRegByWord(r)) =>
+          addImm(line.dest, w)
+          Mv(r)
         case Mvi(w) =>
           addImm(line.dest, w)
-          XReg.fromConstants.get(w).map(r => Nil -> Mv(r))
-        case NewArray(len, elem) => Some(Nil -> NewArray(wrapVC(len), wrapXID(elem)))
+          inst
+
+        case NewArray(len, elem) => NewArray(wrapVC(len), wrapXID(elem))
+
+        case Store(Fixed(a), C(index), value) =>
+          Store(XReg.ZERO, C.int(a.int + index.int), wrapXID(value))
         case Store(addr, C(index), value) =>
-          xidToConst(addr) match {
-            case Some(a) =>
-              Some(Nil -> Store(XReg.ZERO, C(Word.fromInt(a.int + index.int)), wrapXID(value)))
-            case None =>
-              Some(Nil -> Store(wrapXID(addr), C(index), wrapXID(value)))
-          }
+          Store(addr, C(index), wrapXID(value))
+
+        case Load(Fixed(a), Fixed(i)) =>
+          Load(XReg.ZERO, C.int(a.int + i.int))
+        case Load(Fixed(a), index) =>
+          Load(wrapXID(index.asV.get), C(a))
         case Load(addr, index) =>
-          (xidToConst(addr), vcToConst(index)) match {
-            case (Some(a), Some(i)) =>
-              Some(Nil -> Load(XReg.ZERO, C.int(a.int + i.int)))
-            case (Some(a), None) =>
-              Some(Nil -> Load(wrapXID(index.asInstanceOf[V].v), C(a)))
-            case _ =>
-              Some(Nil -> Load(wrapXID(addr), wrapVC(index)))
-          }
-        case UnOpTree(op, value) => Some(Nil -> UnOpTree(op, wrapXID(value)))
+          Load(addr, wrapVC(index))
+
+        case UnOpTree(op, value) => UnOpTree(op, wrapXID(value))
+
+        case BinOpVCTree(op, Fixed(l), Fixed(r)) =>
+          val imm = op.fn(l, r)
+          addImm(line.dest, imm)
+          Mvi(imm)
+        case BinOpVCTree(op, Fixed(l), right) if op.isCommutative =>
+          BinOpVCTree(op, right.asV.get, C(l))
         case BinOpVCTree(op, left, right) =>
-          (xidToConst(left), vcToConst(right)) match {
-            case (Some(l), Some(r)) =>
-              val imm = op.fn(l, r)
-              addImm(line.dest, imm)
-              Some(Nil -> Mvi(imm))
-            case (Some(l), None) if op.isCommutative =>
-              Some(Nil -> BinOpVCTree(op, right.asV.get, C(l)))
-            case _ =>
-              Some(Nil -> BinOpVCTree(op, wrapXID(left), wrapVC(right)))
-          }
-        case BinOpVTree(op, left, right) =>
-          (op, xidToConst(left), xidToConst(right)) match {
-            case (_, Some(l), Some(r)) =>
-              val imm = op.fn(l, r)
-              addImm(line.dest, imm)
-              Some(Nil -> Mvi(imm))
-            case (Sub, _, Some(r)) if emit.FinalArg.SImm.dom contains -r.int =>
-              Some(Nil -> BinOpVCTree(Add, wrapXID(left), C.int(-r.int)))
-            case (Fdiv, Some(floatOne), _) if floatOne.float == 1.0F =>
-              Some(Nil -> UnOpTree(FInv, right))
-            case (Fdiv, Some(floatMinusOne), _) if floatMinusOne.float == -1.0F =>
-              val inv = XVar.generate(right.idStr + ID.Special.ASM_F_INV)
-              Some((
-                List(Line(NC, inv, UnOpTree(FInv, right))),
-                BinOpVTree(FnegCond, inv, XReg.C_MINUS_ONE),
-              ))
-            case _ =>
-              (op, getOther(left), right) match {
-                case (FnegCond, Some(BinOpVTree(Fadd, al, ar)), _) if left == right /* 絶対値 */ =>
-                  Some(Nil -> BinOpVTree(FaddAbs, al, ar))
-                case _ => Some(Nil -> BinOpVTree(op, wrapXID(left), wrapXID(right)))
-              }
-          }
-        case Nop | Read => None
-        case Write(value) => Some(Nil -> Write(wrapXID(value)))
-        case CallDir(fn, args, None) => Some(Nil -> CallDir(fn, args.map(wrapXID), None))
-        case inst => !!!!(inst)
+          BinOpVCTree(op, left, wrapVC(right))
+
+        case BinOpVTree(op, Fixed(l), Fixed(r)) =>
+          val imm = op.fn(l, r)
+          addImm(line.dest, imm)
+          Mvi(imm)
+        case BinOpVTree(Sub, left, Fixed(r)) if emit.FinalArg.SImm.dom contains -r.int =>
+          BinOpVCTree(Add, left, C.int(-r.int))
+        case BinOpVTree(Fdiv, Fixed(Word.WithFloat(1.0F)), right) =>
+          UnOpTree(FInv, right)
+        case BinOpVTree(Fdiv, Fixed(Word.WithFloat(-1.0F)), right) =>
+          val inv = XVar.generate(right.idStr + ID.Special.ASM_F_INV)
+          newPrecedingLines = List(Line(NC, inv, UnOpTree(FInv, right)))
+          BinOpVTree(FnegCond, inv, XReg.C_MINUS_ONE)
+        case BinOpVTree(FnegCond, left @ BoundTo(BinOpVTree(Fadd, al, ar)), right) if left == right
+        => /* 絶対値 */
+          BinOpVTree(FaddAbs, al, ar)
+        case BinOpVTree(op, left, right) => BinOpVTree(op, wrapXID(left), wrapXID(right))
+
+        case Nop | Read => inst
+        case Write(value) => Write(wrapXID(value))
+        case CallDir(fn, args, None) => CallDir(fn, args.map(wrapXID), None)
+        case _ => !!!!(inst)
       }
 
       line.dest.asXVar.foreach {
-        otherEnv(_) = newInst.getOrElse(Nil -> line.inst)._2 match {
-          case ins @ Mv(x) => getOther(x) getOrElse ins
-          case ins => ins
+        otherEnv(_) = newInst match {
+          case Mv(x: XVar) => otherEnv.getOrElse(x, newInst)
+          case _ => newInst
         }
       }
-      newInst match {
-        case Some((lines, inst)) if inst != line.inst || lines.nonEmpty =>
-          blockChanged = true
-          lines :+ line.copy(inst = inst)
-        case _ => List(line)
+      if (newInst != line.inst || newPrecedingLines.nonEmpty) {
+        blockChanged = true
+        newPrecedingLines :+ line.copy(inst = newInst)
+      } else {
+        List(line)
       }
     }
 
@@ -166,33 +162,26 @@ class ImmediateFolder(prog: Program) {
           outputID,
           output
         )
-      case Branch(cm, i, Branch.CondVC(op, left, right), input, tru, fls) =>
-        (xidToConst(left), vcToConst(right)) match {
-          case (Some(l), Some(r)) =>
-            // 定数標準形(JumpFolder参照)
-            val result = Word.fromInt(if (op.fn(l, r)) 0 else -1)
-            Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)), input, tru, fls)
+      case Branch(cm, i, cond, input, tru, fls) =>
+        import Branch._
+        val (preserveTruAndFls, newComment, newCond) = cond match {
+          case Cond(op, Fixed(l), Fixed(r)) =>
+            // 定数標準形(常にnewTruに遷移する; JumpFolder参照)
+            (op.fn(l, r), NC, CondVC(Eq, XReg.ZERO, V(XReg.ZERO)))
+          case CondVC(Le, BoundTo(BinOpVTree(Sub, XReg.C_MINUS_ONE, orig)), Fixed(Word(-1))) =>
+            // 否定を除去してジャンプ先入れ替え
+            (false, CM("[IF] if-not"), CondVC(Le, orig, C.int(-1)))
+          case CondV(FLe, Fixed(Word(0)), right) => // 符号判定はより定義域の広いLeに統一する
+            (true, NC, CondVC(Le, XReg.ZERO, V(right)))
+          case CondV(FLe, left, Fixed(Word(0))) =>
+            (true, NC, CondVC(Le, left, V(XReg.ZERO)))
           case _ =>
-            (op, getOther(left), right) match {
-              case (Le, Some(BinOpVTree(Sub, XReg.C_MINUS_ONE, orig)), C(Word(-1))) =>
-                // 否定を除去してジャンプ先入れ替え
-                Branch(cm :+ "[IF] if-not", i, Branch.CondVC(Le, orig, C.int(-1)), input, fls, tru)
-              case _ =>
-                Branch(cm, i, Branch.CondVC(op, wrapXID(left), wrapVC(right)), input, tru, fls)
-            }
+            (true, NC, cond.mapLR(wrapXID)(wrapVC, wrapXID))
         }
-      case Branch(cm, i, Branch.CondV(op, left, right), input, tru, fls) =>
-        (op, xidToConst(left), xidToConst(right)) match {
-          case (_, Some(l), Some(r)) =>
-            // 定数標準形(JumpFolder参照)
-            val result = Word.fromInt(if (op.fn(l, r)) 0 else -1)
-            Branch(cm, i, Branch.CondVC(Eq, XReg.ZERO, C(result)), input, tru, fls)
-          case (FLe, Some(Word(0)), _) => // 符号判定はより定義域の広いLeに統一する
-            Branch(cm, i, Branch.CondVC(Le, XReg.ZERO, V(right)), input, tru, fls)
-          case (FLe, _, Some(Word(0))) =>
-            Branch(cm, i, Branch.CondVC(Le, left, V(XReg.ZERO)), input, tru, fls)
-          case _ => Branch(cm, i, Branch.CondV(op, wrapXID(left), wrapXID(right)), input, tru, fls)
-        }
+        Branch(
+          cm + newComment, i, newCond, input,
+          if (preserveTruAndFls) tru else fls, if (preserveTruAndFls) fls else tru,
+        )
     }
 
     if (newJ != j) {

@@ -16,8 +16,12 @@ object AnsCaml {
     config = CommandParser.parse(args).getOrElse(???)
 
     val code = "let _ = " + {
-      val libCode = if (config.doPrependStandardLibrary) Source.fromResource("lib.tig.ml").mkString else ""
-      (libCode +: config.inputFiles.map(Source.fromFile(_).mkString)).mkString(";\n")
+      val libCode =
+        if (config.doPrependStandardLibrary)
+          Using.resource(Source.fromResource("lib.tig.ml"))(_.mkString)
+        else ""
+      val userCodes = config.inputFiles.map(f => Using.resource(Source.fromFile(f))(_.mkString))
+      (libCode +: userCodes).mkString(";\n")
     } + " in ()"
 
     val tokens = syntax.Lexer.lex(code)

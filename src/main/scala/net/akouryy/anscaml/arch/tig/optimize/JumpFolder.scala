@@ -10,7 +10,7 @@ import base._
   * Mergeジャンプの入力が1つしかない場合上下のブロックを繋いで1つのブロックにする。
   *
   * ==定数分岐除去==
-  * 定数標準形(`Eq %r0 C(0)` または `Eq %r0 C(-1)`)のConditionジャンプを削除し単独Mergeにする。
+  * 定数標準形(`Eq %r0 V(%r0)`)のConditionジャンプとそのflsの先を削除し単独Mergeにする。
   */
 class JumpFolder {
 
@@ -54,16 +54,14 @@ class JumpFolder {
     for (f <- program.functions) {
       /*f.body.jumps.valuesIterator.foreach*/
       for (ji1 <- f.body.jumps.keysIterator; j <- f.body.jumps.get(ji1)) j match {
-        case Branch(_, _, Branch.CondVC(Eq, XReg.ZERO, C(Word(i @ (0 | -1)))), bi0, tbi2, fbi2) =>
-          // 定数標準形
+        case Branch(_, _, Branch.CondVC(Eq, XReg.ZERO, V(XReg.ZERO)), bi0, tbi2, fbi2) =>
+          // 定数標準形(常にtbi2に遷移する)
           changed = true
-          val toUse = if (i == 0) tbi2 else fbi2
-          val toRemove = if (i == 0) fbi2 else tbi2
 
           f.body.jumps -= ji1
-          concatBlock(f.body, bi0, toUse)
+          concatBlock(f.body, bi0, tbi2)
 
-          removeBlock(f.body, toRemove)
+          removeBlock(f.body, fbi2)
 
         case Merge(_, ji1, List(MergeInput(bi0, id0)), id2, bi2)
           if id0 == id2 || id2 == XReg.DUMMY =>

@@ -28,7 +28,7 @@ final case class Alias(id: XID) extends Instruction
 final case class Mvi(value: Word) extends Instruction
 
 object Mvi {
-  def int(i: Int) = Mvi(Word.fromInt(i))
+  def int(i: Int) = Mvi(Word(i))
 
   def float(f: Float) = Mvi(Word.fromFloat(f))
 }

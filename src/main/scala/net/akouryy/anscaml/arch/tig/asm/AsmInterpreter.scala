@@ -46,9 +46,6 @@ class AsmInterpreter {
   private[this] def interpret(scope: String, varsRec: TailRec[Vars], line: Line): TailRec[Vars] = {
     varsRec.flatMap { vars =>
       incRoughStep(s"$roughStep: ${vars.size}; $callStack")
-      if (false && roughStep <= 600) {
-        println(s"[$roughStep]    $line")
-      }
 
       val get = getWith(vars) _
       val set = setWith(vars) _
@@ -70,8 +67,8 @@ class AsmInterpreter {
             println(s"w ${h + i} ${get(elem).int} a$roughStep $h $l $ld $scope $line")
             memory(h + i) = get(elem)
           }
-          regs(XReg.HEAP) = Word.fromInt(h + l + ld)
-          done(set(dest, Word.fromInt(h + ld)))
+          regs(XReg.HEAP) = Word(h + l + ld)
+          done(set(dest, Word(h + ld)))
         case Store(addr, index, value) if isDummy =>
           val a = get(addr).int + getVC(index).int
           println(s"w $a ${get(value).int} $roughStep $scope $line")
@@ -107,7 +104,7 @@ class AsmInterpreter {
             input.read()
             done(vars)
           } else {
-            done(set(dest, Word.fromInt(input.read())))
+            done(set(dest, Word(input.read())))
           }
         case Write(value) if isDummy =>
           output.write(get(value).int % 256)
@@ -185,11 +182,11 @@ class AsmInterpreter {
     this.output = output
     functions = prog.functions.map(f => f.name -> f).toMap
     roughStep = 0
-    memory = Array.fill(1 << AnsCaml.config.memorySizeLog2)(Word.fromInt(0))
+    memory = Array.fill(1 << AnsCaml.config.memorySizeLog2)(Word(0))
     callStack = Nil
     regs.clear()
     regs ++= XReg.toConstants
-    regs(XReg.HEAP) = Word.fromInt(0)
+    regs(XReg.HEAP) = Word(0)
 
     interpretFn(ID.Special.MAIN, Nil).result
 

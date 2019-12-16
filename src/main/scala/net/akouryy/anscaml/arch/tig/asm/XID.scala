@@ -67,9 +67,9 @@ object XReg {
   val C_MINUS_ONE = XReg(63)
 
   val fromConstants: Map[Word, XReg] = Map(
-    Word.fromInt(0) -> ZERO,
-    Word.fromInt(1) -> C_ONE,
-    Word.fromInt(-1) -> C_MINUS_ONE,
+    Word(0) -> ZERO,
+    Word(1) -> C_ONE,
+    Word(-1) -> C_MINUS_ONE,
   )
 
   val toConstants: Map[XReg, Word] = fromConstants.map(_.swap)

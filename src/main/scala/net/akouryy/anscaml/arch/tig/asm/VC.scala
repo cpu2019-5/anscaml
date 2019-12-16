@@ -24,7 +24,7 @@ final case class V(v: XID) extends VC
 final case class C(c: Word) extends VC
 
 object C extends (Word => C) {
-  def int(i: Int) = C(Word.fromInt(i))
+  def int(i: Int) = C(Word(i))
 
   def float(f: Float) = C(Word.fromFloat(f))
 }
