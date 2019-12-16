@@ -28,14 +28,14 @@ let rec fhalf x = x *. 0.5 in
 let rec fsqr x = x *. x in
 
 (* http://takashiijiri.com/study/miscs/fastsqrt.html *)
-let rec sqrt x =
+(*let rec sqrt x =
   if x <. 0.0 then 0.0 else
   let x_half = x *. 0.5 in
   let r = float_of_bits (1597463007 - (bits_of_float x) / 2) in
   let r = r *. (1.5 -. x_half *. r *. r) in
   let r = r *. (1.5 -. x_half *. r *. r) in
   let r = r *. (1.5 -. x_half *. r *. r) in
-  r *. x in
+  r *. x in*)
 
 (*
   三角関数(stdlib_kcos,stdlib_ksin,cos,sin,atan): fdlibm, msunを移植

@@ -123,6 +123,7 @@ object Constrainer {
     ID("fhalf") -> Typ.TFun(List(Typ.FloatAll), Typ.FloatAll),
     ID("floor") -> Typ.TFun(List(Typ.FloatAll), Typ.FloatAll),
     ID("float_of_int") -> Typ.TFun(List(Typ.IntAll), Typ.FloatAll),
+    ID("sqrt") -> Typ.TFun(List(Typ.FloatAll), Typ.FloatAll),
     ID("bits_of_float") -> Typ.TFun(List(Typ.FloatAll), Typ.IntAll),
     ID("float_of_bits") -> Typ.TFun(List(Typ.IntAll), Typ.FloatAll),
   )

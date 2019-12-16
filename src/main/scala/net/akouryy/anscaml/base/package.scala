@@ -14,7 +14,7 @@ package object base {
       zipStrict(that).map(fn.tupled)
     }
 
-    def mapInReversedOrder[B](fn: A => B, result: List[B] = Nil): List[B] = {
+    def mapInReversedOrder[B](fn: A => B): List[B] = {
       list.reverseIterator.map(fn).toList.reverse
     }
   }

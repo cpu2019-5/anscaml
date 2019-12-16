@@ -92,6 +92,7 @@ object FinalInst {
     asm.Floor -> floor,
     asm.Itof -> itof,
     asm.FInv -> finv,
+    asm.FSqrt -> fsqrt,
   )
 
   val fromBinOpV: Map[asm.BinOpV, FinalInst] = Map(
