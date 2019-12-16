@@ -5,7 +5,7 @@ import base._
 import shapeless._
 
 sealed trait Instruction {
-  def mapXID(fn: XID => XID): Instruction = {
+  final def mapXID(fn: XID => XID): Instruction = {
     //noinspection TypeAnnotation
     object inc extends Poly1 {
       implicit def caseXID = at[XID](fn)

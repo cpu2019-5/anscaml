@@ -137,7 +137,7 @@ class RegisterAllocator {
           allocateInFun(f, interferenceGraph(f, avoidCallerSave = true))
         } catch {
           case e: SpillError =>
-            println(s"[RA] ${f.name}: ${e.getMessage}")
+            Logger.log("RA", s"${f.name}: ${e.getMessage}")
             allocateInFun(f, interferenceGraph(f, avoidCallerSave = false))
         }
 
@@ -158,9 +158,7 @@ class RegisterAllocator {
       },
     )
 
-    println(s"[RA] max: $regCntMax, ave: ${
-      regCntSum * 1.0 / program.functions.length
-    }")
+    Logger.log("RA", s"max: $regCntMax, ave: ${regCntSum * 1.0 / program.functions.length}")
 
     res
   }

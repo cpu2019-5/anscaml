@@ -175,7 +175,7 @@ object Converter {
   }
 
   def apply(ast: Syntax): KNorm = {
-    println("[KNorm Converter] start")
+    Logger.log("KV", "Start")
     KNorm(convert(Env(Map(), Nil), ast)._2)
   }
 }

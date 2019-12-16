@@ -8,17 +8,17 @@ import scala.collection.immutable
 sealed trait XID {
   val idStr: String
 
-  def asXVar: Option[XVar] = this match {
+  final def asXVar: Option[XVar] = this match {
     case v: XVar => Some(v)
     case _: XReg => None
   }
 
-  def asXReg: Option[XReg] = this match {
+  final def asXReg: Option[XReg] = this match {
     case r: XReg => Some(r)
     case _: XVar => None
   }
 
-  def fold[T](ifVar: XVar => T, ifReg: XReg => T): T = this match {
+  final def fold[T](ifVar: XVar => T, ifReg: XReg => T): T = this match {
     case v: XVar => ifVar(v)
     case r: XReg => ifReg(r)
   }

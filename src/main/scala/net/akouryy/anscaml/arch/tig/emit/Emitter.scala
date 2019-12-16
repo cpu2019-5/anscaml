@@ -295,7 +295,7 @@ class Emitter(program: Program) {
         )
       }
     } else {
-      println(fun.name)
+      Logger.log("[EM]", s"leaf: ${fun.name}")
     }
 
     emitBlock(fun.body.blocks.firstKey)
@@ -312,7 +312,7 @@ class Emitter(program: Program) {
       case _: FinalCommand => true
       case _: FinalLabel => false
     }
-    println(s"[E] Emitted $cnt lines")
+    Logger.log("EM", s"Emitted $cnt lines")
   }
 }
 

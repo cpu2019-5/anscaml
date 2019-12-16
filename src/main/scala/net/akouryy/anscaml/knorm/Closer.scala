@@ -19,7 +19,7 @@ class Closer {
   private[this] case object Global extends Scope
 
   def apply(kn: KNorm): KCProgram = {
-    println("[KNorm Closer] Start")
+    Logger.log("KC", "Start")
     directFunctions.clear()
     globalConstsRev = Nil
     globalConstNames.clear()
@@ -65,12 +65,11 @@ class Closer {
         KClosed(norm.comment, CIfCmp(op, left, right, close(tru, Local), close(fls, Local)))
       case Let(entry, bound, kont) =>
         if (scope == Global && !bound.raw.mayHaveEffect) {
-          // println(s"[KNorm Closer] no mutate: ${entry.name}")
           globalConstsRev ::= (entry, close(bound, Local))
           globalConstNames += entry.name
           close(kont, Global)
         } else {
-          if (scope == Global) println(s"[KNorm Closer] may mutate: ${entry.name}")
+          if (scope == Global) Logger.log("KC", s"may mutate: ${entry.name}")
           KClosed(norm.comment, CLet(entry, close(bound, Local), close(kont, Local)))
         }
       case LetTuple(elems, bound, kont) =>
@@ -89,7 +88,7 @@ class Closer {
 
         if (kontFVs contains id) {
           // kontでこの関数のクロージャを用いる
-          println(s"[KNorm Closer] closure for $name with fvs $bodyFVs")
+          Logger.log("KC", s"closure for $name with fvs $bodyFVs")
           KClosed(norm.comment, CLetClosure(entry, LabelID(name), bodyFVs, kontKC))
         } else {
           // println(s"[KNorm Closer] no closure for $name")

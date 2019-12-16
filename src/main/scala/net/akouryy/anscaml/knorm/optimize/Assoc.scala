@@ -11,7 +11,7 @@ import KNorm._
   */
 object Assoc {
   def apply(kn: KNorm): KNorm = {
-    println("[KOptimize Assoc] Start")
+    Logger.log("KO-AS", "Start")
     flatten(kn)
   }
 

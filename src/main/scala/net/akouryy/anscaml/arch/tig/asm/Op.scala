@@ -48,7 +48,7 @@ case object Bor extends BinOpVC {
 }
 
 sealed trait BinOpV extends Product {
-  val toInstString: String = productPrefix.toLowerCase
+  final val toInstString: String = productPrefix.toLowerCase
 
   def fn(l: Word, r: Word): Word
 }

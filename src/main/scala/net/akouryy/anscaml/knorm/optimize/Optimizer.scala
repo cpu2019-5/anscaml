@@ -6,7 +6,7 @@ object Optimizer {
   def apply(iterationCount: Int, kNorm0: KNorm): KNorm = {
     var kNorm = kNorm0
     for (i <- 0 until iterationCount) {
-      println(s"[KOptimize] iteration $i")
+      Logger.log("KO", s"iteration $i")
       val k = new PeepHole()(Eliminator(new Inliner()(new TypFolder()(Assoc(kNorm)))))
       if (k == kNorm) return kNorm
       kNorm = k

@@ -33,7 +33,10 @@ class ImmediateFolder(prog: Program) {
   }
 
   private[this] object FixedReg {
-    def unapply(xid: XID): Option[XReg] = Fixed.unapply(xid).flatMap(FixedRegByWord.unapply)
+    def unapply(xid: XID): Option[XReg] = xid match {
+      case xv: XVar => immEnv.get(xv).flatMap(XReg.fromConstants.get)
+      case xr: XReg => Option.when(XReg.toConstants contains xr)(xr)
+    }
   }
 
   private[this] object BoundTo {
@@ -44,8 +47,6 @@ class ImmediateFolder(prog: Program) {
 
   private[this] val otherEnv = mutable.Map[XVar, Instruction]()
   private[this] var changed = false
-
-  private[this] def xidToConst(xid: XID): Option[Word] = xid.fold(immEnv.get, XReg.toConstants.get)
 
   private[this] def wrapXID(xid: XID): XID = xid match {
     case FixedReg(xr) => xr

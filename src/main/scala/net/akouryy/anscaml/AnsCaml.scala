@@ -10,8 +10,10 @@ object AnsCaml {
 
   var config: CommandParser.Config = _
 
+  var startTimeNano: Long = _
+
   def main(args: Array[String]): Unit = {
-    val startTime = System.nanoTime()
+    startTimeNano = System.nanoTime()
 
     config = CommandParser.parse(args).getOrElse(???)
 
@@ -98,7 +100,7 @@ object AnsCaml {
       new arch.tig.emit.Emitter(lo).writeTo(_)
     }
 
-    val t = System.nanoTime() - startTime
-    println(s"time: ${t / 1e9}s")
+    val t = System.nanoTime() - startTimeNano
+    Logger.log("AC", s"time: ${t / 1e9}s")
   }
 }

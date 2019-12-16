@@ -83,7 +83,7 @@ object FinalArg {
 sealed abstract class FinalInst(
   private[this] val acceptValidArgs: PartialFunction[List[FinalArg], Unit]
 ) {
-  def isValidWith(args: List[FinalArg]): Boolean = acceptValidArgs.isDefinedAt(args)
+  final def isValidWith(args: List[FinalArg]): Boolean = acceptValidArgs.isDefinedAt(args)
 }
 
 //noinspection SpellCheckingInspection

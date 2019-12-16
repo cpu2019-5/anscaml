@@ -171,8 +171,6 @@ object Parser {
   final case class ParseException(detail: String, next: AnsParser.Input)
 
   def parse(tokens: List[LexToken.Positioned]): Syntax = {
-    println("[Parser] start")
-
     AnsParser.program(new AnsParser.LexTokenReader(tokens)) match {
       case AnsParser.Success(result, _) => result
       case err @ AnsParser.NoSuccess(_, _) =>

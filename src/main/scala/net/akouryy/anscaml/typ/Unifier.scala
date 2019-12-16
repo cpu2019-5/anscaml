@@ -104,8 +104,6 @@ object Unifier {
         ???
       }
 
-      // println(s"$v -> $typ")
-
       val tsb = new TypSubst(mutable.Map(v -> typ))
 
       for (ref @ ORef(Some((x, y))) <- varCrRefs(v)) {
@@ -135,7 +133,7 @@ object Unifier {
               varCrs = rest
             case (ref @ ORef(Some((v, w)))) :: rest =>
               ref := None
-              println(s"[TypUnify] Unknown TypVar $$${v.num} = $$${w.num}. Using TInt{}.")
+              Logger.log("TypUnify", s"Unknown TypVar $$${v.num} = $$${w.num}. Using TInt{}.")
               extendTypCrs(List(w >:> Typ.TInt(Lit.Var.generate())))
               varCrs = rest
           }

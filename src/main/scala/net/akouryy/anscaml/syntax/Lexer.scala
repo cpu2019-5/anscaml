@@ -79,8 +79,6 @@ object Lexer extends RegexParsers {
     )) ^^ (_.flatten)
 
   def lex(code: String): List[LexToken.Positioned] = {
-    println("[Lexer] start")
-
     parseAll(tokens, code) match {
       case Success(result, _) => result :+ new Positioned(EOF)
       case NoSuccess(message, next) =>

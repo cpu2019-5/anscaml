@@ -28,7 +28,7 @@ class Inliner {
   private[this] val bodyEnv = mutable.Map[ID, (Int, FDef)]()
 
   def apply(kn: KNorm): KNorm = {
-    println("[KOptimize Inliner] Start")
+    Logger.log("KO-IL", "Start")
     bodyEnv.clear()
     embed(ID("AnsMain"), kn)
   }

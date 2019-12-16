@@ -7,7 +7,7 @@ import asm.Program
 object Optimizer {
   def apply(iterationCount: Int, asm: Program): Unit = {
     for (i <- 0 until iterationCount) {
-      println(s"[TigOptimize] iteration $i")
+      Logger.log("TO", s"iteration $i")
       val changedER = EarlyReturn(asm)
       val changedMM = MergeMerge(asm)
       val changedIF = new ImmediateFolder(asm)()

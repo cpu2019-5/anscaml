@@ -14,7 +14,7 @@ class TypFolder {
   private[this] val typEnv = mutable.Map[ID, Typ]()
 
   def apply(kn: KNorm): KNorm = {
-    println("[KOptimize TypFolder] Start")
+    Logger.log("KO-TF", "Start")
     typEnv.clear()
     fold(kn)
   }
@@ -37,7 +37,7 @@ class TypFolder {
       case Apply(fn, List(arg), _) =>
         (fnEnv.get(fn), typEnv.get(arg)) match {
           case (Some(fDef), Some(Typ.TInt(Lit.List(s)))) /*if s.sizeIs >= 2*/ =>
-            println(s"[KOptimize TypFolder] fold ${fn.str} for ${arg.str} in {${
+            Logger.log("KO-TF", s"fold ${fn.str} for ${arg.str} in {${
               s.mkString(",")
             }}")
             // TODO: 二分探索?

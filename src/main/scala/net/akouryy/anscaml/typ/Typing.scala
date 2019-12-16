@@ -5,7 +5,7 @@ import syntax.Syntax
 
 object Typing {
   def solve(ast: Syntax): Syntax = {
-    println("[Typing] start")
+    Logger.log("TY", "Start")
     val constraints = new Constrainer().constrain(ast)
     val tsb = Unifier.unify(constraints)
     tsb * ast

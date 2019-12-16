@@ -14,7 +14,7 @@ class PeepHole {
   private[this] val env = mutable.Map[ID, KRaw]()
 
   def apply(norm: KNorm): KNorm = {
-    println("[KOptimize PeepHole] Start")
+    Logger.log("KO-PH", "Start")
     env.clear()
     optimize(norm).result
   }

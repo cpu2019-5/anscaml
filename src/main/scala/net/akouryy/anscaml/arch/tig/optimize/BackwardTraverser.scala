@@ -19,7 +19,7 @@ class BackwardTraverser {
       f.body.blocks.values.toSeq.reverseIterator.foreach(traverseBlock(f.body)) // TODO: reverse
       val free = useSets(f.body.blocks.firstKey) -- f.args.flatMap(_.asXVar)
       if (free.nonEmpty) {
-        println(s"[Tig BackwardTraverser] free variables $free found.")
+        Logger.log("TO-BT", s"free variables $free found.")
       }
     }
 
