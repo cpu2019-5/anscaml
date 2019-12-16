@@ -122,6 +122,8 @@ class Specializer {
         List(Line(cm :+ "[SP] $ext_floor", dest, asm.UnOpTree(asm.Floor, x)))
       case ("$ext_float_of_int", List(x)) =>
         List(Line(cm :+ "[SP] $ext_float_of_int", dest, asm.UnOpTree(asm.Itof, x)))
+      case ("$ext_int_of_float", List(x)) =>
+        List(Line(cm :+ "[SP] $ext_int_of_float", dest, asm.UnOpTree(asm.Ftoi, x)))
       case ("$ext_sqrt", List(x)) =>
         List(Line(cm :+ "[SP] $ext_sqrt", dest, asm.UnOpTree(asm.FSqrt, x)))
       case ("$ext_bits_of_float", List(x)) =>

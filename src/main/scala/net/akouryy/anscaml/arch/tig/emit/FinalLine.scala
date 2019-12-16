@@ -88,36 +88,37 @@ sealed abstract class FinalInst(
 
 //noinspection SpellCheckingInspection
 object FinalInst {
-  val fromUnOp: Map[asm.UnOp, FinalInst] = Map(
-    asm.Floor -> floor,
-    asm.Itof -> itof,
-    asm.FInv -> finv,
-    asm.FSqrt -> fsqrt,
-  )
+  def fromUnOp(op: asm.UnOp): FinalInst = op match {
+    case asm.Floor => floor
+    case asm.Itof => itof
+    case asm.Ftoi => ftoi
+    case asm.FInv => finv
+    case asm.FSqrt => fsqrt
+  }
 
-  val fromBinOpV: Map[asm.BinOpV, FinalInst] = Map(
-    asm.Sub -> sub,
-    asm.Div -> div,
-    asm.Fadd -> fadd,
-    asm.Fsub -> fsub,
-    asm.Fmul -> fmul,
-    asm.Fdiv -> fdiv,
-    asm.FnegCond -> fnegcond,
-    asm.FaddAbs -> faddabs,
-  )
+  def fromBinOpV(op: asm.BinOpV): FinalInst = op match {
+    case asm.Sub => sub
+    case asm.Div => div
+    case asm.Fadd => fadd
+    case asm.Fsub => fsub
+    case asm.Fmul => fmul
+    case asm.Fdiv => fdiv
+    case asm.FnegCond => fnegcond
+    case asm.FaddAbs => faddabs
+  }
 
-  val vFromBinOpVC: Map[asm.BinOpVC, FinalInst] = Map(
-    asm.Add -> add,
-    asm.Sha -> sha,
-    asm.Band -> band,
-    asm.Bor -> or,
-  )
+  def vFromBinOpVC(op: asm.BinOpVC): FinalInst = op match {
+    case asm.Add => add
+    case asm.Sha => sha
+    case asm.Band => band
+    case asm.Bor => or
+  }
 
-  val cFromBinOpVC: Map[asm.BinOpVC, FinalInst] = Map(
-    asm.Add -> addi,
-    asm.Sha -> shai,
-    asm.Band -> bandi,
-  )
+  def cFromBinOpVC(op: asm.BinOpVC): FinalInst = op match {
+    case asm.Add => addi
+    case asm.Sha => shai
+    case asm.Band => bandi
+  }
 
   val negJumpFromCmpOpV: Map[asm.CmpOpV, FinalInst] = Map(
     asm.FLe -> fjgt,

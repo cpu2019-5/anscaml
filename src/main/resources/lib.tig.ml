@@ -131,30 +131,6 @@ let rec atan x =
   else
     pi *. 0.5 -. stdlib_atan_base (1.0 /. x) in
 
-let rec stdlib_int_of_float_rec [@no_inline] f a b =
-  if b - a = 1
-  then a
-  else
-    let m = a / 2 + b / 2 + (a % 2 + b % 2) / 2 in
-    if float_of_int m >. f then
-      stdlib_int_of_float_rec f a m
-    else
-      stdlib_int_of_float_rec f m b in
-
-let rec stdlib_int_of_float_pos f =
-  if f <. 8388608.0 then
-    bits_of_float (f +. 8388608.0) - 1258291200 (* 神資料 *)
-  else
-    (* if f >=. 2147483646.5 then 2147483647 else (* レギュの定義域では絶対false *) *)
-    stdlib_int_of_float_rec (f +. 0.5) 0 2147483647 in
-
-let rec int_of_float f =
-  if f <. 0.0 then
-    if f =. -2147483648.0 then (-1) - 2147483647
-    else (-stdlib_int_of_float_pos (0.0 -. f))
-  else
-    stdlib_int_of_float_pos f in
-
 let rec read_int _ =
   ((read_char () * 256 + read_char ()) * 256 + read_char ()) * 256 + read_char () in
 

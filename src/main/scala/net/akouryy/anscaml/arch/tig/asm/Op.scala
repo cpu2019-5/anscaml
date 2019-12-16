@@ -9,6 +9,8 @@ case object Floor extends UnOp
 
 case object Itof extends UnOp
 
+case object Ftoi extends UnOp
+
 case object FInv extends UnOp
 
 case object FSqrt extends UnOp
