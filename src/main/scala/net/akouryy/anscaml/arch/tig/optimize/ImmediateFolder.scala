@@ -114,18 +114,21 @@ class ImmediateFolder(prog: Program) {
               Some(Nil -> Mvi(imm))
             case (Sub, _, Some(r)) if emit.FinalArg.SImm.dom contains -r.int =>
               Some(Nil -> BinOpVCTree(Add, wrapXID(left), C.int(-r.int)))
-            case (Fdiv, Some(floatOne), _) if floatOne.float == 1.0F =>
-              Some(Nil -> UnOpTree(FInv, right))
-            case (Fdiv, Some(floatMinusOne), _) if floatMinusOne.float == -1.0F =>
-              val inv = XVar.generate(right.idStr + ID.Special.ASM_F_INV)
-              Some((
-                List(Line(NC, inv, UnOpTree(FInv, right))),
-                BinOpVTree(FnegCond, inv, XReg.C_MINUS_ONE),
-              ))
+            case (Fdiv(FFOrd), Some(floatOne), _) if floatOne.float == 1.0F =>
+              Some(Nil -> UnOpTree(FInv(FFOrd), right))
+            case (Fdiv(FFOrd), Some(floatMinusOne), _) if floatMinusOne.float == -1.0F =>
+              Some(Nil -> UnOpTree(FInv(FFNeg), right))
             case _ =>
               (op, getOther(left), right) match {
-                case (FnegCond, Some(BinOpVTree(Fadd, al, ar)), _) if left == right /* 絶対値 */ =>
-                  Some(Nil -> BinOpVTree(FaddAbs, al, ar))
+                case (FnegCond, Some(BinOpVTree(Fadd(FFOrd), al, ar)), _)
+                  if left == right /* 絶対値 */ =>
+                  Some(Nil -> BinOpVTree(Fadd(FFAbs), al, ar))
+                case (FnegCond, Some(BinOpVTree(Fadd(FFOrd), al, ar)), XReg.C_MINUS_ONE) =>
+                  Some(Nil -> BinOpVTree(Fadd(FFNeg), al, ar))
+                case (FnegCond, Some(BinOpVTree(Fmul(FFOrd), al, ar)), XReg.C_MINUS_ONE) =>
+                  Some(Nil -> BinOpVTree(Fmul(FFNeg), al, ar))
+                case (FnegCond, Some(BinOpVTree(Fdiv(FFOrd), al, ar)), XReg.C_MINUS_ONE) =>
+                  Some(Nil -> BinOpVTree(Fdiv(FFNeg), al, ar))
                 case _ => Some(Nil -> BinOpVTree(op, wrapXID(left), wrapXID(right)))
               }
           }

@@ -3,13 +3,37 @@ package arch.tig.asm
 
 import base._
 
+sealed trait FPUFlag {
+  def fn(f: Word): Word
+
+  def toSuffix: String
+}
+
+case object FFOrd extends FPUFlag {
+  override def fn(f: Word): Word = f
+
+  override def toSuffix: String = ""
+}
+
+case object FFAbs extends FPUFlag {
+  override def fn(f: Word): Word = Word.fromFloat(f.float.abs)
+
+  override def toSuffix: String = ".abs"
+}
+
+case object FFNeg extends FPUFlag {
+  override def fn(f: Word): Word = Word.fromFloat(-f.float)
+
+  override def toSuffix: String = ".neg"
+}
+
 sealed trait UnOp extends Product
 
 case object Floor extends UnOp
 
 case object Itof extends UnOp
 
-case object FInv extends UnOp
+case class FInv(ff: FPUFlag) extends UnOp
 
 case object FSqrt extends UnOp
 
@@ -63,28 +87,24 @@ case object Div extends BinOpV {
   override def fn(l: Word, r: Word): Word = Word.fromInt(l.int / r.int)
 }
 
-case object Fadd extends BinOpV {
-  override def fn(l: Word, r: Word): Word = Word.fromFloat(l.float + r.float)
+case class Fadd(ff: FPUFlag) extends BinOpV {
+  override def fn(l: Word, r: Word): Word = ff.fn(Word.fromFloat(l.float + r.float))
 }
 
-case object Fsub extends BinOpV {
+case class Fsub(ff: FPUFlag) extends BinOpV {
   override def fn(l: Word, r: Word): Word = Word.fromFloat(l.float - r.float)
 }
 
-case object Fmul extends BinOpV {
+case class Fmul(ff: FPUFlag) extends BinOpV {
   override def fn(l: Word, r: Word): Word = Word.fromFloat(l.float * r.float)
 }
 
-case object Fdiv extends BinOpV {
+case class Fdiv(ff: FPUFlag) extends BinOpV {
   override def fn(l: Word, r: Word): Word = Word.fromFloat(l.float / r.float)
 }
 
 case object FnegCond extends BinOpV {
   override def fn(l: Word, r: Word): Word = Word.fromFloat(if (r.int >= 0) l.float else -l.float)
-}
-
-case object FaddAbs extends BinOpV {
-  override def fn(l: Word, r: Word): Word = Word.fromFloat((l.float + r.float).abs)
 }
 
 sealed trait CmpOp {

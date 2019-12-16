@@ -2,6 +2,7 @@ package net.akouryy.anscaml
 package arch.tig
 package emit
 
+import asm.FPUFlag
 import base._
 
 sealed trait FinalLine {
@@ -81,30 +82,38 @@ object FinalArg {
 }
 
 sealed abstract class FinalInst(
-  private[this] val acceptValidArgs: PartialFunction[List[FinalArg], Unit]
+  _acceptValidArgs: => PartialFunction[List[FinalArg], Unit]
 ) {
+  private[this] lazy val acceptValidArgs = _acceptValidArgs
+
   def isValidWith(args: List[FinalArg]): Boolean = acceptValidArgs.isDefinedAt(args)
+}
+
+sealed trait WithFPUFlag extends Product {
+  this: FinalInst =>
+  val ff: FPUFlag
+
+  override def toString: String = productPrefix + s"${ff.toSuffix}"
 }
 
 //noinspection SpellCheckingInspection
 object FinalInst {
-  val fromUnOp: Map[asm.UnOp, FinalInst] = Map(
-    asm.Floor -> floor,
-    asm.Itof -> itof,
-    asm.FInv -> finv,
-    asm.FSqrt -> fsqrt,
-  )
+  def fromUnOp(op: asm.UnOp): FinalInst = op match {
+    case asm.Floor => floor
+    case asm.Itof => itof
+    case asm.FInv(ff) => finv(ff)
+    case asm.FSqrt => fsqrt
+  }
 
-  val fromBinOpV: Map[asm.BinOpV, FinalInst] = Map(
-    asm.Sub -> sub,
-    asm.Div -> div,
-    asm.Fadd -> fadd,
-    asm.Fsub -> fsub,
-    asm.Fmul -> fmul,
-    asm.Fdiv -> fdiv,
-    asm.FnegCond -> fnegcond,
-    asm.FaddAbs -> faddabs,
-  )
+  def fromBinOpV(op: asm.BinOpV): FinalInst = op match {
+    case asm.Sub => sub
+    case asm.Div => div
+    case asm.Fadd(ff) => fadd(ff)
+    case asm.Fsub(ff) => fsub(ff)
+    case asm.Fmul(ff) => fmul(ff)
+    case asm.Fdiv(ff) => fdiv(ff)
+    case asm.FnegCond => fnegcond
+  }
 
   val vFromBinOpVC: Map[asm.BinOpVC, FinalInst] = Map(
     asm.Add -> add,
@@ -167,27 +176,23 @@ object FinalInst {
     case List(_: Reg, _: Reg, _: Reg) =>
   })
 
-  case object fadd extends FinalInst({
+  case class fadd(ff: FPUFlag) extends FinalInst({
     case List(_: Reg, _: Reg, _: Reg) =>
-  })
+  }) with WithFPUFlag
 
-  case object fsub extends FinalInst({
+  case class fsub(ff: FPUFlag) extends FinalInst({
     case List(_: Reg, _: Reg, _: Reg) =>
-  })
+  }) with WithFPUFlag
 
-  case object fmul extends FinalInst({
+  case class fmul(ff: FPUFlag) extends FinalInst({
     case List(_: Reg, _: Reg, _: Reg) =>
-  })
+  }) with WithFPUFlag
 
-  case object fdiv extends FinalInst({
+  case class fdiv(ff: FPUFlag) extends FinalInst({
     case List(_: Reg, _: Reg, _: Reg) =>
-  })
+  }) with WithFPUFlag
 
   case object fnegcond extends FinalInst({
-    case List(_: Reg, _: Reg, _: Reg) =>
-  })
-
-  case object faddabs extends FinalInst({
     case List(_: Reg, _: Reg, _: Reg) =>
   })
 
@@ -207,9 +212,9 @@ object FinalInst {
     case List(_: Reg, _: Reg) =>
   })
 
-  case object finv extends FinalInst({
+  case class finv(ff: FPUFlag) extends FinalInst({
     case List(_: Reg, _: Reg) =>
-  })
+  }) with WithFPUFlag
 
   case object loadreg extends FinalInst({
     case List(_: Reg, _: Reg, _: Reg) =>

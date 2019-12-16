@@ -86,7 +86,7 @@ class AsmInterpreter {
           val r = op match {
             case Floor => Word.fromFloat(get(value).float.floor)
             case Itof => Word.fromFloat(get(value).int.toFloat)
-            case FInv => Word.fromFloat(1.0F / get(value).float)
+            case FInv(ff) => ff.fn(Word.fromFloat(1.0F / get(value).float))
             case FSqrt => Word.fromFloat(Math.sqrt(get(value).float.toDouble).toFloat)
           }
           done(set(dest, r))

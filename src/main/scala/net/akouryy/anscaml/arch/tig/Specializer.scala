@@ -152,10 +152,10 @@ class Specializer {
           case BinOp.Div => // TODO: remove
             asm.BinOpVTree(asm.Div, l, r)
           case BinOp.Mul | BinOp.Mod => ????(cl)
-          case BinOp.Fadd => asm.BinOpVTree(asm.Fadd, l, r)
-          case BinOp.Fsub => asm.BinOpVTree(asm.Fsub, l, r)
-          case BinOp.Fmul => asm.BinOpVTree(asm.Fmul, l, r)
-          case BinOp.Fdiv => asm.BinOpVTree(asm.Fdiv, l, r)
+          case BinOp.Fadd => asm.BinOpVTree(asm.Fadd(asm.FFOrd), l, r)
+          case BinOp.Fsub => asm.BinOpVTree(asm.Fsub(asm.FFOrd), l, r)
+          case BinOp.Fmul => asm.BinOpVTree(asm.Fmul(asm.FFOrd), l, r)
+          case BinOp.Fdiv => asm.BinOpVTree(asm.Fdiv(asm.FFOrd), l, r)
         })
         ()
       case KNorm.Var(v) =>
