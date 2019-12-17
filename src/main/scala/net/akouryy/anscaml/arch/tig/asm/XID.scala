@@ -52,7 +52,7 @@ object XReg {
   val REG_SIZE = 64
 
   val VALID_REGS: IndexedSeq[XReg] = -1 until REG_SIZE map XReg.apply
-  val NORMAL_REGS: IndexedSeq[XReg] = (1 to 27) ++ (32 to 61) map XReg.apply
+  val NORMAL_REGS: IndexedSeq[XReg] = (1 to 27) ++ (32 to 60) map XReg.apply
 
   val NORMAL_REGS_SET: immutable.SortedSet[XReg] = NORMAL_REGS.to(immutable.SortedSet)
 
@@ -63,6 +63,7 @@ object XReg {
   val HEAP = XReg(29)
   val STACK = XReg(30)
   val LINK = XReg(31)
+  val C_255 = XReg(61)
   val C_ONE = XReg(62)
   val C_MINUS_ONE = XReg(63)
 
@@ -70,6 +71,7 @@ object XReg {
     Word(0) -> ZERO,
     Word(1) -> C_ONE,
     Word(-1) -> C_MINUS_ONE,
+    Word(255) -> C_255,
   )
 
   val toConstants: Map[XReg, Word] = fromConstants.map(_.swap)

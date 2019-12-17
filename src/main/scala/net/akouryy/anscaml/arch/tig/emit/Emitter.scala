@@ -277,8 +277,11 @@ class Emitter(program: Program) {
     draftLabel(fun.name)
 
     if (fun.name == ID.Special.MAIN) {
-      draftCommand(NC, FinalInst.addi, FReg(XReg.C_ONE), FReg(XReg.ZERO), SImm(1))
+      // draftCommand(NC, FinalInst.addi, FReg(XReg.C_ONE), FReg(XReg.ZERO), SImm(1))
       draftCommand(NC, FinalInst.addi, FReg(XReg.C_MINUS_ONE), FReg(XReg.ZERO), SImm(-1))
+      for ((r, w) <- XReg.toConstants -- Seq(XReg.ZERO, XReg.C_MINUS_ONE)) {
+        draftMvi(NC, r, w)
+      }
       // extend stackより前にスタックポインタを初期化する
       val ml2 = AnsCaml.config.memorySizeLog2
       draftCommand(CM(s"[E] bottom of stack = 2^$ml2"),

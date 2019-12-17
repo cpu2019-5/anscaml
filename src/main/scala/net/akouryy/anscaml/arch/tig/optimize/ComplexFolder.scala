@@ -16,7 +16,7 @@ object ComplexFolder {
       b0 <- fun.get(bi0)
       Branch(_, ji1, cond1, _, tbi2, fbi2) <- Some(fun(b0.output))
       (arg1, negativeArg1ToTru) <- cond1 match {
-        case CondVC(Le, arg1, C(Word(-1))) => Some((arg1, true))
+        case CondVC(Le, arg1, C(Word(-1)) | V(XReg.C_MINUS_ONE)) => Some((arg1, true))
         case CondV(FLe, XReg.ZERO, arg1) => Some((arg1, false))
         case _ => None
       }

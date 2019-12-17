@@ -176,6 +176,8 @@ class ImmediateFolder(prog: Program) {
             (true, NC, CondVC(Le, XReg.ZERO, V(right)))
           case CondV(FLe, left, Fixed(Word(0))) =>
             (true, NC, CondVC(Le, left, V(XReg.ZERO)))
+          case Cond(_, _, V(FixedReg(r))) =>
+            (true, NC, cond.mapLR(wrapXID)(_ => V(r), _ => r))
           case _ =>
             (true, NC, cond.mapLR(wrapXID)(wrapVC, wrapXID))
         }
