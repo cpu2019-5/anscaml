@@ -12,6 +12,9 @@ object Liveness {
 
   private[this] type MutableInfo = mutable.Map[BlockIndex, List[LiveSet]]
 
+  /**
+    * 各Listは長さが対応するブロックの行数+1であり、先頭行のliveInから最終行のliveOutまでを持つ。
+    */
   type Info = Map[BlockIndex, List[LiveSet]]
 
   private[this] def useInInst(inst: Instruction): Iterable[XVar] = inst match {

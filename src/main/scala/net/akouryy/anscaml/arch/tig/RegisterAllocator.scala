@@ -41,9 +41,45 @@ final class RegisterAllocator {
     g.toMap
   }
 
-  private[this] def allocateInFun(
-    f: FDef, interference: IGraph, // preferences: Map[XVar, Map[XID, Int]],
-  ): Map[XID, XReg] = {
+  private[this] def buildPreferencesBase(f: FDef): mutable.Map[XVar, mutable.Map[XID, Int]] = {
+    val pr = mutable.Map[XVar, mutable.Map[XID, Int]]()
+
+    @inline def prefer(v: XVar, x: XID, w: Int) =
+      pr.getOrElseUpdate(v, mutable.Map().withDefaultValue(0))(x) += w
+
+    for {
+      (bi, b) <- f.blocks
+      (line /*, (liveIn, liveOut)*/) <- b.lines //.zipStrict(liveness(bi).zip(liveness(bi).tail))
+    } line match {
+      // case Line(_, dest: XVar, Mv(src)) => prefer(dest, src, 100)
+      case Line(_, _, CallDir(_, args, _)) =>
+        for ((a: XVar, i) <- args.zipWithIndex) prefer(a, XReg.NORMAL_REGS(i), 50)
+      case _ =>
+    }
+    for (jump <- f.jumps.valuesIterator) jump match {
+      // case Return(_, _, v: XVar, _) => prefer(v, XReg.RETURN, 50)
+      // case Merge(_, _, inputs, outputID: XVar, _) =>
+      // for(MergeInput(_, xid) <- inputs) prefer(outputID, xid, 30)
+      case _ =>
+    }
+    pr
+  }
+
+  private[this] def fixPreference(
+    base: mutable.Map[XVar, mutable.Map[XID, Int]], regEnv: mutable.Map[XVar, XReg], v: XVar,
+  ): IndexedSeq[XReg] = {
+    val pr = mutable.Map[XReg, Int]().withDefaultValue(0)
+    for ((x, w) <- base.getOrElse(v, Nil)) x match {
+      case x: XVar => pr(regEnv(x)) += w
+      case x: XReg =>
+        if (XReg.NORMAL_REGS contains x) pr(x) += w
+    }
+    if (pr.nonEmpty) println(v, pr.toIndexedSeq.sortBy(_._2).map(_._1))
+    pr.toIndexedSeq.sortBy(_._2).map(_._1) ++ XReg.NORMAL_REGS
+  }
+
+  private[this] def allocateInFun(f: FDef, interference: IGraph): Map[XID, XReg] = {
+    val preferencesBase = buildPreferencesBase(f)
     val regEnv = mutable.Map[XVar, XReg]()
 
     def allocate(xid: XID) = xid match {
@@ -51,9 +87,9 @@ final class RegisterAllocator {
       case v: XVar =>
         assert(!regEnv.contains(v))
         val used = interference.getOrElse(v, Set()).flatMap(_.fold(regEnv.get, Some(_)))
-        regEnv(v) = XReg.NORMAL_REGS.find(r => !used.contains(r)).getOrElse(
-          throw new SpillError(s"Spill: $v vs ${interference(v)}")
-        )
+
+        regEnv(v) = fixPreference(preferencesBase, regEnv, v).find(r => !used.contains(r))
+          .getOrElse(throw new SpillError(s"Spill: $v vs ${interference(v)}"))
         regEnv(v)
     }
 
@@ -82,24 +118,24 @@ final class RegisterAllocator {
     val newChart = new Chart
 
     for (b <- f.blocks.values) {
-      newChart.blocks(b.i) = b.copy(lines = b.lines.zipWithIndex.map { case (line, lineIndex) =>
-        val newInst = line.inst match {
-          case CallDir(callee, args, None) =>
-            if (callee != f.name) { // 再帰呼び出しはsafeRegsに関与しない
-              currentSafeRegs &= safeRegsMap.getOrElse(callee, Set())
-            }
-            val calleeSafeRegs: Set[XReg] = safeRegsMap.getOrElse(callee, Set())
-            val saves =
-              (liveness(b.i)(lineIndex + 1 /* 出口生存 */) -- line.dest.asXVar)
-                .flatMap { v =>
-                  val r: XReg = regEnv(v)
-                  Option.unless(calleeSafeRegs contains r)(ID(v.idStr) -> r)
-                }.toMap
-            CallDir(callee, args, Some(saves))
-          case inst => inst
+      newChart.blocks(b.i) = b.copy(lines =
+        b.lines.zipStrict(liveness(b.i).tail).map { case (line, liveOut) =>
+          val newInst = line.inst match {
+            case CallDir(callee, args, None) =>
+              if (callee != f.name) { // 再帰呼び出しはsafeRegsに関与しない
+                currentSafeRegs &= safeRegsMap.getOrElse(callee, Set())
+              }
+              val calleeSafeRegs: Set[XReg] = safeRegsMap.getOrElse(callee, Set())
+              val saves = (liveOut -- line.dest.asXVar).flatMap { v =>
+                val r: XReg = regEnv(v)
+                Option.unless(calleeSafeRegs contains r)(ID(v.idStr) -> r)
+              }.toMap
+              CallDir(callee, args, Some(saves))
+            case inst => inst
+          }
+          Line(line.comment, wrap(line.dest), newInst.mapXID(wrap))
         }
-        Line(line.comment, wrap(line.dest), newInst.mapXID(wrap))
-      })
+      )
     }
 
     for (j <- f.jumps.values) {
