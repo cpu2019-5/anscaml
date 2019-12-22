@@ -331,7 +331,7 @@ class Specializer {
     currentInputJumpIndex = startFunJumpIndex
     currentLines.clear()
 
-    for (gcs <- gcsOpt) {
+    for (gcs <- gcsOpt) { // main関数限定
       loadGConstsInfo(gcs)
       specializeInitialization()
     }
