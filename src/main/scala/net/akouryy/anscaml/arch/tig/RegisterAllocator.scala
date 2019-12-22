@@ -6,7 +6,7 @@ import base._
 
 import scala.collection.{immutable, mutable}
 
-class RegisterAllocator {
+final class RegisterAllocator {
 
   import RegisterAllocator._
 
@@ -25,9 +25,7 @@ class RegisterAllocator {
       bi <- f.body.blocks.keysIterator
       live <- liveness(bi)
       v <- live
-      w <- live
-      if v != w
-    } g(v) += w
+    } g(v) ++= live - v
     if (avoidCallerSave) {
       for {
         b <- f.body.blocks.valuesIterator
@@ -35,9 +33,10 @@ class RegisterAllocator {
         ((liveIn, liveOut), Line(_, _, CallDir(callee, _, _)))
           <- liveList.zip(liveList.tail).zipStrict(b.lines)
         v <- liveIn & liveOut
-        w <- XReg.NORMAL_REGS_SET --
-             safeRegsMap.getOrElse(callee, throw new SpillError(s"unsafe function $callee"))
-      } g(v) += w
+      } {
+        g(v) ++= XReg.NORMAL_REGS_SET --
+                 safeRegsMap.getOrElse(callee, throw new SpillError(s"unsafe function $callee"))
+      }
     }
     g.toMap
   }
@@ -45,7 +44,7 @@ class RegisterAllocator {
   private[this] def allocateInFun(
     f: FDef, interference: IGraph, // preferences: Map[XVar, Map[XID, Int]],
   ): Map[XID, XReg] = {
-    val regEnv = XReg.VALID_REGS.map(r => (r: XID) -> r).to(mutable.Map)
+    val regEnv = mutable.Map[XVar, XReg]()
 
     def allocate(xid: XID) = xid match {
       case _: XReg =>

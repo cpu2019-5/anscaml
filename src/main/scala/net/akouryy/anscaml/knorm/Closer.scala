@@ -23,9 +23,12 @@ class Closer {
     directFunctions.clear()
     globalConstsRev = Nil
     globalConstNames.clear()
+    indirectFVsCache.clear()
     val cl = close(kn, Global)
     KCProgram(globalConstsRev.reverse, globalFunctionsRev.reverse, cl)
   }
+
+  private[this] val indirectFVsCache = mutable.Map[ID, Set[ID]]()
 
   private[this] def indirectFVs(body: KNorm, localFns: Set[ID]): Set[ID] = {
     body.raw match {
@@ -41,12 +44,16 @@ class Closer {
       case IfCmp(_, x, y, tru, fls) =>
         Set(x, y) | indirectFVs(tru, localFns) | indirectFVs(fls, localFns)
       case Let(entry, bound, kont) =>
-        indirectFVs(kont, localFns) - entry.name | indirectFVs(bound, localFns)
+        indirectFVsCache.getOrElseUpdate(entry.name,
+          indirectFVs(kont, localFns) - entry.name | indirectFVs(bound, localFns)
+        )
       case LetTuple(elems, bound, kont) =>
         indirectFVs(kont, localFns) &~ elems.map(_.name).toSet | Set(bound)
       case LetRec(FDef(Entry(name, _), args, body, _), kont) =>
         val lf = localFns + name
-        indirectFVs(body, lf) &~ args.map(_.name).toSet | indirectFVs(kont, lf)
+        indirectFVsCache.getOrElseUpdate(name,
+          indirectFVs(body, lf) &~ args.map(_.name).toSet | indirectFVs(kont, lf)
+        )
     }
   }
 
