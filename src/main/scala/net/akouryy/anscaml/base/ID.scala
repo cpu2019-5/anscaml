@@ -26,11 +26,11 @@ object ID {
     res.reverseInPlace().toString
   }
 
-  private[this] var cnt = -1
+  private[this] var tmpCnt = -1
 
   def generate(): ID = {
-    cnt += 1
-    ID(s"$$${suffix(cnt)}")
+    tmpCnt += 1
+    ID(s"$$${suffix(tmpCnt)}")
   }
 
   private[this] val cntMap = mutable.Map[String, Int]()
@@ -38,11 +38,11 @@ object ID {
   private[this] val TempRegex = """^\$[A-Z][a-z]*$""".r
   private[this] val SuffixedRegex = """^([\w$]+)[A-Z][a-z]*$""".r
 
-  def generate(id: ID, allowEmptySuffix: Boolean = false): ID = {
-    val str = id.str match {
-      case TempRegex() => id.str
+  def generate(base: String, allowEmptySuffix: Boolean = false): ID = {
+    val str = base match {
+      case TempRegex() => base
       case SuffixedRegex(str) => str
-      case _ => id.str
+      case _ => base
     }
     val c = cntMap.getOrElse(str, -1) + 1
     cntMap(str) = c

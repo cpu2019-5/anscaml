@@ -88,7 +88,7 @@ class Emitter(program: Program) {
       case NewArray(V(len: XReg), elem: XReg) if !toDummy =>
         // do-whileループでtmpが0以上である間拡張を繰り返す
         // len=0のとき1回ループしてしまうが、未定義領域に1個書き込むだけなので許容
-        val bodyLabel = ID.generate(ID(s"${currentFun.name}.${ID.Special.EMIT_ARRAY_BODY}")).str
+        val bodyLabel = ID.generate(s"${currentFun.name}.${ID.Special.EMIT_ARRAY_BODY}").str
         draftMv(CM(s"[E] NewArray"), XReg.LAST_TMP, len)
         draftLabel(bodyLabel)
         draftCommand(NC, FInst.store, FReg(XReg.HEAP), SImm(0), FReg(elem))

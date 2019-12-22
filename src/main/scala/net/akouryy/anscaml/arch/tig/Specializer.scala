@@ -42,13 +42,13 @@ class Specializer {
         case KNorm.KInt(i) => (GCInt(i), 0)
         case KNorm.KFloat(f) => (GCFloat(f), 0)
         case KNorm.Array(len, elem) =>
-          gConsts.get(XVar(len)) match {
+          gConsts.get(XVar(len.str)) match {
             case Some((_, GCInt(len))) => (GCArrayImm(gConstsSumSize, len, elem), len)
             case _ => (GCOther(gConstsSumSize, cl), 1) // 即値かポインタなのでサイズ1
           }
         case _ => (GCOther(gConstsSumSize, cl), 1)
       }
-      gConsts(XVar(entry.name)) = (Ty(entry.typ), gc)
+      gConsts(XVar(entry.name.str)) = (Ty(entry.typ), gc)
       gConstsListRev ::= entry.name
       gConstsSumSize += size
     }
@@ -64,7 +64,7 @@ class Specializer {
   private[this] var currentFunIsLeaf: Boolean = _
 
   private[this] def wrapVar(v: ID): XVar = {
-    val vv = XVar(v)
+    val vv = XVar(v.str)
     gConsts.get(vv) match {
       case None => vv
       case Some((ty, gc)) =>
@@ -88,7 +88,7 @@ class Specializer {
     )
 
     gConstsListRev.reverseIterator.foreach { gConst =>
-      gConsts(XVar(gConst)) match {
+      gConsts(XVar(gConst.str)) match {
         case (_, _: GCInt | _: GCFloat) | (asm.TyArray(asm.TyUnit), _: GCArrayImm) => // no store
         case (_, GCArrayImm(addr, len, elem)) =>
           val e = wrapVar(elem)
@@ -226,7 +226,7 @@ class Specializer {
         specializeExpr(XReg.DUMMY, bound)
         specializeExpr(dest, kont)
       case KNorm.CLet(entry, bound, kont) =>
-        val v = XVar(entry.name)
+        val v = XVar(entry.name.str)
         specializeExpr(v, bound)
         tyEnv(v) = Ty(entry.typ)
         specializeExpr(dest, kont)
@@ -234,7 +234,7 @@ class Specializer {
         val b = wrapVar(bound)
         var i = 0
         for (elem <- elems) {
-          val v = XVar(elem.name)
+          val v = XVar(elem.name.str)
           if (elem.typ != Typ.TUnit) {
             tyEnv(v) = Ty(elem.typ)
             currentLines += Line(cm, v, asm.Load(b, C(Word(i))))
@@ -317,7 +317,7 @@ class Specializer {
 
   private[this] def specializeFDef(cFDef: KNorm.CFDef, gcsOpt: Option[List[(Entry, KClosed)]])
   : asm.FDef = {
-    tyEnv ++= cFDef.args.map(e => XVar(e.name) -> Ty(e.typ))
+    tyEnv ++= cFDef.args.map(e => XVar(e.name.str) -> Ty(e.typ))
     val fnTyp = asm.Fn.fromTyp(cFDef.entry.typ)
 
     currentChart = new asm.Chart
@@ -356,7 +356,7 @@ class Specializer {
 
     asm.FDef(
       cFDef.entry.name.str,
-      cFDef.args.map(a => XVar(a.name)),
+      cFDef.args.map(a => XVar(a.name.str)),
       currentChart,
       fnTyp,
       asm.FDefInfo(isLeaf = currentFunIsLeaf, safeRegs = immutable.SortedSet[XReg]()),

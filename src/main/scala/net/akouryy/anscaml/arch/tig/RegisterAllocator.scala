@@ -94,7 +94,7 @@ class RegisterAllocator {
               (liveness(b.i)(lineIndex + 1 /* 出口生存 */) -- line.dest.asXVar)
                 .flatMap { v =>
                   val r: XReg = regEnv(v)
-                  Option.unless(calleeSafeRegs contains r)(v.id -> r)
+                  Option.unless(calleeSafeRegs contains r)(ID(v.idStr) -> r)
                 }.toMap
             CallDir(callee, args, Some(saves))
           case inst => inst

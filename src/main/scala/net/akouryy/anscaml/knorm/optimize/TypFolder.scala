@@ -43,7 +43,7 @@ class TypFolder {
             // TODO: 二分探索?
             s.foldLeft[Option[KNorm.KRaw]](None) {
               case (None, lit) =>
-                val a = ID.generate(arg)
+                val a = ID.generate(arg.str)
                 val body = Alpha.convert(fDef.body, Map(fDef.args(0).name -> a))
                 Some(Let(
                   Entry(a, Typ.TInt(Lit.List[Primitives.PInt](Set(lit)))),
@@ -54,7 +54,7 @@ class TypFolder {
                   )
                 ))
               case (Some(otherApplies), lit) =>
-                val a = ID.generate(arg)
+                val a = ID.generate(arg.str)
                 val body = Alpha.convert(fDef.body, Map(fDef.args(0).name -> a))
                 Some(Let(
                   Entry(a, Typ.TInt(Lit.List[Primitives.PInt](Set(lit)))),

@@ -24,15 +24,13 @@ sealed trait XID extends Any {
   }
 }
 
-final case class XVar(id: ID) extends AnyVal with XID {
-  override def idStr: String = id.str
-
-  override def toString: String = id.str
+final case class XVar(idStr: String) extends AnyVal with XID {
+  override def toString: String = idStr
 }
 
 object XVar {
   def generate(str: String, allowEmptySuffix: Boolean = false) =
-    XVar(ID.generate(ID(str), allowEmptySuffix))
+    XVar(ID.generate(str, allowEmptySuffix).str)
 }
 
 final case class XReg private(id: Int) extends AnyVal with XID with Ordered[XReg] {

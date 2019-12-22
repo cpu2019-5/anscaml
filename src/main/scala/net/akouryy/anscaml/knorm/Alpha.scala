@@ -33,18 +33,18 @@ object Alpha {
         case Put(array, index, value) => Put(find(array), find(index), find(value))
         case ApplyExternal(fn, args) => ApplyExternal(fn, args.map(find))
         case Let(Entry(v, typ), bound, kont) =>
-          val v2 = ID.generate(v)
+          val v2 = ID.generate(v.str)
           Let(Entry(v2, typ), convert(bound, env), convert(kont, env + (v -> v2)))
         case LetTuple(elems, bound, kont) =>
-          val elems2 = elems.map(e => (e.name, ID.generate(e.name), e.typ))
+          val elems2 = elems.map(e => (e.name, ID.generate(e.name.str), e.typ))
           LetTuple(
             elems2.map { case (_, e2, t) => Entry(e2, t) },
             find(bound),
             convert(kont, env ++ elems2.map { case (e, e2, _) => e -> e2 }),
           )
         case LetRec(FDef(Entry(fn, fnTyp), args, body, noInline), kont) =>
-          val fn2 = ID.generate(fn)
-          val args2 = args.map(a => (a.name, ID.generate(a.name), a.typ))
+          val fn2 = ID.generate(fn.str)
+          val args2 = args.map(a => (a.name, ID.generate(a.name.str), a.typ))
           val envFn = env + (fn -> fn2)
           LetRec(
             FDef(

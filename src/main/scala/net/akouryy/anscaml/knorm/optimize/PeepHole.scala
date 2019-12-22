@@ -43,7 +43,7 @@ class PeepHole {
           case (BinOp.FFF(fn), Some(KFloat(x)), Some(KFloat(y))) =>
             addCmt(s"op-$op", KFloat(fn(x, y)))
           case (BinOp.Mul, _, Some(KInt(y))) if Util.log2(y).nonEmpty =>
-            val z = ID.generate(ID(s"${right.str}$$log"))
+            val z = ID.generate(s"${right.str}$$log")
             val log2 = Util.log2(y).get
             addCmt(
               "mul-to-shl",
@@ -54,7 +54,7 @@ class PeepHole {
               ),
             )
           case (BinOp.Div, _, Some(KInt(y))) if Util.log2(y).nonEmpty =>
-            val z = ID.generate(ID(s"${right.str}$$log"))
+            val z = ID.generate(s"${right.str}$$log")
             val log2 = Util.log2(y).get
             addCmt(
               "div-to-shr",
@@ -65,7 +65,7 @@ class PeepHole {
               ),
             )
           case (BinOp.Mod, _, Some(KInt(y))) if Util.log2(y).nonEmpty =>
-            val z = ID.generate(ID(s"${right.str}$$log"))
+            val z = ID.generate(s"${right.str}$$log")
             val log2 = Util.log2(y).get
             addCmt(
               "mod-to-land",
