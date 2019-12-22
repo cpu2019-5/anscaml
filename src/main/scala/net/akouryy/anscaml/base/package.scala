@@ -24,6 +24,11 @@ package object base {
     def foldF[B](f: A => B, ifEmpty: => B): B = option.fold(ifEmpty)(f)
   }
 
+  implicit class RichString(val string: String) extends AnyVal {
+    /** strictly typed `+` */
+    def +!(that: String): String = string + that
+  }
+
   def !!!!(a: Any): Nothing = throw new IllegalArgumentException(a.toString)
 
   def ????(a: Any): Nothing = throw new NotImplementedError(a.toString)

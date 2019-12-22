@@ -5,8 +5,8 @@ import base._
 
 import scala.collection.immutable
 
-sealed trait XID {
-  val idStr: String
+sealed trait XID extends Any {
+  def idStr: String
 
   final def asXVar: Option[XVar] = this match {
     case v: XVar => Some(v)
@@ -24,8 +24,8 @@ sealed trait XID {
   }
 }
 
-final case class XVar(id: ID) extends XID {
-  override val idStr: String = id.str
+final case class XVar(id: ID) extends AnyVal with XID {
+  override def idStr: String = id.str
 
   override def toString: String = id.str
 }
@@ -35,13 +35,8 @@ object XVar {
     XVar(ID.generate(ID(str), allowEmptySuffix))
 }
 
-final case class XReg(id: Int) extends XID with Ordered[XReg] {
-
-  import XReg._
-
-  assert(-1 <= id && id < REG_SIZE)
-
-  override val idStr: String = if (id == -1) "$reg_x" else s"$$reg$id"
+final case class XReg private(id: Int) extends AnyVal with XID with Ordered[XReg] {
+  override def idStr: String = if (id == -1) "$reg_x" else s"$$reg$id"
 
   override def toString: String = if (id == -1) "%rx" else s"%r$id"
 
@@ -49,6 +44,11 @@ final case class XReg(id: Int) extends XID with Ordered[XReg] {
 }
 
 object XReg {
+  def apply(id: Int): XReg = {
+    assert(-1 <= id && id < REG_SIZE)
+    new XReg(id)
+  }
+
   val REG_SIZE = 64
 
   val VALID_REGS: IndexedSeq[XReg] = -1 until REG_SIZE map XReg.apply

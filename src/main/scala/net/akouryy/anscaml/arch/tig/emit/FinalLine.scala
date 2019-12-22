@@ -11,7 +11,7 @@ sealed trait FinalLine {
 final case class FinalLabel(label: String, comment: String) extends FinalLine {
   override def toFinalString: String = {
     val base = s"$label:"
-    if (comment.nonEmpty) {
+    if (comment.nonEmpty && AnsCaml.config.doEmitComment) {
       f"$base%-69s # $comment"
     } else {
       base
@@ -27,8 +27,8 @@ final case class FinalCommand(comment: Comment, inst: FinalInst, args: List[Fina
   override def toFinalString: String = {
     val base = f"  $inst%-9s " + args.map(a => f"${a.toFinalString}%9s").mkString(" ")
     comment match {
-      case NC => base
-      case CM(msg) => f"$base%-69s # $msg"
+      case CM(msg) if AnsCaml.config.doEmitComment => f"$base%-69s # $msg"
+      case _ => base
     }
   }
 }
@@ -118,6 +118,7 @@ object FinalInst {
     case asm.Add => addi
     case asm.Sha => shai
     case asm.Band => bandi
+    case asm.Bor => ????(or)
   }
 
   val negJumpFromCmpOpV: Map[asm.CmpOpV, FinalInst] = Map(

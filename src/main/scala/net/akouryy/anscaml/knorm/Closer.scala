@@ -60,7 +60,7 @@ class Closer {
           KClosed(norm.comment, ApplyClosure(fn, args))
         }
       case ApplyExternal(fn, args) =>
-        KClosed(norm.comment, ApplyDirect(ID.Special.EXTERNAL_PREFIX + fn.str, args))
+        KClosed(norm.comment, ApplyDirect(ID.Special.EXTERNAL_PREFIX +! fn.str, args))
       case IfCmp(op, left, right, tru, fls) =>
         KClosed(norm.comment, CIfCmp(op, left, right, close(tru, Local), close(fls, Local)))
       case Let(entry, bound, kont) =>
