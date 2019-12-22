@@ -78,7 +78,10 @@ class Emitter(program: Program) {
         FInst.load, FReg(XReg.LINK), FReg(XReg.STACK), SImm(LinkRegOffset))
     }
 
-  private[this] def emitLine(l: Line, isTail: Boolean): Unit = {
+  /**
+    * @return 後続の命令のemitを省略していいならtrueを返す。これは末尾呼出の場合のみ起こる。
+    */
+  private[this] def emitLine(l: Line, isTail: Boolean): Boolean = {
     val cm = l.comment
     val dest = l.dest.asXReg.get
     val toDummy = l.dest == XReg.DUMMY
@@ -141,7 +144,7 @@ class Emitter(program: Program) {
         draftRevertStack()
         for (Move(s, d) <- argMoves) draftMv(CM("[E] move arg"), d, s)
         draftCommand(cm :+ "[E] tail call", FInst.j, FLabel(LAbs, fn))
-
+        return true
       case CallDir(fn, args, Some(saves)) /* destはdummyでもそうでなくてもよい */ =>
         currentStack.clear()
         currentStackInv.clear()
@@ -196,6 +199,7 @@ class Emitter(program: Program) {
         }
       case _ => !!!!(l)
     }
+    false
   }
 
   private[this] def emitJump(ji: JumpIndex): Unit = {
@@ -251,7 +255,7 @@ class Emitter(program: Program) {
   private[this] def emitBlock(bi: BlockIndex) = {
     val b = currentFun.body.blocks(bi)
     draftLabel(blockLabel(bi))
-    b.lines.zipWithIndex.foreach { case (line, i) =>
+    val canOmitJump = b.lines.zipWithIndex.exists { case (line, i) =>
       val isTail =
         i == b.lines.length - 1 &&
         (currentFun.body.jumps(b.output) match {
@@ -261,7 +265,7 @@ class Emitter(program: Program) {
       emitLine(line, isTail)
     }
     emittedBlocks += bi
-    emitJump(b.output)
+    if (!canOmitJump) emitJump(b.output)
   }
 
   private[this] def emitFunction(fun: FDef) = {
