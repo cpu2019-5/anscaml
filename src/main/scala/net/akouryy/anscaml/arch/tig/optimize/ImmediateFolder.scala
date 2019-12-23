@@ -15,6 +15,8 @@ class ImmediateFolder(prog: Program) {
       immEnv.clear()
       otherEnv.clear()
 
+      buildCondEnv(body)
+
       body.blocks.valuesIterator.foreach(optBlock(body))
       body.jumps.valuesIterator.foreach(optJump(body))
     }
@@ -39,6 +41,10 @@ class ImmediateFolder(prog: Program) {
     }
   }
 
+  private[this] object ConditionallyFixed {
+    def unapply(xv: XVar): Option[(Branch.Cond, Word, Word)] = condEnv.get(xv)
+  }
+
   private[this] object BoundTo {
     def unapply(xv: XVar): Option[Instruction] = otherEnv.get(xv)
   }
@@ -46,6 +52,8 @@ class ImmediateFolder(prog: Program) {
   private[this] val immEnv = mutable.Map[XVar, Word]()
 
   private[this] val otherEnv = mutable.Map[XVar, Instruction]()
+  private[this] val condEnv =
+    mutable.Map[XVar, (Branch.Cond, Word, Word)]()
   private[this] var changed = false
 
   private[this] def wrapXID(xid: XID): XID = xid match {
@@ -63,6 +71,24 @@ class ImmediateFolder(prog: Program) {
   private[this] def addImm(dest: XID, imm: Word) = dest match {
     case dest: XVar => immEnv(dest) = imm
     case _: XReg => // pass
+  }
+
+  private[this] def buildCondEnv(c: Chart) = {
+    condEnv.clear()
+
+    for {
+      Branch(_, _, cond, _, tru1, fls1) <- c.jumps.valuesIterator
+      Block(_, Nil, _, ji2) <- Some(c.blocks(tru1))
+      Block(_, Nil, _, `ji2`) <- Some(c.blocks(fls1))
+      Merge(_, _, List(MergeInput(lbi1, Fixed(lw)), MergeInput(_, Fixed(rw))), outputXID: XVar, _
+      ) <- Some(c.jumps(ji2))
+    } {
+      if (lbi1 == tru1) {
+        condEnv(outputXID) = (cond, lw, rw)
+      } else {
+        condEnv(outputXID) = (cond, rw, lw)
+      }
+    }
   }
 
   private[this] def optBlock(c: Chart)(b: Block): Unit = {
@@ -121,9 +147,20 @@ class ImmediateFolder(prog: Program) {
           val inv = XVar.generate(right.idStr + ID.Special.ASM_F_INV)
           newPrecedingLines = List(Line(NC, inv, UnOpTree(FInv, right)))
           BinOpVTree(FnegCond, inv, XReg.C_MINUS_ONE)
-        case BinOpVTree(FnegCond, left @ BoundTo(BinOpVTree(Fadd, al, ar)), right) if left == right
-        => /* 絶対値 */
+        case BinOpVTree(FnegCond, left @ BoundTo(BinOpVTree(Fadd, al, ar)), right)
+          if left == right => // 絶対値
           BinOpVTree(FaddAbs, al, ar)
+        case BinOpVTree(FnegCond, left,
+        ConditionallyFixed(Branch.CondVC(Le, Fixed(Word(0)), V(orig)), t, f)) =>
+          @inline def withOrig = BinOpVTree(FnegCond, left, orig)
+
+          if (t.int >= 0 && f.int < 0) { // rightとorigの真偽は等しい
+            withOrig
+          } else if (t.int < 0 && f.int >= 0) { // rightとorigの真偽は逆
+            val withOrigResult = XVar.generate(orig.idStr + ID.Special.ASM_NOT)
+            newPrecedingLines = List(Line(NC, withOrigResult, withOrig))
+            BinOpVTree(FnegCond, withOrigResult, XReg.C_MINUS_ONE)
+          } else ???
         case BinOpVTree(op, left, right) => BinOpVTree(op, wrapXID(left), wrapXID(right))
 
         case Nop | Read => inst
@@ -176,6 +213,12 @@ class ImmediateFolder(prog: Program) {
             (true, NC, CondVC(Le, XReg.ZERO, V(right)))
           case CondV(FLe, left, Fixed(Word(0))) =>
             (true, NC, CondVC(Le, left, V(XReg.ZERO)))
+          case Cond(op, ConditionallyFixed(cond2, t, f), Fixed(right)) =>
+            if (op.fn(t, right) && !op.fn(f, right)) {
+              (true, NC, cond2)
+            } else if (!op.fn(t, right) && op.fn(f, right)) {
+              (false, NC, cond2)
+            } else ????(cond)
           case Cond(_, _, V(FixedReg(r))) =>
             (true, NC, cond.mapLR(wrapXID)(_ => V(r), _ => r))
           case _ =>

@@ -4,6 +4,8 @@ package optimize
 
 import asm.Program
 
+import scala.util.Using
+
 object Optimizer {
   def apply(iterationCount: Int, asm: Program): Unit = {
     for (i <- 0 until iterationCount) {
@@ -18,6 +20,11 @@ object Optimizer {
       AliasSolver(asm)
       if (!changedER && !changedMM && !changedDI && !changedIF && !changedBT && !changedJF
           && !changedXF) return
+      if (AnsCaml.config.xGenerateAsmGraphs) {
+        Using.resource(new java.io.PrintWriter(s"../temp/to-$i.dot")) {
+          _.write(new arch.tig.GraphDrawer()(asm))
+        }
+      }
     }
   }
 }

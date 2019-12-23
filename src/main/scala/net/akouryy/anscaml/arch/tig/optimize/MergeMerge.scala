@@ -14,7 +14,8 @@ object MergeMerge {
   def apply(program: Program): Boolean = {
     var changed = false
     for (f <- program.functions) {
-      for ((_, m0 @ Merge(_, ji0, inputs0, _, _)) <- f.body.jumps) { // 0が下、3が上
+      // 0が下、3が上
+      for ((_, m0 @ Merge(_, ji0, inputs0, _, _)) <- f.body.jumps if inputs0.sizeIs >= 2) {
         val newInputs0 = inputs0.map(_.toPair).to(mutable.SortedMap)
         for {
           MergeInput(bi1, phiArg0) <- inputs0

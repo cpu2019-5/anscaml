@@ -70,11 +70,13 @@ object AnsCaml {
       }
     }
 
-    arch.tig.optimize.Optimizer(config.optimizationCount, asm)
-
-    if (config.xGenerateAsmGraphs) {
-      Using.resource(new java.io.PrintWriter("../temp/dbg.dot")) {
-        _.write(new arch.tig.GraphDrawer()(asm))
+    try {
+      arch.tig.optimize.Optimizer(config.optimizationCount, asm)
+    } finally {
+      if (config.xGenerateAsmGraphs) {
+        Using.resource(new java.io.PrintWriter("../temp/dbg.dot")) {
+          _.write(new arch.tig.GraphDrawer()(asm))
+        }
       }
     }
 

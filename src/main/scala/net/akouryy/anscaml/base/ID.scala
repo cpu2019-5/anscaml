@@ -59,6 +59,7 @@ object ID {
     val GC_VAL = "$gcv"
     val ASM_F_INV = "$inv"
     val MAIN = "$main"
+    val ASM_NOT = "not"
   }
 
 }

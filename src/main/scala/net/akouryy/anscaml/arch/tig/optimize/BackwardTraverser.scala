@@ -20,6 +20,7 @@ class BackwardTraverser {
       val free = useSets(f.body.blocks.firstKey) -- f.args.flatMap(_.asXVar)
       if (free.nonEmpty) {
         Logger.log("TO-BT", s"free variables $free found.")
+        ???
       }
     }
 

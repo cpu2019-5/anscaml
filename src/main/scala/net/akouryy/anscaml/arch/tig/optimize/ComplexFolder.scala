@@ -3,7 +3,7 @@ package arch.tig
 package optimize
 
 import asm._
-import Branch.{CondV, CondVC}
+import Branch.{Cond, CondV, CondVC}
 import base._
 
 import scala.collection.mutable
@@ -17,7 +17,7 @@ object ComplexFolder {
       Branch(_, ji1, cond1, _, tbi2, fbi2) <- Some(fun(b0.output))
       (arg1, negativeArg1ToTru) <- cond1 match {
         case CondVC(Le, arg1, C(Word(-1)) | V(XReg.C_MINUS_ONE)) => Some((arg1, true))
-        case CondV(FLe, XReg.ZERO, arg1) => Some((arg1, false))
+        case Cond(Le | FLe, XReg.ZERO, V(arg1)) => Some((arg1, false))
         case _ => None
       }
       (arg2, tRet2, fRet2, isResultCorrect, ji3) <- (fun(tbi2), fun(fbi2)) match {
@@ -141,6 +141,22 @@ object ComplexFolder {
     }
   }
 
+  private[this] def foldEmptyBranch(fun: FDef) = {
+    for {
+      Branch(_, ji1, _, bi0, tbi2, fbi2) <- fun.jumps.valuesIterator
+      Block(_, Nil, _, ji3) <- fun.get(tbi2)
+      Block(_, Nil, _, ji3_) <- fun.get(fbi2)
+      if ji3 == ji3_
+      m3 @ Merge(_, _, List(MergeInput(_, XReg.DUMMY), MergeInput(_, XReg.DUMMY)), XReg.DUMMY, bi4)
+        <- fun.get(ji3)
+    } {
+      // 単独併合はJumpFolderで潰せる
+      fun.jumps(ji1) = Merge(NC, ji1, List(MergeInput(bi0, XReg.DUMMY)), XReg.DUMMY, tbi2)
+      fun.jumps(ji3) = m3.copy(inputs = List(MergeInput(tbi2, XReg.DUMMY)))
+      fun.blocks -= fbi2
+    }
+  }
+
   def apply(program: Program): Boolean = {
     var changed = false
 
@@ -152,6 +168,7 @@ object ComplexFolder {
       foldMovesInStrictBlock(f)
       foldCommonInstAfterBranch(f)
       foldSingleMerge(f)
+      foldEmptyBranch(f)
 
       changed ||= oldBlocks != f.blocks || oldJumps != f.jumps
     }

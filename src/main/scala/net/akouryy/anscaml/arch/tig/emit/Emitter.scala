@@ -302,7 +302,7 @@ class Emitter(program: Program) {
         )
       }
     } else {
-      Logger.log("[EM]", s"leaf: ${fun.name}")
+      Logger.log("EM", s"leaf: ${fun.name}")
     }
 
     emitBlock(fun.body.blocks.firstKey)
