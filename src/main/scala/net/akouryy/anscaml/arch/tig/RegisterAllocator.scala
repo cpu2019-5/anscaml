@@ -74,7 +74,7 @@ final class RegisterAllocator {
       case x: XReg =>
         if (XReg.NORMAL_REGS contains x) pr(x) += w
     }
-    if (pr.nonEmpty) println(v, pr.toIndexedSeq.sortBy(_._2).map(_._1))
+    // if (pr.nonEmpty) println(v, pr.toIndexedSeq.sortBy(_._2).map(_._1))
     pr.toIndexedSeq.sortBy(_._2).map(_._1) ++ XReg.NORMAL_REGS
   }
 

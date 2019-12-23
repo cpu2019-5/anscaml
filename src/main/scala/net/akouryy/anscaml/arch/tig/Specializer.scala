@@ -98,7 +98,7 @@ class Specializer {
           }
         case (_, GCOther(addr, kcl)) =>
           val gcVal = XVar.generate(gConst.str + ID.Special.GC_VAL, allowEmptySuffix = true)
-          specializeExpr(gcVal, kcl)
+          specializeExpr(gcVal, isTail = false, kcl)
           currentLines += Line(CM(s"[SP] def gConst ${gConst.str}"),
             XReg.DUMMY, asm.Store(XReg.ZERO, C.int(addr), gcVal))
       }
@@ -133,7 +133,7 @@ class Specializer {
       case _ => Nil
     }
 
-  private[this] def specializeExpr(dest: XID, cl: KClosed): Unit = {
+  private[this] def specializeExpr(dest: XID, isTail: Boolean, cl: KClosed): Unit = {
     val cm = cl.comment
     cl.raw match {
       case KNorm.KInt(i) => currentLines += Line(cm, dest, asm.Mvi.int(i)); ()
@@ -216,20 +216,20 @@ class Specializer {
         val as = args map wrapVar
         specializeInlineStdlib(cm, dest, fn, as) match {
           case Nil =>
-            currentFunIsLeaf = false
+            currentFunIsLeaf &&= isTail
             currentLines += Line(cm, dest, asm.CallDir(fn, as, None)) // no stdlib
           case lines => currentLines ++= lines
         }
         ()
       case KNorm.ApplyClosure(_, _) => ???
       case KNorm.CLet(Entry(_, typ.Typ.TUnit), bound, kont) =>
-        specializeExpr(XReg.DUMMY, bound)
-        specializeExpr(dest, kont)
+        specializeExpr(XReg.DUMMY, isTail = false, bound)
+        specializeExpr(dest, isTail, kont)
       case KNorm.CLet(entry, bound, kont) =>
         val v = XVar(entry.name.str)
-        specializeExpr(v, bound)
+        specializeExpr(v, isTail = false, bound)
         tyEnv(v) = Ty(entry.typ)
-        specializeExpr(dest, kont)
+        specializeExpr(dest, isTail, kont)
       case KNorm.CLetTuple(elems, bound, kont) =>
         val b = wrapVar(bound)
         var i = 0
@@ -243,7 +243,7 @@ class Specializer {
             tyEnv(v) = asm.TyUnit
           }
         }
-        specializeExpr(dest, kont)
+        specializeExpr(dest, isTail, kont)
       case KNorm.CLetClosure(_, _, _, _) => ???
 
       case KNorm.CIfCmp(op, left, right, tru, fls) =>
@@ -273,7 +273,7 @@ class Specializer {
         currentBlockIndex = trueStartBlockIndex
         currentInputJumpIndex = condJumpIndex
         currentLines.clear()
-        specializeExpr(trueDest, tru)
+        specializeExpr(trueDest, isTail, tru)
         // 真分岐の最後のブロックを登録
         val trueLastBlockIndex = currentBlockIndex
         val trueLastBlockLines = currentLines.toList
@@ -283,7 +283,7 @@ class Specializer {
         currentBlockIndex = falseStartBlockIndex
         currentInputJumpIndex = condJumpIndex
         currentLines.clear()
-        specializeExpr(falseDest, fls)
+        specializeExpr(falseDest, isTail, fls)
         // 偽分岐の最後のブロックを登録
         val falseLastBlockIndex = currentBlockIndex
 
@@ -342,7 +342,7 @@ class Specializer {
       } else {
         XVar.generate(s"${cFDef.entry.name.str}$$ret")
       }
-    specializeExpr(retVar, cFDef.body)
+    specializeExpr(retVar, isTail = true, cFDef.body)
 
     if (gcsOpt.isDefined) { // mainの最後にexit擬似関数の呼び出しを加える
       currentLines += Line(NC, XReg.DUMMY, asm.CallDir(ID.Special.ASM_EXIT_FUN, Nil, None))

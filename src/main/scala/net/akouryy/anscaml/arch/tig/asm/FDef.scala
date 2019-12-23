@@ -22,4 +22,7 @@ final case class FDef(name: String, args: List[XID], body: Chart, typ: Fn, info:
 
 }
 
+/**
+  * @param isLeaf 非末尾の関数呼び出しが存在しないなら真
+  */
 final case class FDefInfo(isLeaf: Boolean, safeRegs: immutable.SortedSet[XReg])

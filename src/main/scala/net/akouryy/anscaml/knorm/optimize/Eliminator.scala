@@ -34,6 +34,9 @@ object Eliminator {
     case LetRec(fDef, kont) =>
       val (bk, bv) = elim(fDef.body)
       val (kk, kv) = elim(kont)
+      if ((fDef.args.map(_.name).toSet -- bv).nonEmpty) {
+        PPrinter.pprintln(fDef.entry, fDef.args.map(_.name).toSet -- bv)
+      }
       if (kv.contains(fDef.entry.name)) {
         (
           kn.copy(raw = LetRec(fDef.copy(body = bk), kk)),
