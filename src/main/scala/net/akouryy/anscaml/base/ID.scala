@@ -60,6 +60,8 @@ object ID {
     val ASM_F_INV = "$inv"
     val MAIN = "$main"
     val ASM_NOT = "not"
+    val EMIT_SELECT_FLS = "$slf"
+    val EMIT_SELECT_END = "$sle"
   }
 
 }

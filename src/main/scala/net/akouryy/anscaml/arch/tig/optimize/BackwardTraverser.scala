@@ -77,6 +77,11 @@ class BackwardTraverser {
           use ++= right.asXVar
         }
         false
+      case Select(cond, tru, fls) =>
+        if (keep) {
+          use ++= cond.left.asXVar ++ cond.rightVC.asVXVar ++ tru.asXVar ++ fls.asXVar
+        }
+        false
       case Read => true
       case Write(value) =>
         use ++= value.asXVar

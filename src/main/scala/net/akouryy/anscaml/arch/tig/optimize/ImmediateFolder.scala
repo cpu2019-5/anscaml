@@ -15,8 +15,6 @@ class ImmediateFolder(prog: Program) {
       immEnv.clear()
       otherEnv.clear()
 
-      buildCondEnv(body)
-
       body.blocks.valuesIterator.foreach(optBlock(body))
       body.jumps.valuesIterator.foreach(optJump(body))
     }
@@ -41,8 +39,9 @@ class ImmediateFolder(prog: Program) {
     }
   }
 
-  private[this] object ConditionallyFixed {
-    def unapply(xv: XVar): Option[(Branch.Cond, Word, Word)] = condEnv.get(xv)
+  private[this] object Selection {
+    def unapply(xv: XVar): Option[(Branch.Cond, XID, XID)] =
+      selectEnv.get(xv).flatMap(Select.unapply)
   }
 
   private[this] object BoundTo {
@@ -52,8 +51,7 @@ class ImmediateFolder(prog: Program) {
   private[this] val immEnv = mutable.Map[XVar, Word]()
 
   private[this] val otherEnv = mutable.Map[XVar, Instruction]()
-  private[this] val condEnv =
-    mutable.Map[XVar, (Branch.Cond, Word, Word)]()
+  private[this] val selectEnv = mutable.Map[XVar, Select]()
   private[this] var changed = false
 
   private[this] def wrapXID(xid: XID): XID = xid match {
@@ -73,24 +71,6 @@ class ImmediateFolder(prog: Program) {
     case _: XReg => // pass
   }
 
-  private[this] def buildCondEnv(c: Chart) = {
-    condEnv.clear()
-
-    for {
-      Branch(_, _, cond, _, tru1, fls1) <- c.jumps.valuesIterator
-      Block(_, Nil, _, ji2) <- Some(c.blocks(tru1))
-      Block(_, Nil, _, `ji2`) <- Some(c.blocks(fls1))
-      Merge(_, _, List(MergeInput(lbi1, Fixed(lw)), MergeInput(_, Fixed(rw))), outputXID: XVar, _
-      ) <- Some(c.jumps(ji2))
-    } {
-      if (lbi1 == tru1) {
-        condEnv(outputXID) = (cond, lw, rw)
-      } else {
-        condEnv(outputXID) = (cond, rw, lw)
-      }
-    }
-  }
-
   private[this] def optBlock(c: Chart)(b: Block): Unit = {
     var blockChanged = false
 
@@ -100,6 +80,9 @@ class ImmediateFolder(prog: Program) {
       val newInst: Instruction = inst match {
         case Mv(Fixed(w)) =>
           addImm(line.dest, w)
+          inst
+        case Mv(Selection(sel)) =>
+          for (v <- line.dest.asXVar) selectEnv(v) = Select.tupled(sel)
           inst
         case Mv(_) => inst
 
@@ -141,6 +124,10 @@ class ImmediateFolder(prog: Program) {
           Mvi(imm)
         case BinOpVTree(Sub, left, Fixed(r)) if emit.FinalArg.SImm.dom contains -r.int =>
           BinOpVCTree(Add, left, C.int(-r.int))
+        case BinOpVTree(Sub, Fixed(Word(-1)), Selection(cond, FixedReg(tru), FixedReg(fls))) =>
+          val sel = Select(cond, fls, tru)
+          for (v <- line.dest.asXVar) selectEnv(v) = sel
+          sel
         case BinOpVTree(Fdiv, Fixed(Word.WithFloat(1.0F)), right) =>
           UnOpTree(FInv, right)
         case BinOpVTree(Fdiv, Fixed(Word.WithFloat(-1.0F)), right) =>
@@ -151,7 +138,7 @@ class ImmediateFolder(prog: Program) {
           if left == right => // 絶対値
           BinOpVTree(FaddAbs, al, ar)
         case BinOpVTree(FnegCond, left,
-        ConditionallyFixed(Branch.CondVC(Le, Fixed(Word(0)), V(orig)), t, f)) =>
+        Selection(Branch.CondVC(Le, Fixed(Word(0)), V(orig)), Fixed(t), Fixed(f))) =>
           @inline def withOrig = BinOpVTree(FnegCond, left, orig)
 
           if (t.int >= 0 && f.int < 0) { // rightとorigの真偽は等しい
@@ -163,6 +150,14 @@ class ImmediateFolder(prog: Program) {
           } else ???
         case BinOpVTree(op, left, right) => BinOpVTree(op, wrapXID(left), wrapXID(right))
 
+        case Select(cond, tru, fls) =>
+          val (preserveTruAndFls, _, newCond) = optCond(cond)
+          val (newTru, newFls) = if (preserveTruAndFls) (tru, fls) else (fls, tru)
+          val sel = Select(
+            newCond.mapLR(wrapXID)(wrapVC, wrapXID), wrapXID(newTru), wrapXID(newFls)
+          )
+          for (v <- line.dest.asXVar) selectEnv(v) = sel
+          sel
         case Nop | Read => inst
         case Write(value) => Write(wrapXID(value))
         case CallDir(fn, args, None) => CallDir(fn, args.map(wrapXID), None)
@@ -189,6 +184,36 @@ class ImmediateFolder(prog: Program) {
     }
   }
 
+  /**
+    * @return (true if the meaning is preserved(<b>not</b> negated), comment, optimized condition).
+    */
+  private[this] def optCond(cond: Branch.Cond): (Boolean, Comment, Branch.Cond) = {
+    import Branch._
+    cond match {
+      case Cond(op, Fixed(l), Fixed(r)) =>
+        // 定数標準形(常にnewTruに遷移する; JumpFolder参照)
+        (op.fn(l, r), NC, CondVC(Eq, XReg.ZERO, V(XReg.ZERO)))
+      case CondVC(Le, BoundTo(BinOpVTree(Sub, XReg.C_MINUS_ONE, orig)), Fixed(Word(-1))) =>
+        // 否定を除去してジャンプ先入れ替え
+        (false, CM("[IF] if-not"), CondVC(Le, orig, C.int(-1)))
+      case CondV(FLe, Fixed(Word(0)), right) => // 符号判定はより定義域の広いLeに統一する
+        (true, NC, CondVC(Le, XReg.ZERO, V(right)))
+      case CondV(FLe, left, Fixed(Word(0))) =>
+        (true, NC, CondVC(Le, left, V(XReg.ZERO)))
+      case Cond(op, Selection(cond2, Fixed(t), Fixed(f)), Fixed(right)) =>
+        if (op.fn(t, right) && !op.fn(f, right)) {
+          (true, NC, cond2)
+        } else if (!op.fn(t, right) && op.fn(f, right)) {
+          (false, NC, cond2)
+        } else ????(cond)
+      case Cond(_, _, V(FixedReg(r))) =>
+        (true, NC, cond.mapLR(wrapXID)(_ => V(r), _ => r))
+      case _ =>
+        (true, NC, cond.mapLR(wrapXID)(wrapVC, wrapXID))
+
+    }
+  }
+
   private[this] def optJump(c: Chart)(j: Jump): Unit = {
     val newJ = j match {
       case StartFun(_, _, _) => j
@@ -201,29 +226,7 @@ class ImmediateFolder(prog: Program) {
           output
         )
       case Branch(cm, i, cond, input, tru, fls) =>
-        import Branch._
-        val (preserveTruAndFls, newComment, newCond) = cond match {
-          case Cond(op, Fixed(l), Fixed(r)) =>
-            // 定数標準形(常にnewTruに遷移する; JumpFolder参照)
-            (op.fn(l, r), NC, CondVC(Eq, XReg.ZERO, V(XReg.ZERO)))
-          case CondVC(Le, BoundTo(BinOpVTree(Sub, XReg.C_MINUS_ONE, orig)), Fixed(Word(-1))) =>
-            // 否定を除去してジャンプ先入れ替え
-            (false, CM("[IF] if-not"), CondVC(Le, orig, C.int(-1)))
-          case CondV(FLe, Fixed(Word(0)), right) => // 符号判定はより定義域の広いLeに統一する
-            (true, NC, CondVC(Le, XReg.ZERO, V(right)))
-          case CondV(FLe, left, Fixed(Word(0))) =>
-            (true, NC, CondVC(Le, left, V(XReg.ZERO)))
-          case Cond(op, ConditionallyFixed(cond2, t, f), Fixed(right)) =>
-            if (op.fn(t, right) && !op.fn(f, right)) {
-              (true, NC, cond2)
-            } else if (!op.fn(t, right) && op.fn(f, right)) {
-              (false, NC, cond2)
-            } else ????(cond)
-          case Cond(_, _, V(FixedReg(r))) =>
-            (true, NC, cond.mapLR(wrapXID)(_ => V(r), _ => r))
-          case _ =>
-            (true, NC, cond.mapLR(wrapXID)(wrapVC, wrapXID))
-        }
+        val (preserveTruAndFls, newComment, newCond) = optCond(cond)
         Branch(
           cm + newComment, i, newCond, input,
           if (preserveTruAndFls) tru else fls, if (preserveTruAndFls) fls else tru,

@@ -34,6 +34,8 @@ object Liveness {
       left.asXVar ++ right.asVXVar
     case BinOpVTree(_, left, right) =>
       left.asXVar ++ right.asXVar
+    case Select(cond, tru, fls) =>
+      cond.left.asXVar ++ cond.rightVC.asVXVar ++ tru.asXVar ++ fls.asXVar
     case Write(value) =>
       value.asXVar
     case CallDir(_, args, None) =>

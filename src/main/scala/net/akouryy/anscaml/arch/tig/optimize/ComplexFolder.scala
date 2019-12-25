@@ -9,6 +9,31 @@ import base._
 import scala.collection.mutable
 
 object ComplexFolder {
+  private[this] def foldSelect(fun: FDef) = {
+    for {
+      b0 <- fun.blocks.valuesIterator // 0: 上
+      Branch(_, ji1, cond1, _, tbi2, fbi2) <- Some(fun(b0.output))
+      Block(_, Nil, _, ji3) <- Some(fun(tbi2))
+      Block(_, Nil, _, `ji3`) <- Some(fun(fbi2))
+      j3 @ (__ : Merge) <- Some(fun(ji3))
+      if j3.outputID != XReg.DUMMY
+    } {
+      val tmp = XVar.generate("$sel")
+      var tru, fls = null: XID
+      val newInputs = j3.inputs.flatMap {
+        case MergeInput(`tbi2`, x) => tru = x; None
+        case MergeInput(`fbi2`, x) => fls = x; Some(MergeInput(b0.i, tmp))
+        case m => Some(m)
+      }
+      fun.blocks(b0.i) = b0.copy(
+        output = ji3,
+        lines = b0.lines :+ Line(NC, tmp, Select(cond1, tru, fls))
+      )
+      fun.jumps -= ji1
+      fun.blocks --= Seq(tbi2, fbi2)
+      fun.jumps(ji3) = j3.copy(inputs = newInputs)
+    }
+  }
 
   private[this] def foldFNegCond(fun: FDef) = {
     for {
@@ -164,6 +189,7 @@ object ComplexFolder {
       val oldBlocks = f.blocks.toMap
       val oldJumps = f.jumps.toMap
 
+      foldSelect(f)
       foldFNegCond(f)
       foldMovesInStrictBlock(f)
       foldCommonInstAfterBranch(f)

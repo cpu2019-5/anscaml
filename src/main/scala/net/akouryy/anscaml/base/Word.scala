@@ -12,6 +12,8 @@ final case class Word(int: Int) {
     } else {
       s"$int:"
     }
+
+  def unary_~ = Word(~int)
 }
 
 object Word {

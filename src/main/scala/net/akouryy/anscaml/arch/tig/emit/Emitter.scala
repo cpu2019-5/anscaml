@@ -128,6 +128,15 @@ class Emitter(program: Program) {
         )
       case BinOpVTree(op, left: XReg, right: XReg) if !toDummy =>
         draftCommand(cm, FInst.fromBinOpV(op), FReg(dest), FReg(left), FReg(right))
+      case Select(cond, tru: XReg, fls: XReg) if !toDummy =>
+        val flsLabel = ID.generate(s"${currentFun.name}.${ID.Special.EMIT_SELECT_FLS}").str
+        val endLabel = ID.generate(s"${currentFun.name}.${ID.Special.EMIT_SELECT_END}").str
+        draftCond(NC, cond, flsLabel)
+        draftMv(NC, dest, tru)
+        draftCommand(NC, FInst.j, FLabel(LAbs, endLabel))
+        draftLabel(flsLabel)
+        draftMv(NC, dest, fls)
+        draftLabel(endLabel)
       case Nop if toDummy => // nop
       case Read => draftCommand(cm, FInst.read, FReg(if (toDummy) XReg.ZERO else dest))
       case Write(value: XReg) if toDummy => draftCommand(cm, FInst.write, FReg(value))
@@ -202,43 +211,44 @@ class Emitter(program: Program) {
     false
   }
 
+  private[this] def draftCond(cm: Comment, cond: Branch.Cond, flsLabel: String): Unit = cond match {
+    case Branch.CondVC(op, left: XReg, right) =>
+      right match {
+        case V(v) =>
+          draftCommand(cm,
+            FInst.negVJumpFromCmpOpVC(op), FReg(left), FReg(v.asXReg.get),
+            FLabel(LRel, flsLabel),
+          )
+        case C(c) =>
+          if (TImm.dom contains (c.int: Int)) {
+            draftCommand(cm,
+              FInst.negCJumpFromCmpOpVC(op), FReg(left), TImm(c.int), FLabel(LRel, flsLabel),
+            )
+          } else {
+            draftMvi(CM(s"[E] jump imm out of domain: $c"), XReg.LAST_TMP, c)
+            draftCommand(cm,
+              FInst.negVJumpFromCmpOpVC(op), FReg(left), FReg(XReg.LAST_TMP),
+              FLabel(LRel, flsLabel),
+            )
+          }
+      }
+    case Branch.CondV(op, left: XReg, right: XReg) =>
+      draftCommand(cm,
+        FInst.negJumpFromCmpOpV(op),
+        FReg(left),
+        FReg(right),
+        FLabel(LRel, flsLabel),
+      )
+    case _ => !!!!(cond)
+  }
+
   private[this] def emitJump(ji: JumpIndex): Unit = {
     currentFun.body.jumps(ji) match {
       case Return(cm, _, XReg.DUMMY | XReg.RETURN, _) =>
         draftRevertStack()
         draftCommand(cm, FinalInst.jr, FReg(XReg.LINK))
       case jump @ Branch(cm, _, cond, _, tru, fls) =>
-        val flsLabel = blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, fls))
-        cond match {
-          case Branch.CondVC(op, left: XReg, right) =>
-            right match {
-              case V(v) =>
-                draftCommand(cm,
-                  FInst.negVJumpFromCmpOpVC(op), FReg(left), FReg(v.asXReg.get),
-                  FLabel(LRel, flsLabel),
-                )
-              case C(c) =>
-                if (TImm.dom contains (c.int: Int)) {
-                  draftCommand(cm,
-                    FInst.negCJumpFromCmpOpVC(op), FReg(left), TImm(c.int), FLabel(LRel, flsLabel),
-                  )
-                } else {
-                  draftMvi(CM(s"[E] jump imm out of domain: $c"), XReg.LAST_TMP, c)
-                  draftCommand(cm,
-                    FInst.negVJumpFromCmpOpVC(op), FReg(left), FReg(XReg.LAST_TMP),
-                    FLabel(LRel, flsLabel),
-                  )
-                }
-            }
-          case Branch.CondV(op, left: XReg, right: XReg) =>
-            draftCommand(cm,
-              FInst.negJumpFromCmpOpV(op),
-              FReg(left),
-              FReg(right),
-              FLabel(LRel, flsLabel),
-            )
-          case _ => !!!!(jump)
-        }
+        draftCond(cm, cond, blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, fls)))
         emitBlock(tru)
         emitBlock(fls)
       case Merge(cm, _, inputs, XReg.DUMMY, output) if inputs.forall(_.xid == XReg.DUMMY) =>

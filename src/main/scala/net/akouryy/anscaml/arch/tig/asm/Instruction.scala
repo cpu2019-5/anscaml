@@ -45,6 +45,8 @@ final case class BinOpVCTree(op: BinOpVC, left: XID, right: VC) extends Instruct
 
 final case class BinOpVTree(op: BinOpV, left: XID, right: XID) extends Instruction
 
+final case class Select(cond: Branch.Cond, tru: XID, fls: XID) extends Instruction
+
 case object Nop extends Instruction
 
 case object Read extends Instruction
