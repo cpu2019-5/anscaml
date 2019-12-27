@@ -14,6 +14,7 @@ class ImmediateFolder(prog: Program) {
     for (FDef(_, _, body, _, _) <- prog.functions) {
       immEnv.clear()
       otherEnv.clear()
+      selectEnv.clear()
 
       body.blocks.valuesIterator.foreach(optBlock(body))
       body.jumps.valuesIterator.foreach(optJump(body))
@@ -44,6 +45,10 @@ class ImmediateFolder(prog: Program) {
       selectEnv.get(xv).flatMap(Select.unapply)
   }
 
+  private[this] object LoadedTo {
+    def unapply(l: Load): Option[XVar] = loadEnv.get(l)
+  }
+
   private[this] object BoundTo {
     def unapply(xv: XVar): Option[Instruction] = otherEnv.get(xv)
   }
@@ -52,6 +57,7 @@ class ImmediateFolder(prog: Program) {
 
   private[this] val otherEnv = mutable.Map[XVar, Instruction]()
   private[this] val selectEnv = mutable.Map[XVar, Select]()
+  private[this] val loadEnv = mutable.Map[Load, XVar]()
   private[this] var changed = false
 
   private[this] def wrapXID(xid: XID): XID = xid match {
@@ -73,6 +79,7 @@ class ImmediateFolder(prog: Program) {
 
   private[this] def optBlock(c: Chart)(b: Block): Unit = {
     var blockChanged = false
+    loadEnv.clear()
 
     val ls = b.lines.flatMap { line =>
       val inst = line.inst
@@ -100,6 +107,8 @@ class ImmediateFolder(prog: Program) {
         case Store(addr, C(index), value) =>
           Store(addr, C(index), wrapXID(value))
 
+        case LoadedTo(v) =>
+          Mv(v)
         case Load(Fixed(a), Fixed(i)) =>
           Load(XReg.ZERO, C.int(a.int + i.int))
         case Load(Fixed(a), index) =>
@@ -153,21 +162,31 @@ class ImmediateFolder(prog: Program) {
         case Select(cond, tru, fls) =>
           val (preserveTruAndFls, _, newCond) = optCond(cond)
           val (newTru, newFls) = if (preserveTruAndFls) (tru, fls) else (fls, tru)
-          val sel = Select(
-            newCond.mapLR(wrapXID)(wrapVC, wrapXID), wrapXID(newTru), wrapXID(newFls)
-          )
-          for (v <- line.dest.asXVar) selectEnv(v) = sel
-          sel
+          Select(newCond.mapLR(wrapXID)(wrapVC, wrapXID), wrapXID(newTru), wrapXID(newFls))
         case Nop | Read => inst
         case Write(value) => Write(wrapXID(value))
-        case CallDir(fn, args, None) => CallDir(fn, args.map(wrapXID), None)
+        case CallDir(fn, args, None) =>
+          loadEnv.clear()
+          CallDir(fn, args.map(wrapXID), None)
         case _ => !!!!(inst)
       }
 
-      line.dest.asXVar.foreach {
-        otherEnv(_) = newInst match {
-          case Mv(x: XVar) => otherEnv.getOrElse(x, newInst)
-          case _ => newInst
+      line.dest.asXVar.foreach { v =>
+        newInst match {
+          case Mv(x: XVar) =>
+            otherEnv(v) = otherEnv.getOrElse(x, newInst)
+          case newInst: Load =>
+            loadEnv(newInst) = v
+            otherEnv(v) = newInst
+          case Store(addr, index, _) =>
+            loadEnv.clear()
+            // loadEnv(Load(addr, index)) = v
+            otherEnv(v) = newInst
+          case newInst: Select =>
+            selectEnv(v) = newInst
+            otherEnv(v) = newInst
+          case _ =>
+            otherEnv(v) = newInst
         }
       }
       if (newInst != line.inst || newPrecedingLines.nonEmpty) {

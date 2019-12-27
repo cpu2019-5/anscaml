@@ -27,7 +27,7 @@ import scala.collection.mutable
   * [if a=0]  [if b=0]  [if c=0]
   *  |t   |f   |t   |f   |t   |f
   * [5A] [5B] [5C] [5D] [5E] [5F]: all empty
-  *  |a   |a   |b   |b   |c   |c
+  *  |x   |x   |x   |x   |x   |x
   *  *---- ----*---- ----*    |
   *  |    |         |         |
   *  |   [[[[[[[[[merge]]]]]]]]]
