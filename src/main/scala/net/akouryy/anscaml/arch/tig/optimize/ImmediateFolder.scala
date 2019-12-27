@@ -55,7 +55,6 @@ class ImmediateFolder(prog: Program) {
   }
 
   private[this] val immEnv = mutable.Map[XVar, Word]()
-
   private[this] val otherEnv = mutable.Map[XVar, Instruction]()
   private[this] val selectEnv = mutable.Map[XVar, Select]()
   private[this] val loadEnvOut =
@@ -78,6 +77,10 @@ class ImmediateFolder(prog: Program) {
   private[this] def addImm(dest: XID, imm: Word) = dest match {
     case dest: XVar => immEnv(dest) = imm
     case _: XReg => // pass
+  }
+
+  private[this] def mayUpdate[V](map: mutable.Map[XVar, V], key: XID, value: => V) = {
+    for (xv <- key.asXVar) map(xv) = value
   }
 
   private[this] def optBlock(c: Chart)(b: Block): Unit = {
@@ -186,30 +189,29 @@ class ImmediateFolder(prog: Program) {
         case _ => !!!!(inst)
       }
 
+      def mayRegisterLoad(v: XID, load: Load) = {
+        for {
+          (_: XVar | Fixed(_)) <- Some(load.addr)
+          v <- v.asXVar
+        } {
+          currentLoadEnv.getOrElseUpdate(load.originalIndex, mutable.Map())(load) = v
+        }
+      }
 
       newInst match {
         case Mv(x: XVar) =>
-          line.dest.asXVar.foreach { v =>
-            otherEnv(v) = otherEnv.getOrElse(x, newInst)
-          }
-        case newInst @ Load(_: XVar | Fixed(_), _, orig) =>
-          line.dest.asXVar.foreach { v =>
-            //println("load", v, orig, newInst)
-            currentLoadEnv.getOrElseUpdate(orig, mutable.Map())(newInst) = v
-          }
-        case Store(_, _, _, orig) =>
-          //println("store", orig, newInst)
+          mayUpdate(otherEnv, line.dest, otherEnv.getOrElse(x, newInst))
+        case newInst: Load =>
+          mayRegisterLoad(line.dest, newInst)
+        case Store(a, i, v, orig) =>
           currentLoadEnv.filterInPlace((mi, _) => mi !~ orig)
+          mayRegisterLoad(v, Load(a, i, orig))
         case newInst: Select =>
-          line.dest.asXVar.foreach { v =>
-            selectEnv(v) = newInst
-            otherEnv(v) = newInst
-          }
+          mayUpdate(selectEnv, line.dest, newInst)
+          mayUpdate(otherEnv, line.dest, newInst)
         case _: Load | _: CallDir | Read | _: Write => // no other env
         case _ =>
-          line.dest.asXVar.foreach { v =>
-            otherEnv(v) = newInst
-          }
+          mayUpdate(otherEnv, line.dest, newInst)
       }
       if (newInst != line.inst || newPrecedingLines.nonEmpty) {
         blockChanged = true
@@ -253,7 +255,6 @@ class ImmediateFolder(prog: Program) {
         (true, NC, cond.mapLR(wrapXID)(_ => V(r), _ => r))
       case _ =>
         (true, NC, cond.mapLR(wrapXID)(wrapVC, wrapXID))
-
     }
   }
 
