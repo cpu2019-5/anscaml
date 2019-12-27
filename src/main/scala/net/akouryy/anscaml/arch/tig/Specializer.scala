@@ -32,6 +32,17 @@ class Specializer {
   private[this] var gConstsListRev = List[ID]()
   private[this] var gConstsSumSize: Int = _
 
+  private[this] val tyEnv = mutable.Map[XVar, Ty]()
+  private[this] val fnTypEnv = mutable.Map[ID, Typ]()
+
+  private[this] var currentChart: asm.Chart = _
+  private[this] var currentBlockIndex: asm.BlockIndex = _
+  private[this] var currentInputJumpIndex: asm.JumpIndex = _
+  private[this] var currentLines = mutable.ListBuffer[asm.Line]()
+  private[this] var currentFunIsLeaf: Boolean = _
+
+  private[this] val mviEnv = mutable.Map[XVar, asm.Mvi]()
+
   private[this] def loadGConstsInfo(gcs: List[(Entry, KClosed)]): Unit = {
     gConsts.clear()
     gConstsListRev = Nil
@@ -53,15 +64,6 @@ class Specializer {
       gConstsSumSize += size
     }
   }
-
-  private[this] val tyEnv = mutable.Map[XVar, Ty]()
-  private[this] val fnTypEnv = mutable.Map[ID, Typ]()
-
-  private[this] var currentChart: asm.Chart = _
-  private[this] var currentBlockIndex: asm.BlockIndex = _
-  private[this] var currentInputJumpIndex: asm.JumpIndex = _
-  private[this] var currentLines = mutable.ListBuffer[asm.Line]()
-  private[this] var currentFunIsLeaf: Boolean = _
 
   private[this] def wrapVar(v: ID): XVar = {
     val vv = XVar(v.str)
@@ -136,8 +138,16 @@ class Specializer {
   private[this] def specializeExpr(dest: XID, isTail: Boolean, cl: KClosed): Unit = {
     val cm = cl.comment
     cl.raw match {
-      case KNorm.KInt(i) => currentLines += Line(cm, dest, asm.Mvi.int(i)); ()
-      case KNorm.KFloat(f) => currentLines += Line(cm, dest, asm.Mvi.float(f)); ()
+      case KNorm.KInt(i) =>
+        val mvi = asm.Mvi.int(i)
+        dest.asXVar.foreach(mviEnv(_) = mvi)
+        currentLines += Line(cm, dest, mvi);
+        ()
+      case KNorm.KFloat(f) =>
+        val mvi = asm.Mvi.float(f)
+        dest.asXVar.foreach(mviEnv(_) = mvi)
+        currentLines += Line(cm, dest, mvi);
+        ()
       case KNorm.BinOpTree(op, left, right) =>
         val l = wrapVar(left)
         val r = wrapVar(right)
@@ -192,7 +202,8 @@ class Specializer {
         val a = wrapVar(array)
         val i = wrapVar(index)
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
-          val _ = currentLines += Line(cm, dest, asm.Load(a, V(i), asm.MIArray()))
+          val _ = currentLines += Line(cm, dest, asm.Load(a, V(i),
+            asm.MIArray(mviEnv.get(i).map(_.value.int))))
         }
       case KNorm.Put(array, index, value) =>
         assert(dest == XReg.DUMMY)
@@ -202,7 +213,8 @@ class Specializer {
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
           val addr = XVar.generate(array.str + ID.Special.SPECIALIZE_ADDR)
           currentLines += Line(NC, addr, asm.BinOpVCTree(asm.Add, a, V(i)))
-          currentLines += Line(cm, XReg.DUMMY, asm.Store(addr, C.int(0), v, asm.MIArray()))
+          currentLines += Line(cm, XReg.DUMMY, asm.Store(addr, C.int(0), v,
+            asm.MIArray(mviEnv.get(i).map(_.value.int))))
           ()
         }
       case KNorm.ApplyDirect(fn, args) =>
@@ -318,6 +330,8 @@ class Specializer {
 
   private[this] def specializeFDef(cFDef: KNorm.CFDef, gcsOpt: Option[List[(Entry, KClosed)]])
   : asm.FDef = {
+    mviEnv.clear()
+
     tyEnv ++= cFDef.args.map(e => XVar(e.name.str) -> Ty(e.typ))
     val fnTyp = asm.Fn.fromTyp(cFDef.entry.typ)
 

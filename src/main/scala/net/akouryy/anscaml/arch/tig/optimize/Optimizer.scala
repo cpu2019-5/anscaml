@@ -12,14 +12,15 @@ object Optimizer {
       Logger.log("TO", s"iteration $i")
       val changedER = EarlyReturn(asm)
       val changedMM = MergeMerge(asm)
+      val (changedBT2, _) = new BackwardTraverser()(asm)
       val changedIF = new ImmediateFolder(asm)()
       val changedJF = new JumpFolder()(asm)
       val (changedBT, useSets) = new BackwardTraverser()(asm)
       val changedDI = DistributeIf(asm, useSets)
       val changedXF = ComplexFolder(asm)
       AliasSolver(asm)
-      if (!changedER && !changedMM && !changedDI && !changedIF && !changedBT && !changedJF
-          && !changedXF) return
+      if (!changedER && !changedMM && !changedDI && !changedIF && !changedBT && !changedBT2 &&
+          !changedJF && !changedXF) return
       if (AnsCaml.config.xGenerateAsmGraphs) {
         Using.resource(new java.io.PrintWriter(s"../temp/to-$i.dot")) {
           _.write(new arch.tig.GraphDrawer()(asm))

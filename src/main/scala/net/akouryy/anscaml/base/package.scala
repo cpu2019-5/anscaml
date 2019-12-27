@@ -17,6 +17,8 @@ package object base {
     def mapInReversedOrder[B](fn: A => B): List[B] = {
       list.reverseIterator.map(fn).toList.reverse
     }
+
+    def foldLeftNonempty(fn: (A, A) => A): A = list.tail.foldLeft(list.head)(fn)
   }
 
   implicit class RichOption[A](val option: Option[A]) extends AnyVal {

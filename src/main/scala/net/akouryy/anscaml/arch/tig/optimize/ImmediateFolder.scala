@@ -46,7 +46,8 @@ class ImmediateFolder(prog: Program) {
   }
 
   private[this] object LoadedTo {
-    def unapply(l: Load): Option[XVar] = loadEnv.get(l.originalIndex).flatMap(_.get(l))
+    def unapply(l: Load): Option[XVar] =
+      currentLoadEnv.get(l.originalIndex).flatMap(_.get(l))
   }
 
   private[this] object BoundTo {
@@ -57,8 +58,9 @@ class ImmediateFolder(prog: Program) {
 
   private[this] val otherEnv = mutable.Map[XVar, Instruction]()
   private[this] val selectEnv = mutable.Map[XVar, Select]()
-  private[this] val loadEnv =
-    mutable.Map[MemoryIndex, mutable.Map[Load, XVar]]()
+  private[this] val loadEnvOut =
+    mutable.Map[BlockIndex, Map[MemoryIndex, Map[Load, XVar]]]()
+  private[this] var currentLoadEnv: mutable.Map[MemoryIndex, mutable.Map[Load, XVar]] = _
   private[this] var changed = false
 
   private[this] def wrapXID(xid: XID): XID = xid match {
@@ -80,7 +82,19 @@ class ImmediateFolder(prog: Program) {
 
   private[this] def optBlock(c: Chart)(b: Block): Unit = {
     var blockChanged = false
-    loadEnv.clear()
+    currentLoadEnv = c.jumps(b.input).inputBIs match {
+      case Nil => mutable.Map()
+      case list @ _ :: _ =>
+        list.map(loadEnvOut).foldLeftNonempty { (ess, fss) =>
+          ess.flatMap { case (mi, es) =>
+            fss.get(mi).map { fs =>
+              mi -> es.filter { case (ld, e) =>
+                fs.get(ld) contains e
+              }
+            }
+          }
+        }.to(mutable.Map).map { case (k, v) => k -> v.to(mutable.Map) }
+    }
 
     val ls = b.lines.flatMap { line =>
       val inst = line.inst
@@ -167,7 +181,7 @@ class ImmediateFolder(prog: Program) {
         case Nop | Read => inst
         case Write(value) => Write(wrapXID(value))
         case CallDir(fn, args, None) =>
-          loadEnv.clear()
+          currentLoadEnv.clear()
           CallDir(fn, args.map(wrapXID), None)
         case _ => !!!!(inst)
       }
@@ -178,17 +192,20 @@ class ImmediateFolder(prog: Program) {
           line.dest.asXVar.foreach { v =>
             otherEnv(v) = otherEnv.getOrElse(x, newInst)
           }
-        case newInst: Load =>
+        case newInst @ Load(_: XVar | Fixed(_), _, orig) =>
           line.dest.asXVar.foreach { v =>
-            loadEnv.getOrElseUpdate(newInst.originalIndex, mutable.Map())(newInst) = v
+            //println("load", v, orig, newInst)
+            currentLoadEnv.getOrElseUpdate(orig, mutable.Map())(newInst) = v
           }
         case Store(_, _, _, orig) =>
-          loadEnv.filterInPlace((mi, _) => mi !~ orig)
+          //println("store", orig, newInst)
+          currentLoadEnv.filterInPlace((mi, _) => mi !~ orig)
         case newInst: Select =>
           line.dest.asXVar.foreach { v =>
             selectEnv(v) = newInst
             otherEnv(v) = newInst
           }
+        case _: Load | _: CallDir | Read | _: Write => // no other env
         case _ =>
           line.dest.asXVar.foreach { v =>
             otherEnv(v) = newInst
@@ -201,6 +218,8 @@ class ImmediateFolder(prog: Program) {
         List(line)
       }
     }
+
+    loadEnvOut(b.i) = currentLoadEnv.toMap.map { case (k, v) => k -> v.toMap }
 
     if (blockChanged) {
       changed = true

@@ -73,6 +73,13 @@ sealed trait Jump {
       j.copy(inputs = inputs.map(_.mapBI(bi => if (bi == from) to else bi)))
     case _ => !!!!(this, from, to)
   }
+
+  final def inputBIs: List[BlockIndex] = this match {
+    case _: StartFun => Nil
+    case Return(_, _, _, input) => List(input)
+    case Branch(_, _, _, input, _, _) => List(input)
+    case Merge(_, _, inputs, _, _) => inputs.map(_.bi)
+  }
 }
 
 final case class StartFun(comment: Comment, i: JumpIndex, output: BlockIndex) extends Jump
