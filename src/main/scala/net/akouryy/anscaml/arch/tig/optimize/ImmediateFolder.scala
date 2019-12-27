@@ -46,7 +46,7 @@ class ImmediateFolder(prog: Program) {
   }
 
   private[this] object LoadedTo {
-    def unapply(l: Load): Option[XVar] = loadEnv.get(l)
+    def unapply(l: Load): Option[XVar] = loadEnv.get(l.originalIndex).flatMap(_.get(l))
   }
 
   private[this] object BoundTo {
@@ -57,7 +57,8 @@ class ImmediateFolder(prog: Program) {
 
   private[this] val otherEnv = mutable.Map[XVar, Instruction]()
   private[this] val selectEnv = mutable.Map[XVar, Select]()
-  private[this] val loadEnv = mutable.Map[Load, XVar]()
+  private[this] val loadEnv =
+    mutable.Map[MemoryIndex, mutable.Map[Load, XVar]]()
   private[this] var changed = false
 
   private[this] def wrapXID(xid: XID): XID = xid match {
@@ -102,19 +103,19 @@ class ImmediateFolder(prog: Program) {
 
         case NewArray(len, elem) => NewArray(wrapVC(len), wrapXID(elem))
 
-        case Store(Fixed(a), C(index), value) =>
-          Store(XReg.ZERO, C.int(a.int + index.int), wrapXID(value))
-        case Store(addr, C(index), value) =>
-          Store(addr, C(index), wrapXID(value))
+        case Store(Fixed(a), C(index), value, orig) =>
+          Store(XReg.ZERO, C.int(a.int + index.int), wrapXID(value), orig)
+        case Store(addr, C(index), value, orig) =>
+          Store(addr, C(index), wrapXID(value), orig)
 
         case LoadedTo(v) =>
           Mv(v)
-        case Load(Fixed(a), Fixed(i)) =>
-          Load(XReg.ZERO, C.int(a.int + i.int))
-        case Load(Fixed(a), index) =>
-          Load(wrapXID(index.asV.get), C(a))
-        case Load(addr, index) =>
-          Load(addr, wrapVC(index))
+        case Load(Fixed(a), Fixed(i), orig) =>
+          Load(XReg.ZERO, C.int(a.int + i.int), orig)
+        case Load(Fixed(a), index, orig) =>
+          Load(wrapXID(index.asV.get), C(a), orig)
+        case Load(addr, index, orig) =>
+          Load(addr, wrapVC(index), orig)
 
         case UnOpTree(op, value) => UnOpTree(op, wrapXID(value))
 
@@ -171,23 +172,27 @@ class ImmediateFolder(prog: Program) {
         case _ => !!!!(inst)
       }
 
-      line.dest.asXVar.foreach { v =>
-        newInst match {
-          case Mv(x: XVar) =>
+
+      newInst match {
+        case Mv(x: XVar) =>
+          line.dest.asXVar.foreach { v =>
             otherEnv(v) = otherEnv.getOrElse(x, newInst)
-          case newInst: Load =>
-            loadEnv(newInst) = v
-            otherEnv(v) = newInst
-          case Store(addr, index, _) =>
-            loadEnv.clear()
-            // loadEnv(Load(addr, index)) = v
-            otherEnv(v) = newInst
-          case newInst: Select =>
+          }
+        case newInst: Load =>
+          line.dest.asXVar.foreach { v =>
+            loadEnv.getOrElseUpdate(newInst.originalIndex, mutable.Map())(newInst) = v
+          }
+        case Store(_, _, _, orig) =>
+          loadEnv.filterInPlace((mi, _) => mi !~ orig)
+        case newInst: Select =>
+          line.dest.asXVar.foreach { v =>
             selectEnv(v) = newInst
             otherEnv(v) = newInst
-          case _ =>
+          }
+        case _ =>
+          line.dest.asXVar.foreach { v =>
             otherEnv(v) = newInst
-        }
+          }
       }
       if (newInst != line.inst || newPrecedingLines.nonEmpty) {
         blockChanged = true

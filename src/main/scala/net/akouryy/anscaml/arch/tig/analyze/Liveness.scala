@@ -24,9 +24,9 @@ object Liveness {
       Set()
     case NewArray(len, elem) =>
       len.asVXVar ++ elem.asXVar
-    case Store(addr, index, value) =>
+    case Store(addr, index, value, _) =>
       addr.asXVar ++ index.asVXVar ++ value.asXVar
-    case Load(addr, index) =>
+    case Load(addr, index, _) =>
       addr.asXVar ++ index.asVXVar
     case UnOpTree(_, value) =>
       value.asXVar

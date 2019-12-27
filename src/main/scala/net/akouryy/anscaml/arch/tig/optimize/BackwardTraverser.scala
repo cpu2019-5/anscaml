@@ -49,12 +49,12 @@ class BackwardTraverser {
           use ++= elem.asXVar
         }
         false
-      case Store(addr, index, value) =>
+      case Store(addr, index, value, _) =>
         use ++= addr.asXVar
         use ++= index.asV.flatMap(_.asXVar)
         use ++= value.asXVar
         true
-      case Load(addr, index) =>
+      case Load(addr, index, _) =>
         if (keep) {
           use ++= addr.asXVar
           use ++= index.asV.flatMap(_.asXVar)

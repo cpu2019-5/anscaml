@@ -69,12 +69,12 @@ class AsmInterpreter {
           }
           regs(XReg.HEAP) = Word(h + l + ld)
           done(set(dest, Word(h + ld)))
-        case Store(addr, index, value) if isDummy =>
+        case Store(addr, index, value, _) if isDummy =>
           val a = get(addr).int + getVC(index).int
           println(s"w $a ${get(value).int} $roughStep $scope $line")
           memory(a) = get(value)
           done(vars)
-        case Load(addr, index) if !isDummy =>
+        case Load(addr, index, _) if !isDummy =>
           val a = get(addr).int + getVC(index).int
           val v = getMemoryOrElse(a, !!!!(line, get(addr), getVC(index)))
           println(s"r $a ${v.int} $roughStep $scope $line")

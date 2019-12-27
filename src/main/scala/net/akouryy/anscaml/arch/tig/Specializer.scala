@@ -72,7 +72,7 @@ class Specializer {
           case GCInt(i) => asm.Mvi.int(i)
           case GCFloat(f) => asm.Mvi.float(f)
           case GCArrayImm(addr, _, _) => asm.Mvi.int(addr)
-          case GCOther(addr, _) => asm.Load(XReg.ZERO, C(Word(addr)))
+          case GCOther(addr, _) => asm.Load(XReg.ZERO, C(Word(addr)), asm.MIUnknown)
         }
         val x = XVar.generate(vv.idStr + ID.Special.GC_INSTANCE, allowEmptySuffix = true)
         tyEnv(x) = ty
@@ -94,13 +94,13 @@ class Specializer {
           val e = wrapVar(elem)
           for (i <- 0 until len) {
             currentLines += Line(CM(s"[SP] def gConst ${gConst.str}"),
-              XReg.DUMMY, asm.Store(XReg.ZERO, C.int(addr + i), e))
+              XReg.DUMMY, asm.Store(XReg.ZERO, C.int(addr + i), e, asm.MIArray(i)))
           }
         case (_, GCOther(addr, kcl)) =>
           val gcVal = XVar.generate(gConst.str + ID.Special.GC_VAL, allowEmptySuffix = true)
           specializeExpr(gcVal, isTail = false, kcl)
           currentLines += Line(CM(s"[SP] def gConst ${gConst.str}"),
-            XReg.DUMMY, asm.Store(XReg.ZERO, C.int(addr), gcVal))
+            XReg.DUMMY, asm.Store(XReg.ZERO, C.int(addr), gcVal, asm.MIUnknown))
       }
     }
   }
@@ -173,7 +173,8 @@ class Specializer {
         for (elem <- elems) {
           val e = wrapVar(elem)
           if (tyEnv(e) != asm.TyUnit) {
-            currentLines += Line(NC, XReg.DUMMY, asm.Store(XReg.HEAP, C(Word(i)), e))
+            currentLines += Line(NC, XReg.DUMMY,
+              asm.Store(XReg.HEAP, C(Word(i)), e, asm.MITuple(i)))
             i += 1
           }
         }
@@ -191,7 +192,7 @@ class Specializer {
         val a = wrapVar(array)
         val i = wrapVar(index)
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
-          val _ = currentLines += Line(cm, dest, asm.Load(a, V(i)))
+          val _ = currentLines += Line(cm, dest, asm.Load(a, V(i), asm.MIArray()))
         }
       case KNorm.Put(array, index, value) =>
         assert(dest == XReg.DUMMY)
@@ -201,7 +202,7 @@ class Specializer {
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
           val addr = XVar.generate(array.str + ID.Special.SPECIALIZE_ADDR)
           currentLines += Line(NC, addr, asm.BinOpVCTree(asm.Add, a, V(i)))
-          currentLines += Line(cm, XReg.DUMMY, asm.Store(addr, C.int(0), v))
+          currentLines += Line(cm, XReg.DUMMY, asm.Store(addr, C.int(0), v, asm.MIArray()))
           ()
         }
       case KNorm.ApplyDirect(fn, args) =>
@@ -237,7 +238,7 @@ class Specializer {
           val v = XVar(elem.name.str)
           if (elem.typ != Typ.TUnit) {
             tyEnv(v) = Ty(elem.typ)
-            currentLines += Line(cm, v, asm.Load(b, C(Word(i))))
+            currentLines += Line(cm, v, asm.Load(b, C(Word(i)), asm.MITuple(i)))
             i += 1
           } else {
             tyEnv(v) = asm.TyUnit
