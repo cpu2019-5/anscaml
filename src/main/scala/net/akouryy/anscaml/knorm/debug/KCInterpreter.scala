@@ -63,7 +63,7 @@ class KCInterpreter {
         }
       case KNorm.Var(v) => done(get(v))
       case KNorm.KTuple(elems) => done(VTuple(elems map get))
-      case KNorm.Array(len, elem) =>
+      case KNorm.KArray(len, elem) =>
         get(len) match {
           case VInt(l) => done(VArray(Array.fill(l)(get(elem))))
           case l => !!!!(kc, l)

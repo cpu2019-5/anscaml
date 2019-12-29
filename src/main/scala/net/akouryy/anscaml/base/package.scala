@@ -1,6 +1,12 @@
 package net.akouryy.anscaml
 
+import scala.collection.mutable
+
 package object base {
+
+  implicit class RichAny[A](val a: A) extends AnyVal {
+    def |>[B](f: A => B): B = f(a)
+  }
 
   implicit class RichList[A](val list: List[A]) extends AnyVal {
     def mkCommaString: String = list.mkString(", ")
@@ -29,6 +35,10 @@ package object base {
   implicit class RichString(val string: String) extends AnyVal {
     /** strictly typed `+` */
     def +!(that: String): String = string + that
+  }
+
+  implicit class RichMutMap[K, V](val map: mutable.Map[K, V]) extends AnyVal {
+    def updateByGet(to: K, from: K): Unit = map.get(from).foreach(map(to) = _)
   }
 
   def !!!!(a: Any): Nothing = throw new IllegalArgumentException(a.toString)

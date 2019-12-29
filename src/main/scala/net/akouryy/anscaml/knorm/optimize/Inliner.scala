@@ -42,10 +42,16 @@ class Inliner {
       kn.copy(raw = LetTuple(elems, bound, embed(scopeFn, kont)))
     case LetRec(fDef @ FDef(Entry(name, _), _, body, annot), kont) =>
       if (!annot.contains(Annot.NoInline) && size(body) <= AnsCaml.config.inlineLimit) {
-        // TODO: sizeIs
         bodyEnv(name) = (size(body), fDef)
       }
-      kn.copy(raw = LetRec(fDef.copy(body = embed(name, body)), embed(scopeFn, kont)))
+      val newBody = embed(name, body)
+      val newFDef = fDef.copy(body = newBody)
+      /*if (!annot.contains(Annot.NoInline) && (
+        size(body) > AnsCaml.config.inlineLimit / 5 && size(newBody) <= AnsCaml.config.inlineLimit
+        || size(newBody) <= AnsCaml.config.inlineLimit / 5)) {
+        bodyEnv(name) = (size(newBody), newFDef)
+      }*/
+      kn.copy(raw = LetRec(newFDef, embed(scopeFn, kont)))
 
     case Apply(fn, args, isRecCall) =>
       bodyEnv.get(fn) match {

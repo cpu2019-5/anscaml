@@ -47,6 +47,7 @@ object AnsCaml {
     // PPrinter.pprintln(alpha)
 
     val ko = knorm.optimize.Optimizer(config.optimizationCount, alpha)
+    val sw = new knorm.SwarmAnalyzer()(ko)
 
     val cl = new knorm.Closer()(ko)
 
@@ -62,7 +63,7 @@ object AnsCaml {
       case _ => // nop
     }
 
-    val asm = new arch.tig.Specializer()(cl)
+    val (asm, tcx) = new arch.tig.Specializer()(cl, sw)
 
     if (config.xGenerateAsmGraphs) {
       Using.resource(new java.io.PrintWriter("../temp/raw.dot")) {

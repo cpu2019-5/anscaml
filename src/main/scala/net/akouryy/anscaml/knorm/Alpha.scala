@@ -28,7 +28,7 @@ object Alpha {
         case Var(v) => Var(find(v))
         case Apply(fn, args, isRecCall) => Apply(find(fn), args.map(find), isRecCall)
         case KTuple(elems) => KTuple(elems.map(find))
-        case Array(len, elem) => Array(find(len), find(elem))
+        case KArray(len, elem) => KArray(find(len), find(elem))
         case Get(array, index) => Get(find(array), find(index))
         case Put(array, index, value) => Put(find(array), find(index), find(value))
         case ApplyExternal(fn, args) => ApplyExternal(fn, args.map(find))

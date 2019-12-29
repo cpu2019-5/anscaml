@@ -105,12 +105,12 @@ class Emitter(program: Program) {
         }
         draftMv(cm, dest, XReg.HEAP)
         draftCommand(NC, FInst.addi, FReg(XReg.HEAP), FReg(XReg.HEAP), SImm(len.int))
-      case Store(addr: XReg, index, value: XReg, _) if toDummy =>
-        draftCommand(cm, FInst.store, FReg(addr), SImm(index.c.int), FReg(value))
-      case Load(addr: XReg, V(index: XReg), _) if !toDummy =>
-        draftCommand(cm, FInst.loadreg, FReg(dest), FReg(addr), FReg(index))
-      case Load(addr: XReg, C(index), _) if !toDummy =>
-        draftCommand(cm, FInst.load, FReg(dest), FReg(addr), SImm(index.int))
+      case Store(addr: XReg, index, value: XReg, mi) if toDummy =>
+        draftCommand(cm :+ mi.toString, FInst.store, FReg(addr), SImm(index.c.int), FReg(value))
+      case Load(addr: XReg, V(index: XReg), mi) if !toDummy =>
+        draftCommand(cm :+ mi.toString, FInst.loadreg, FReg(dest), FReg(addr), FReg(index))
+      case Load(addr: XReg, C(index), mi) if !toDummy =>
+        draftCommand(cm :+ mi.toString, FInst.load, FReg(dest), FReg(addr), SImm(index.int))
       case UnOpTree(op, value: XReg) if !toDummy =>
         draftCommand(cm, FInst.fromUnOp(op), FReg(dest), FReg(value))
       case BinOpVCTree(op, left: XReg, right @ (V(_: XReg) | _: C)) if !toDummy =>

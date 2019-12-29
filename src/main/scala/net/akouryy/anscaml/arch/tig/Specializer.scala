@@ -4,7 +4,8 @@ package arch.tig
 import asm.{BlockIndex, C, JumpIndex, Line, Ty, V, XID, XReg, XVar}
 import base._
 import knorm.KNorm
-import KNorm.{KCProgram, KClosed}
+import knorm.KNorm.{KCProgram, KClosed}
+import swarm.SwarmIndex
 import syntax.BinOp
 import typ.Typ
 
@@ -43,6 +44,9 @@ class Specializer {
 
   private[this] val mviEnv = mutable.Map[XVar, asm.Mvi]()
 
+  private[this] var cx: TigContext = _
+  private[this] var kSwarmIndices: Map[ID, SwarmIndex] = _
+
   private[this] def loadGConstsInfo(gcs: List[(Entry, KClosed)]): Unit = {
     gConsts.clear()
     gConstsListRev = Nil
@@ -52,7 +56,7 @@ class Specializer {
       val (gc, size) = cl.raw match {
         case KNorm.KInt(i) => (GCInt(i), 0)
         case KNorm.KFloat(f) => (GCFloat(f), 0)
-        case KNorm.Array(len, elem) =>
+        case KNorm.KArray(len, elem) =>
           gConsts.get(XVar(len.str)) match {
             case Some((_, GCInt(len))) => (GCArrayImm(gConstsSumSize, len, elem), len)
             case _ => (GCOther(gConstsSumSize, cl), 1) // 即値かポインタなのでサイズ1
@@ -77,6 +81,7 @@ class Specializer {
           case GCOther(addr, _) => asm.Load(XReg.ZERO, C(Word(addr)), asm.MIUnknown)
         }
         val x = XVar.generate(vv.idStr + ID.Special.GC_INSTANCE, allowEmptySuffix = true)
+        cx.swarmIndices.updateByGet(x, vv)
         tyEnv(x) = ty
         currentLines += Line(CM(s"[SP] use gConst ${v.str}"), x, line)
         x
@@ -95,11 +100,12 @@ class Specializer {
         case (_, GCArrayImm(addr, len, elem)) =>
           val e = wrapVar(elem)
           for (i <- 0 until len) {
-            currentLines += Line(CM(s"[SP] def gConst ${gConst.str}"),
-              XReg.DUMMY, asm.Store(XReg.ZERO, C.int(addr + i), e, asm.MIArray(i)))
+            currentLines += Line(CM(s"[SP] def gConst ${gConst.str}"), XReg.DUMMY,
+              asm.Store(XReg.ZERO, C.int(addr + i), e, asm.MIArray(kSwarmIndices(gConst), i)))
           }
         case (_, GCOther(addr, kcl)) =>
           val gcVal = XVar.generate(gConst.str + ID.Special.GC_VAL, allowEmptySuffix = true)
+          cx.swarmIndices.updateByGet(gcVal, XVar(gConst.str))
           specializeExpr(gcVal, isTail = false, kcl)
           currentLines += Line(CM(s"[SP] def gConst ${gConst.str}"),
             XReg.DUMMY, asm.Store(XReg.ZERO, C.int(addr), gcVal, asm.MIUnknown))
@@ -141,12 +147,12 @@ class Specializer {
       case KNorm.KInt(i) =>
         val mvi = asm.Mvi.int(i)
         dest.asXVar.foreach(mviEnv(_) = mvi)
-        currentLines += Line(cm, dest, mvi);
+        currentLines += Line(cm, dest, mvi)
         ()
       case KNorm.KFloat(f) =>
         val mvi = asm.Mvi.float(f)
         dest.asXVar.foreach(mviEnv(_) = mvi)
-        currentLines += Line(cm, dest, mvi);
+        currentLines += Line(cm, dest, mvi)
         ()
       case KNorm.BinOpTree(op, left, right) =>
         val l = wrapVar(left)
@@ -157,6 +163,7 @@ class Specializer {
           case BinOp.Shl => asm.BinOpVCTree(asm.Sha, l, asm.V(r))
           case BinOp.Shr =>
             val neg = XVar.generate(s"${r.idStr}$$neg")
+            assert(!cx.swarmIndices.contains(r))
             currentLines += Line(CM(s"[SP]Negate for Shr"),
               neg, asm.BinOpVTree(asm.Sub, XReg.ZERO, r))
             asm.BinOpVCTree(asm.Sha, l, asm.V(neg))
@@ -184,7 +191,8 @@ class Specializer {
           val e = wrapVar(elem)
           if (tyEnv(e) != asm.TyUnit) {
             currentLines += Line(NC, XReg.DUMMY,
-              asm.Store(XReg.HEAP, C(Word(i)), e, asm.MITuple(i)))
+              asm.Store(XReg.HEAP, C(Word(i)), e, asm.MITuple))
+            // (cx.swarmIndices(dest.asXVar.get), i)
             i += 1
           }
         }
@@ -193,7 +201,7 @@ class Specializer {
           Line(NC, XReg.HEAP, asm.BinOpVCTree(asm.Add, XReg.HEAP, asm.C(Word(i)))),
         )
         ()
-      case KNorm.Array(len, elem) =>
+      case KNorm.KArray(len, elem) =>
         val l = wrapVar(len)
         val e = wrapVar(elem)
         currentLines += Line(cm, dest, asm.NewArray(V(l), e))
@@ -203,7 +211,7 @@ class Specializer {
         val i = wrapVar(index)
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
           val _ = currentLines += Line(cm, dest, asm.Load(a, V(i),
-            asm.MIArray(mviEnv.get(i).map(_.value.int))))
+            asm.MIArray(kSwarmIndices(array), mviEnv.get(i).map(_.value.int))))
         }
       case KNorm.Put(array, index, value) =>
         assert(dest == XReg.DUMMY)
@@ -212,9 +220,10 @@ class Specializer {
         val v = wrapVar(value)
         if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
           val addr = XVar.generate(array.str + ID.Special.SPECIALIZE_ADDR)
+          // TODO: swarm for addr
           currentLines += Line(NC, addr, asm.BinOpVCTree(asm.Add, a, V(i)))
           currentLines += Line(cm, XReg.DUMMY, asm.Store(addr, C.int(0), v,
-            asm.MIArray(mviEnv.get(i).map(_.value.int))))
+            asm.MIArray(kSwarmIndices(array), mviEnv.get(i).map(_.value.int))))
           ()
         }
       case KNorm.ApplyDirect(fn, args) =>
@@ -250,7 +259,8 @@ class Specializer {
           val v = XVar(elem.name.str)
           if (elem.typ != Typ.TUnit) {
             tyEnv(v) = Ty(elem.typ)
-            currentLines += Line(cm, v, asm.Load(b, C(Word(i)), asm.MITuple(i)))
+            currentLines += Line(cm, v, asm.Load(b, C(Word(i)), asm.MITuple))
+            // (kSwarmIndices(bound), i)
             i += 1
           } else {
             tyEnv(v) = asm.TyUnit
@@ -268,7 +278,13 @@ class Specializer {
         val trueStartBlockIndex = BlockIndex.generate()
         val falseStartBlockIndex = BlockIndex.generate()
         val trueDest, falseDest =
-          if (dest == XReg.DUMMY) dest else XVar.generate(ID.generate().str)
+          if (dest == XReg.DUMMY) {
+            dest
+          } else {
+            val d = XVar.generate(ID.generate().str)
+            dest.asXVar.foreach(cx.swarmIndices.updateByGet(d, _))
+            d
+          }
 
         // ifの前のブロックを登録
         currentChart.blocks(branchingBlockIndex) =
@@ -378,7 +394,14 @@ class Specializer {
     )
   }
 
-  def apply(cl: KCProgram): asm.Program = {
+  def apply(cl: KCProgram, sw: Map[ID, swarm.SwarmIndex]): (asm.Program, TigContext) = {
+    kSwarmIndices = sw
+    util.Using.resource(new java.io.PrintWriter("../temp/sg-1.txt")) {
+      base.PPrinter.writeTo(_, sw)
+    }
+    cx = new TigContext
+    cx.swarmIndices ++= sw.map { case k -> v => XVar(k.str) -> v }
+
     fnTypEnv.clear()
 
     fnTypEnv ++= cl.fDefs.map(_.entry.toPair)
@@ -390,6 +413,8 @@ class Specializer {
 
     val fDefs = cl.fDefs.map(specializeFDef(_, None))
 
-    asm.Program(gConstsSumSize, tyEnv.toMap, main :: fDefs)
+    val p = asm.Program(gConstsSumSize, tyEnv.toMap, main :: fDefs)
+
+    (p, cx)
   }
 }

@@ -44,7 +44,7 @@ object KNorm {
 
   final case class KTuple(elems: List[ID]) extends KRaw with KCRaw
 
-  final case class Array(len: ID, elem: ID) extends KRaw with KCRaw
+  final case class KArray(len: ID, elem: ID) extends KRaw with KCRaw
 
   final case class Get(array: ID, index: ID) extends KRaw with KCRaw
 

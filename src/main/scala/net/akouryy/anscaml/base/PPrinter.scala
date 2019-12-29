@@ -32,11 +32,11 @@ object PPrinter {
   )
 
   def writeTo(writer: java.io.PrintWriter, value: Any): Unit = {
-    for (str <- pprinter.tokenize(value, height = 10000)) {
+    for (str <- pprinter.tokenize(value, height = 100000)) {
       writer.write(str.toString)
     }
     writer.println()
   }
 
-  def pprintln(x: Any): Unit = pprinter.pprintln(x, height = 100000)
+  def pprintln(x: Any): Unit = pprinter.pprintln(x, height = 1000)
 }

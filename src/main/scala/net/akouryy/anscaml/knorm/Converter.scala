@@ -152,7 +152,7 @@ object Converter {
         } yield {
           val er @ (et, _) = convert(env2, elem)
           for {(y, _) <- insert(er, env2)} yield {
-            (Typ.TArray(et), KNorm.Array(x, y))
+            (Typ.TArray(et), KNorm.KArray(x, y))
           }
         }
       case Get(array, index) =>
