@@ -23,8 +23,6 @@ object Alpha {
       kn.raw match {
         case KInt(_) | KFloat(_) => kn.raw
         case BinOpTree(op, left, right) => BinOpTree(op, find(left), find(right))
-        case IfCmp(op, left, right, tru, fls) =>
-          IfCmp(op, find(left), find(right), convert(tru, env), convert(fls, env))
         case Var(v) => Var(find(v))
         case Apply(fn, args, isRecCall) => Apply(find(fn), args.map(find), isRecCall)
         case KTuple(elems) => KTuple(elems.map(find))
@@ -32,6 +30,16 @@ object Alpha {
         case Get(array, index) => Get(find(array), find(index))
         case Put(array, index, value) => Put(find(array), find(index), find(value))
         case ApplyExternal(fn, args) => ApplyExternal(fn, args.map(find))
+        case IfCmp(op, left, right, tru, fls) =>
+          IfCmp(op, find(left), find(right), convert(tru, env), convert(fls, env))
+        case ForCmp(op, left, right, negated, loopVars, initVars, body, kont) =>
+          val newLVs = loopVars.map(lv => lv -> ID.generate(lv.str))
+          val newEnv = env ++ newLVs
+          ForCmp(
+            op, newEnv.getOrElse(left, left), newEnv.getOrElse(right, right),
+            negated, newLVs.map(_._2), initVars.map(find),
+            convert(body, newEnv), convert(kont, newEnv),
+          )
         case Let(Entry(v, typ), bound, kont) =>
           val v2 = ID.generate(v.str)
           Let(Entry(v2, typ), convert(bound, env), convert(kont, env + (v -> v2)))

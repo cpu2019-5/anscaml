@@ -43,6 +43,9 @@ class Closer {
       case ApplyExternal(_, args) => args.toSet
       case IfCmp(_, x, y, tru, fls) =>
         Set(x, y) | indirectFVs(tru, localFns) | indirectFVs(fls, localFns)
+      case ForCmp(_, l, r, _, loopVars, initVars, body, kont) =>
+        ((Set(l, r) | indirectFVs(body, localFns) | indirectFVs(kont, localFns)) -- loopVars.toSet
+          ) | initVars.toSet
       case Let(entry, bound, kont) =>
         indirectFVsCache.getOrElseUpdate(entry.name,
           indirectFVs(kont, localFns) - entry.name | indirectFVs(bound, localFns)
@@ -70,6 +73,10 @@ class Closer {
         KClosed(norm.comment, ApplyDirect(ID.Special.EXTERNAL_PREFIX +! fn.str, args))
       case IfCmp(op, left, right, tru, fls) =>
         KClosed(norm.comment, CIfCmp(op, left, right, close(tru, Local), close(fls, Local)))
+      case ForCmp(op, left, right, negated, loopVars, initVars, body, kont) =>
+        KClosed(norm.comment, CForCmp(op, left, right, negated, loopVars, initVars,
+          close(body, Local), close(kont, Local)
+        ))
       case Let(entry, bound, kont) =>
         if (scope == Global && !bound.raw.mayHaveEffect) {
           globalConstsRev ::= (entry, close(bound, Local))

@@ -23,6 +23,8 @@ class TypFolder {
     kn.copy(raw = kn.raw match {
       case IfCmp(op, left, right, tru, fls) =>
         IfCmp(op, left, right, fold(tru), fold(fls))
+      case raw: ForCmp =>
+        raw.mapBodyKont(fold)(fold)
       case Let(entry, bound, kont) =>
         typEnv += entry.toPair
         Let(entry, fold(bound), fold(kont))

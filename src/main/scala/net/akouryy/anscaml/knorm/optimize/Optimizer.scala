@@ -12,17 +12,13 @@ object Optimizer {
       var k = kNorm
       k = Assoc(k)
       k = new TypFolder()(k)
+      k = new LoopDetector()(k)
       k = new Inliner()(k)
       k = Eliminator(k)
       k = new PeepHole()(k)
       Logger.log("KO", s"iteration $i")
       if (k == kNorm) return kNorm
       kNorm = k
-
-      /*if(i == 10) {
-        scala.util.Using.resource(new java.io.PrintWriter("../temp/a.txt"))(base.PPrinter.writeTo
-        (_, k))
-      }*/
     }
     kNorm
   }

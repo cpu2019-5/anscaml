@@ -78,7 +78,10 @@ class Specializer {
           case GCInt(i) => asm.Mvi.int(i)
           case GCFloat(f) => asm.Mvi.float(f)
           case GCArrayImm(addr, _, _) => asm.Mvi.int(addr)
-          case GCOther(addr, _) => asm.Load(XReg.ZERO, C(Word(addr)), asm.MIUnknown)
+          case GCOther(addr, _) => asm.Load(XReg.ZERO, C(Word(addr)), ty match {
+            case asm.TyTuple(_) => asm.MITuple
+            case _ => asm.MIUnknown
+          })
         }
         val x = XVar.generate(vv.idStr + ID.Special.GC_INSTANCE, allowEmptySuffix = true)
         cx.swarmIndices.updateByGet(x, vv)
@@ -103,12 +106,15 @@ class Specializer {
             currentLines += Line(CM(s"[SP] def gConst ${gConst.str}"), XReg.DUMMY,
               asm.Store(XReg.ZERO, C.int(addr + i), e, asm.MIArray(kSwarmIndices(gConst), i)))
           }
-        case (_, GCOther(addr, kcl)) =>
+        case (ty, GCOther(addr, kcl)) =>
           val gcVal = XVar.generate(gConst.str + ID.Special.GC_VAL, allowEmptySuffix = true)
           cx.swarmIndices.updateByGet(gcVal, XVar(gConst.str))
           specializeExpr(gcVal, isTail = false, kcl)
           currentLines += Line(CM(s"[SP] def gConst ${gConst.str}"),
-            XReg.DUMMY, asm.Store(XReg.ZERO, C.int(addr), gcVal, asm.MIUnknown))
+            XReg.DUMMY, asm.Store(XReg.ZERO, C.int(addr), gcVal, ty match {
+              case asm.TyTuple(_) => asm.MITuple
+              case _ => asm.MIUnknown
+            }))
       }
     }
   }

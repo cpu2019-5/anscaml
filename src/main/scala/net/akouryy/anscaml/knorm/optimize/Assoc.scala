@@ -19,6 +19,8 @@ object Assoc {
     kn0.raw match {
       case IfCmp(op, left, right, tru, fls) =>
         kn0.copy(raw = IfCmp(op, left, right, flatten(tru), flatten(fls)))
+      case raw: ForCmp =>
+        kn0.copy(raw = raw.mapBodyKont(flatten)(flatten))
       case LetTuple(elems, bound, kont) =>
         kn0.copy(raw = LetTuple(elems, bound, flatten(kont)))
       case LetRec(fDef, kont) =>

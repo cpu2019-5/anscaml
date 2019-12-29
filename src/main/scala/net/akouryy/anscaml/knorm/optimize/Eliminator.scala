@@ -19,6 +19,13 @@ object Eliminator {
       val (tk, tv) = elim(tru)
       val (fk, fv) = elim(fls)
       (kn.copy(raw = IfCmp(op, left, right, tk, fk)), tv | fv | Set(left, right))
+    case raw @ ForCmp(_, left, right, _, loopVars, initVars, body, kont) =>
+      val (bk, bv) = elim(body)
+      val (kk, kv) = elim(kont)
+      (
+        kn.copy(raw = raw.copy(body = bk, kont = kk)),
+        (bv | kv) -- loopVars ++ initVars | Set(left, right)
+      )
     case LetTuple(elems, bound, kont) =>
       val (kk, kv) = elim(kont)
       (kn.copy(raw = LetTuple(elems, bound, kk)), kv -- elems.map(_.name) + bound)

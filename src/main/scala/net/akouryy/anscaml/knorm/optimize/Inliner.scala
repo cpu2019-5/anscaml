@@ -13,6 +13,7 @@ object Inliner {
     import KNorm._
     kn.raw match {
       case IfCmp(_, _, _, tru, fls) => 1 + size(tru) + size(fls)
+      case ForCmp(_, _, _, _, _, _, body, kont) => 1 + size(body) + size(kont)
       case Let(_, bound, kont) => 1 + size(bound) + size(kont)
       case LetTuple(_, _, kont) => 1 + size(kont)
       case LetRec(FDef(_, _, body, _), kont) => 1 + size(body) + size(kont)
@@ -36,6 +37,8 @@ class Inliner {
   private[this] def embed(scopeFn: ID, kn: KNorm): KNorm = kn.raw match {
     case IfCmp(op, left, right, tru, fls) =>
       kn.copy(raw = IfCmp(op, left, right, embed(scopeFn, tru), embed(scopeFn, fls)))
+    case raw: ForCmp =>
+      kn.copy(raw = raw.mapBodyKont(embed(scopeFn, _))(embed(scopeFn, _)))
     case Let(entry, bound, kont) =>
       kn.copy(raw = Let(entry, embed(scopeFn, bound), embed(scopeFn, kont)))
     case LetTuple(elems, bound, kont) =>
@@ -55,7 +58,7 @@ class Inliner {
 
     case Apply(fn, args, isRecCall) =>
       bodyEnv.get(fn) match {
-        case Some((size, fDef)) if size <= AnsCaml.config.inlineLimit / (if (isRecCall) 5 else 1) =>
+        case Some((size, fDef)) if size <= AnsCaml.config.inlineLimit / (if (isRecCall) 2 else 1) =>
           val body = Alpha.convert(fDef.body, fDef.args.map(_.name).zip(args).toMap)
           KNorm(
             kn.comment + body.comment :+ s"[KO Inliner] ${fn.str} in ${scopeFn.str}",

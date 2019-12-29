@@ -102,6 +102,8 @@ class PeepHole {
             norm.copy(raw = IfCmp(op, left, right, optimize(tru), optimize(fls)))
         }
 
+      case raw: ForCmp =>
+        norm.copy(raw = raw.mapBodyKont(optimize)(optimize))
       case Let(Entry(name, typ), bound, kont) =>
         val boundOpt = optimize(bound)
         val newTyp = boundOpt.raw match {

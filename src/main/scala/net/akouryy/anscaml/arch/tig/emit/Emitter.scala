@@ -247,7 +247,7 @@ class Emitter(program: Program) {
       case Return(cm, _, XReg.DUMMY | XReg.RETURN, _) =>
         draftRevertStack()
         draftCommand(cm, FinalInst.jr, FReg(XReg.LINK))
-      case jump @ Branch(cm, _, cond, _, tru, fls) =>
+      case Branch(cm, _, cond, _, tru, fls) =>
         draftCond(cm, cond, blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, fls)))
         emitBlock(tru)
         emitBlock(fls)

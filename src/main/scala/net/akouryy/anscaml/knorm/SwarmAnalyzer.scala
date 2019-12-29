@@ -36,6 +36,7 @@ class SwarmAnalyzer {
   private[this] val typEnv = mutable.Map[ID, Typ]()
   private[this] val paramsEnv = mutable.Map[ID, List[Entry]]()
   private[this] val fnResEnv = mutable.Map[ID, ID]()
+  private[this] val forResEnv = mutable.Map[ForCmp, ID]()
   private[this] val tupleResEnv = mutable.Map[KTuple, ID]()
   private[this] val swarmIndicesRaw = mutable.Map[ID, Int]()
   private[this] var swarmChildrenRaw: Array[mutable.Map[SwarmRelation, Int]] = _
@@ -90,6 +91,17 @@ class SwarmAnalyzer {
   private[this] def buildEnv(norm: KNorm): Unit = {
     norm.raw match {
       case IfCmp(_, _, _, tru, fls) => buildEnv(tru); buildEnv(fls)
+      case raw @ ForCmp(_, _, _, _, loopVars, initVars, body, kont) =>
+        // left and right does not swarms
+        val updater = ID.generate(s"$$upd")
+        val initTyps = initVars.map(typEnv)
+        typEnv(updater) = Typ.TTuple(initTyps)
+        typEnv ++= loopVars.zipStrict(initTyps).toMap
+        forResEnv(raw) = updater
+        createSingletonSwarm(updater)
+        loopVars.foreach(createSingletonSwarm)
+        buildEnv(body)
+        buildEnv(kont)
       case Let(entry, bound, kont) =>
         typEnv += entry.toPair
         createSingletonSwarm(entry.name)
@@ -123,6 +135,13 @@ class SwarmAnalyzer {
     norm.raw match {
       case IfCmp(_, _, _, tru, fls) =>
         mergeAll(tru) ++ mergeAll(fls)
+      case raw @ ForCmp(_, _, _, _, loopVars, initVars, body, kont) =>
+        val updater = forResEnv(raw)
+        for (((lv, iv), i) <- loopVars.zipStrict(initVars).zipWithIndex if doesSwarm(lv)) {
+          relate(lv, (iv, None))
+          relate(lv, (updater, Some(SRTuple(i))))
+        }
+        mergeAll(kont)
       case Let(entry, bound, kont) =>
         val bs = mergeAll(bound)
         if (doesSwarm(entry.name)) {

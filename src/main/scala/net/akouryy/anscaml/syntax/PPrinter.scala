@@ -2,7 +2,6 @@ package net.akouryy.anscaml
 package syntax
 
 import base._
-import net.akouryy.anscaml.knorm.KNorm.IfCmp
 
 object PPrinter {
 
@@ -45,14 +44,6 @@ object PPrinter {
         }) {}
 
         pprint.Tree.Apply("Let*", (kont :: bindingsRev).map(pp.treeify).reverseIterator)
-
-      case IfCmp(op, ID(left), ID(right), tru, fls) =>
-        pprint.Tree.Apply("IfCmp", Iterator(
-          pprint.Tree.Infix(pp.treeify(left), op.toString, pp.treeify(right)),
-          pp.treeify(tru),
-          pp.treeify(fls),
-        ))
-
     }
   }
 }

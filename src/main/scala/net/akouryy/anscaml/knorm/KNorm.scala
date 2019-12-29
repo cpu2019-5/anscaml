@@ -6,6 +6,17 @@ import syntax.{BinOp, CmpOp}
 
 final case class KNorm(comment: Comment, raw: KNorm.KRaw) {
   def +(newComment: Comment) = KNorm(newComment + comment, raw)
+
+  def replaceVars(map: Map[ID, ID]): KNorm = {
+    import shapeless._
+    object inc extends Poly1 {
+      //noinspection TypeAnnotation
+      implicit def atID = at[ID](x => map.getOrElse(x, x))
+    }
+    // shapelessの?バグのため一時変数に代入
+    val res = everywhere(inc)(this)
+    res
+  }
 }
 
 object KNorm {
@@ -29,6 +40,12 @@ object KNorm {
       case _: Apply | _: Put | _: ApplyExternal => true
       case _ => false
     }
+  }
+
+  sealed trait HasKont extends KRaw {
+    def kont: KNorm
+
+    def copyWithKont(kont: KNorm): KRaw
   }
 
   /** K-normalized closure raw */
@@ -60,14 +77,41 @@ object KNorm {
 
   final case class IfCmp(op: CmpOp, left: ID, right: ID, tru: KNorm, fls: KNorm) extends KRaw
 
-  final case class Let(entry: Entry, bound: KNorm, kont: KNorm) extends KRaw
+  /**
+    * @see net.akouryy.anscaml.knorm.optimize.LoopDetector
+    * @param negated  true if the loop should run <em>UNTIL</em> the comparison holds
+    * @param initVars variables holding initial values of `loopVars`
+    * @param body     the loop body to return a tuple of values of `loopVars` in the next iteration
+    */
+  final case class ForCmp(
+    op: CmpOp, left: ID, right: ID, negated: Boolean,
+    loopVars: List[ID], initVars: List[ID], body: KNorm, kont: KNorm
+  ) extends KRaw with HasKont {
+    override def copyWithKont(kont: KNorm): KRaw = copy(kont = kont)
 
-  final case class LetTuple(elems: List[Entry], bound: ID, kont: KNorm) extends KRaw
+    def mapBodyKont(b: KNorm => KNorm)(k: KNorm => KNorm): ForCmp =
+      copy(body = b(body), kont = k(kont))
+  }
 
-  final case class LetRec(fDef: KNorm.FDef, kont: KNorm) extends KRaw
+  final case class Let(entry: Entry, bound: KNorm, kont: KNorm) extends KRaw with HasKont {
+    override def copyWithKont(kont: KNorm): KRaw = copy(kont = kont)
+  }
+
+  final case class LetTuple(elems: List[Entry], bound: ID, kont: KNorm) extends KRaw with HasKont {
+    override def copyWithKont(kont: KNorm): KRaw = copy(kont = kont)
+  }
+
+  final case class LetRec(fDef: KNorm.FDef, kont: KNorm) extends KRaw with HasKont {
+    override def copyWithKont(kont: KNorm): KRaw = copy(kont = kont)
+  }
 
   final case class CIfCmp(op: CmpOp, left: ID, right: ID, tru: KClosed, fls: KClosed)
     extends KCRaw
+
+  final case class CForCmp(
+    op: CmpOp, left: ID, right: ID, negated: Boolean,
+    loopVars: List[ID], initVars: List[ID], body: KClosed, kont: KClosed
+  ) extends KCRaw
 
   final case class CLet(entry: Entry, bound: KClosed, kont: KClosed) extends KCRaw
 

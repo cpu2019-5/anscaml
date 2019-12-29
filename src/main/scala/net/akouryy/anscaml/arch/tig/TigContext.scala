@@ -2,7 +2,6 @@ package net.akouryy.anscaml
 package arch.tig
 
 import asm.XVar
-import base._
 import swarm.SwarmIndex
 
 import scala.collection.mutable

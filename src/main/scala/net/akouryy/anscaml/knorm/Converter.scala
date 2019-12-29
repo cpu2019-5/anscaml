@@ -23,7 +23,13 @@ object Converter {
       tk match {
         case (_, KNorm.Var(x)) => kont(x, env)
         case (t, e) =>
-          val x = ID.generate()
+          val x = e match {
+            case KNorm.KInt(i) if i >= 0 => ID.generate(s"${ID.Special.KN_INT}$i")
+            case KNorm.KInt(i) if i < 0 => ID.generate(s"${ID.Special.KN_INT}_${-i}")
+            case KNorm.KFloat(f) =>
+              ID.generate(s"${ID.Special.KN_FLOAT}${f.toString.replace('.', '_')}")
+            case _ => ID.generate()
+          }
           val (kt, ke) = kont(x, env + (x -> t))
           (kt, KNorm.Let(Entry(x, t), KNorm(e), KNorm(ke)))
       }
