@@ -396,9 +396,9 @@ class Specializer {
 
   def apply(cl: KCProgram, sw: Map[ID, swarm.SwarmIndex]): (asm.Program, TigContext) = {
     kSwarmIndices = sw
-    util.Using.resource(new java.io.PrintWriter("../temp/sg-1.txt")) {
+    /*util.Using.resource(new java.io.PrintWriter("../temp/sg-2.txt")) {
       base.PPrinter.writeTo(_, sw)
-    }
+    }*/
     cx = new TigContext
     cx.swarmIndices ++= sw.map { case k -> v => XVar(k.str) -> v }
 

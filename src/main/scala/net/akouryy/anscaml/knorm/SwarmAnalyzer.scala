@@ -11,7 +11,7 @@ import scala.collection.mutable
 
 class SwarmAnalyzer {
   def apply(norm: KNorm): Map[ID, SwarmIndex] = {
-    Logger.log("KO-SG", "Start")
+    Logger.log("SwA", "Start")
     typEnv.clear()
     paramsEnv.clear()
     swarmIndicesRaw.clear()
@@ -21,15 +21,16 @@ class SwarmAnalyzer {
     swarmChildrenRaw = Array.fill(swarmIndicesRaw.size)(mutable.Map())
     uf = new UnionFind(swarmIndicesRaw.size)
     mergeAll(norm)
-    swarmIndicesRaw.map { case (id, i) => id -> SwarmIndex(uf.repr(i)) }.toMap
 
-    /*Using.resource(new java.io.PrintWriter("../temp/sg-1.txt")) { pw =>
+    /*util.Using.resource(new java.io.PrintWriter("../temp/sg-1.txt")) { pw =>
       base.PPrinter.writeTo(pw, swarmIndicesRaw.keys.groupBy(swarmIndex))
       base.PPrinter.writeTo(pw,
         swarmChildrenRaw.zipWithIndex.flatMap { case (v, k) =>
           Option.when(k == uf.repr(k) && v.nonEmpty)(k -> v.map { case (r, i) => r -> uf.repr(i) })
         }.toMap)
     }*/
+
+    swarmIndicesRaw.map { case (id, i) => id -> SwarmIndex(uf.repr(i)) }.toMap
   }
 
   private[this] val typEnv = mutable.Map[ID, Typ]()
@@ -73,7 +74,7 @@ class SwarmAnalyzer {
 
   private[this] def relate(a: ID, bAndRel: (ID, Option[SwarmRelation])): Unit = {
     val (b, bRel) = bAndRel
-    if (!a.str.startsWith("dummy") || !b.str.startsWith("dummy")) return // TODO: 長さ0の配列は群れない
+    if (a.str.startsWith("dummy") || b.str.startsWith("dummy")) return // TODO: 長さ0の配列は群れない
     val ai = swarmIndex(a)
     val bi = swarmIndex(b)
     val bChildrenRaw = swarmChildrenRaw(bi)
