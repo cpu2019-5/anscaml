@@ -22,15 +22,22 @@ object AliasSolver {
         })
       }
 
+      def wrapCond(cond: Branch.Cond) = cond match {
+        case Branch.CondVC(op, left, right) => Branch.CondVC(op, wrap(left), right.mapV(wrap))
+        case Branch.CondV(op, left, right) => Branch.CondV(op, wrap(left), wrap(right))
+      }
+
+      def wrapFLV(flv: ForLoopVar) =
+        ForLoopVar(in = wrap(flv.in), loop = wrap(flv.loop), upd = wrap(flv.upd))
+
       f.jumps.mapValuesInPlace { (_, j) =>
         j match {
           case _: StartFun => j
           case j: Return => j.copy(value = wrap(j.value))
-          case j: Branch => j.copy(cond = j.cond match {
-            case Branch.CondVC(op, left, right) => Branch.CondVC(op, wrap(left), right.mapV(wrap))
-            case Branch.CondV(op, left, right) => Branch.CondV(op, wrap(left), wrap(right))
-          })
+          case j: Branch => j.copy(cond = wrapCond(j.cond))
           case j: Merge => j.copy(inputs = j.inputs.map(i => MergeInput(i.bi, wrap(i.xid))))
+          case j: ForLoopTop => j.copy(cond = wrapCond(j.cond), merges = j.merges.map(wrapFLV))
+          case j: ForLoopBottom => j.copy(merges = j.merges.map(wrapFLV))
         }
       }
     }

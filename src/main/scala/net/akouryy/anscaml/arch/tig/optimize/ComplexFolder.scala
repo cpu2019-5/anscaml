@@ -117,19 +117,30 @@ object ComplexFolder {
       fun.jumps(b.output) = fun(b.output) match {
         case j: StartFun => !!!!(j)
         case j @ Return(_, _, value, _) => j.copy(value = wrap(value))
-        case j @ Branch(_, _, CondVC(op, left, right), _, _, _) =>
-          j.copy(cond = CondVC(op, wrap(left), right.mapV(wrap)))
-        case j @ Branch(_, _, CondV(op, left, right), _, _, _) =>
-          j.copy(cond = CondV(op, wrap(left), wrap(right)))
+        case j @ Branch(_, _, cond, _, _, _) =>
+          j.copy(cond = cond.mapLR(wrap)(_.mapV(wrap), wrap))
         case j @ Merge(_, _, inputs, _, _) =>
           j.copy(inputs = inputs.map(m => m.copy(xid = wrap(m.xid))))
+        case j @ ForLoopTop(_, _, cond, _, merges, _, _, _, _) =>
+          j.copy(
+            cond = cond.mapLR(wrap)(_.mapV(wrap), wrap),
+            merges = merges.map { case ForLoopVar(in, upd, loop) =>
+              ForLoopVar(in = wrap(in), upd = wrap(upd), loop = loop)
+            }
+          )
+        case j @ ForLoopBottom(_, _, _, _, merges) =>
+          j.copy(
+            merges = merges.map { case ForLoopVar(in, upd, loop) =>
+              ForLoopVar(in = wrap(in), upd = wrap(upd), loop = loop)
+            }
+          )
       }
     }
   }
 
   private[this] def foldCommonInstAfterBranch(fun: FDef) = {
     for {
-      Branch(_, ji1, _, bi0, tbi2, fbi2) <- fun.jumps.valuesIterator // 0: 上
+      Branch(_, _, _, bi0, tbi2, fbi2) <- fun.jumps.valuesIterator // 0: 上
       tb2 @ Block(_, Line(tcm, tDest2: XVar, commonInst) :: tLines2, _, _) <- Some(fun(tbi2))
       fb2 @ Block(_, Line(fcm, fDest2: XVar, `commonInst`) :: fLines2, _, _) <- Some(fun(fbi2))
     } {

@@ -30,6 +30,13 @@ class JumpFolder {
         } else {
           chart.jumps(ji1) = m.copy(inputs = inputs.filter(_.bi != bi0))
         }
+      case ForLoopTop(_, _, _, _, _, _, _, body, kont) =>
+        chart.jumps -= ji1
+        removeBlock(chart, body)
+        removeBlock(chart, kont)
+      case ForLoopBottom(_, _, _, loopTop, _) =>
+        assert(!chart.jumps.contains(loopTop))
+        chart.jumps -= ji1
     }
   }
 

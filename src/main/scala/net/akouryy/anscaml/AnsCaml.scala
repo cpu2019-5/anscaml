@@ -85,13 +85,13 @@ object AnsCaml {
 
     val reg = new arch.tig.RegisterAllocator()(asm, arch.tig.analyze.Liveness.analyzeProgram(asm))
 
-    (config.asmIn, config.asmOut) match {
+    /*(config.asmIn, config.asmOut) match {
       case (Some(in), Some(out)) =>
         Using.resources(new FileInputStream(in), new FileOutputStream(out)) {
           new arch.tig.asm.AsmInterpreter()(reg, _, _)
         }
       case _ => // nop
-    }
+    }*/
 
     val lo = arch.tig.emit.LastOptimizer(reg)
 

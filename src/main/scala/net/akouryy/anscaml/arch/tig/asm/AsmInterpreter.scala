@@ -65,7 +65,13 @@ class AsmInterpreter {
           val l = getVC(len).int
           for (i <- 0 until l + ld) {
             // println(s"w ${h + i} ${get(elem).int} a$roughStep $h $l $ld $scope $line")
-            memory(h + i) = get(elem)
+            try {
+              memory(h + i) = get(elem)
+            } catch {
+              case e: ArrayIndexOutOfBoundsException =>
+                println(scope, line, h, i)
+                throw e
+            }
           }
           regs(XReg.HEAP) = Word(h + l + ld)
           done(set(dest, Word(h + ld)))
@@ -99,6 +105,13 @@ class AsmInterpreter {
               println((line, get(left), get(right)))
               throw e
           }
+        case Select(cond, tru, fls) =>
+          done(set(dest, get(
+            if (cond.opBase.fn(get(cond.left), cond.rightVC.fold(get, identity)))
+              tru
+            else
+              fls
+          )))
         case Nop if isDummy => done(vars)
         case Read =>
           if (isDummy) {
@@ -142,9 +155,16 @@ class AsmInterpreter {
       incRoughStep(s"$roughStep: jump $ji1; $callStack")
 
       def doLoop(lt: ForLoopTop, loopExtractor: ForLoopVar => XID) = {
-        val vars = (varsOut -- lt.merges.flatMap(_.loop.asXVar)).map { case xv -> word =>
-          lt.merges.find(loopExtractor(_) == xv).flatMap(_.loop.asXVar).getOrElse(xv) -> word
+        val newVars = varsOut.to(mutable.Map)
+        val newRegs = mutable.Map[XReg, Word]()
+        for (flv <- lt.merges) {
+          val word = loopExtractor(flv).fold(varsOut, regs)
+          flv.loop.fold(newVars(_) = word, newRegs(_) = word)
         }
+        regs ++= newRegs
+
+        val vars = newVars.toMap
+
         val c = lt.cond.opBase.fn(
           getWith(vars)(lt.cond.left), lt.cond.rightVC.fold(getWith(vars), identity),
         )
@@ -160,10 +180,6 @@ class AsmInterpreter {
         case Branch(_, _, Branch.Cond(op, left, right), _, tru2, fls2) =>
           val c = op.fn(get(left), right.fold(get, identity))
           tailcall(interpretBlock(fun, if (c) tru2 else fls2, varsOut))
-        case lt: ForLoopTop =>
-          doLoop(lt, _.in)
-        case ForLoopBottom(_, _, _, loopTop, _) =>
-          doLoop(fun.body.jumps(loopTop).asInstanceOf[ForLoopTop], _.upd)
         case Merge(_, _, _, XReg.DUMMY, bi2) =>
           tailcall(interpretBlock(fun, bi2, varsOut))
         case Merge(_, _, inputs, outputID, bi2) =>
@@ -175,6 +191,10 @@ class AsmInterpreter {
             case v: XVar => Some(v -> get(inputs.find(_.bi == bi0).get.xid))
           }
           tailcall(interpretBlock(fun, bi2, varsOut ++ vs))
+        case lt: ForLoopTop =>
+          doLoop(lt, _.in)
+        case ForLoopBottom(_, _, _, loopTop, _) =>
+          doLoop(fun.body.jumps(loopTop).asInstanceOf[ForLoopTop], _.upd)
       }
     }
   }

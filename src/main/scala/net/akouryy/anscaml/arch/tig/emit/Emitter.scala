@@ -258,6 +258,18 @@ class Emitter(program: Program) {
         } else {
           draftCommand(cm, FinalInst.j, FLabel(LAbs, outputLabel))
         }
+      case ForLoopTop(cm, _, cond, negated, Nil, _, _, body, kont) =>
+        val (tru, fls) = if (!negated) (body, kont) else (kont, body)
+        draftCond(cm, cond, blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, fls)))
+        emitBlock(tru)
+        emitBlock(fls)
+      case ForLoopBottom(cm, _, _, loopTop, Nil) =>
+        val ForLoopTop(_, _, cond, negated, Nil, _, _, body, kont) =
+          currentFun(loopTop).asInstanceOf[ForLoopTop]
+        val (tru, fls) = if (!negated) (body, kont) else (kont, body)
+        draftCond(cm, cond, blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, fls)))
+        draftCommand(NC, FinalInst.j,
+          FLabel(LAbs, blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, tru))))
       case j => !!!!(j)
     }
   }

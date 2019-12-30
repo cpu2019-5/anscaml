@@ -94,7 +94,7 @@ class BackwardTraverser {
   }
 
   private[this] def traverseBlock(c: Chart)(b: Block): Unit = {
-    val use = c.jumps(b.output) match {
+    val use: mutable.Set[XVar] = c.jumps(b.output) match {
       case j: StartFun => !!!!(j)
       case Return(_, _, value, _) => value.asXVar.to(mutable.Set)
       case Branch(_, _, Branch.Cond(_, left, right), _, tru, fls) =>
@@ -120,6 +120,18 @@ class BackwardTraverser {
           u ++= inputs.find(_.bi == b.i).get.xid.asXVar
         }
         u
+      case ForLoopTop(_, _, cond, _, merges, _, _, body, kont) =>
+        val u = useSets(kont).to(mutable.Set)
+        u ++= useSets(body)
+        u ++= cond.left.asXVar
+        u ++= cond.rightVC.asVXVar
+        val unused = merges.filterNot(flv => flv.loop.asXVar.forall(v => u contains v))
+        if(unused.nonEmpty) ????(unused)
+        u --= merges.flatMap(flv => flv.loop.asXVar)
+        u ++= merges.flatMap(flv => flv.in.asXVar)
+        u
+      case ForLoopBottom(_, _, _, _, merges) =>
+        merges.flatMap(flv => flv.upd.asXVar).to(mutable.Set)
     }
 
     var isBlockChanging = false

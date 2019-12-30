@@ -98,6 +98,8 @@ final class RegisterAllocator {
     for (block <- f.blocks.values) {
       f(block.input) match {
         case j: Merge => allocate(j.outputID)
+        case j: ForLoopTop if block.i == j.body /* avoid reallocation by kont */ =>
+          j.merges.foreach(m => allocate(m.loop))
         case _ =>
       }
       for (Line(_, dest, _) <- block.lines) {
@@ -133,7 +135,7 @@ final class RegisterAllocator {
               CallDir(callee, args, Some(saves))
             case inst => inst
           }
-          Line(line.comment, wrap(line.dest), newInst.mapXID(wrap))
+          Line(line.comment /* :+ line.toString */ , wrap(line.dest), newInst.mapXID(wrap))
         }
       )
     }
@@ -147,6 +149,14 @@ final class RegisterAllocator {
           val newInputs = inputs.map(_.mapXID(wrap))
           Merge(cm, j.i, newInputs, wrap(outputID), output)
         case Return(cm, _, value, input) => Return(cm, j.i, wrap(value), input)
+        case ForLoopTop(cm, _, cond, negated, merges, input, loopBottom, body, kont) =>
+          ForLoopTop(cm, j.i, cond.mapLR(wrap)(wrapVC, wrap), negated, merges.map {
+            case ForLoopVar(in, upd, loop) => ForLoopVar(wrap(in), wrap(upd), wrap(loop))
+          }, input, loopBottom, body, kont)
+        case ForLoopBottom(cm, _, input, loopTop, merges) =>
+          ForLoopBottom(cm, j.i, input, loopTop, merges.map {
+            case ForLoopVar(in, upd, loop) => ForLoopVar(wrap(in), wrap(upd), wrap(loop))
+          })
       }
     }
 

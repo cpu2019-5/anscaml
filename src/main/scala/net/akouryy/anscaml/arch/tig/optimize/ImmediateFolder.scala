@@ -275,6 +275,16 @@ class ImmediateFolder(prog: Program) {
           cm + newComment, i, newCond, input,
           if (preserveTruAndFls) tru else fls, if (preserveTruAndFls) fls else tru,
         )
+      case j @ ForLoopTop(cm, _, cond, negated, merges, _, _, _, _) =>
+        val (preserveTruAndFls, newComment, newCond) = optCond(cond)
+        j.copy(
+          comment = cm + newComment, cond = newCond, negated = !preserveTruAndFls ^ negated,
+          merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
+        )
+      case j @ ForLoopBottom(_, _, _, _, merges) =>
+        j.copy(
+          merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
+        )
     }
 
     if (newJ != j) {

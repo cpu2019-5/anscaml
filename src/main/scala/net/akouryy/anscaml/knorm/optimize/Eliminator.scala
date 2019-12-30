@@ -12,7 +12,7 @@ object Eliminator {
   }
 
   /**
-    * @return (除去後の式, 自由変数)
+    * @return (除去後の式, 自由変数 (ただしループ越え生存のものを除く))
     */
   private[this] def elim(kn: KNorm): (KNorm, Set[ID]) = kn.raw match {
     case IfCmp(op, left, right, tru, fls) =>
