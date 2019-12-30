@@ -79,6 +79,8 @@ sealed trait Jump {
     case Return(_, _, _, input) => List(input)
     case Branch(_, _, _, input, _, _) => List(input)
     case Merge(_, _, inputs, _, _) => inputs.map(_.bi)
+    case ForLoopTop(_, _, _, _, _, input, _, _, _) => List(input)
+    case ForLoopBottom(_, _, input, _, _) => List(input)
   }
 }
 
@@ -141,7 +143,21 @@ final case class Merge(
 final case class MergeInput(bi: BlockIndex, xid: XID) {
   def toPair: (BlockIndex, XID) = (bi, xid)
 
-  def mapBI(fn: BlockIndex => BlockIndex) = MergeInput(fn(bi), xid)
+  def mapBI(fn: BlockIndex => BlockIndex): MergeInput = MergeInput(fn(bi), xid)
 
-  def mapXID(fn: XID => XID) = MergeInput(bi, fn(xid))
+  def mapXID(fn: XID => XID): MergeInput = MergeInput(bi, fn(xid))
 }
+
+/**
+  * @see net.akouryy.anscaml.knorm.KNorm.ForCmp
+  */
+final case class ForLoopTop(
+  comment: Comment, i: JumpIndex, cond: Branch.Cond, negated: Boolean, merges: List[ForLoopVar],
+  input: BlockIndex, loopBottom: JumpIndex, body: BlockIndex, kont: BlockIndex,
+) extends Jump
+
+final case class ForLoopBottom(
+  comment: Comment, i: JumpIndex, input: BlockIndex, loopTop: JumpIndex, merges: List[ForLoopVar],
+) extends Jump
+
+final case class ForLoopVar(in: XID, upd: XID, loop: XID)

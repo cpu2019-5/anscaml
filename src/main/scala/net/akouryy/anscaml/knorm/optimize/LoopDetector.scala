@@ -86,6 +86,9 @@ class LoopDetector {
         .filter { case (p, a) => p == a }.map(_._2).toSet
       fixedVars = findFixedVars(xGen(KNorm(NC, KTuple(Nil))), fixedArgs)
       isRightFixed = args.contains(left) && fixedVars.contains(right)
+      () = println(s"[KO-LD] ${fnName.str}: ${left.str} $op ${right.str}, " +
+                   s"fixed args ${fixedArgs.map(_.str)}, " +
+                   s"fixed vars ${fixedVars.map(_.str)}")
       if isRightFixed || fixedVars.contains(left) && args.contains(right)
       initVars = args.filter(!fixedArgs.contains(_))
       loopVars = initVars.map(a => ID.generate(a.str + ID.Special.KO_LOOP_VAR))
@@ -101,7 +104,7 @@ class LoopDetector {
           op, i2l.getOrElse(left, left), i2l.getOrElse(right, right), negated, loopVars, initVars,
           yGen(
             xGen(
-              KNorm(CM("[KO-LD] update vars"), KTuple(updateVars))
+              KNorm(CM("[KO-LD] update vars"), ForUpdater(updateVars))
             ).replaceVars(initVars.zipStrict(updateVars).toMap)
           ).replaceVars(i2l),
           z.replaceVars(i2l),

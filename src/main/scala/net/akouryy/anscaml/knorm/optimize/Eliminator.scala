@@ -56,6 +56,7 @@ object Eliminator {
       case Var(v) => Set(v)
       case Apply(fn, args, _) => (fn :: args).toSet
       case KTuple(elems) => elems.toSet
+      case ForUpdater(elems) => elems.toSet
       case KArray(array, index) => Set(array, index)
       case Get(array, index) => Set(array, index)
       case Put(array, index, value) => Set(array, index, value)

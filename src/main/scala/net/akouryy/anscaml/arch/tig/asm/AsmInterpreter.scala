@@ -64,20 +64,20 @@ class AsmInterpreter {
           val ld = len.fold(v => if (get(v).int == 0) 1 else 0, _ => 0)
           val l = getVC(len).int
           for (i <- 0 until l + ld) {
-            println(s"w ${h + i} ${get(elem).int} a$roughStep $h $l $ld $scope $line")
+            // println(s"w ${h + i} ${get(elem).int} a$roughStep $h $l $ld $scope $line")
             memory(h + i) = get(elem)
           }
           regs(XReg.HEAP) = Word(h + l + ld)
           done(set(dest, Word(h + ld)))
         case Store(addr, index, value, _) if isDummy =>
           val a = get(addr).int + getVC(index).int
-          println(s"w $a ${get(value).int} $roughStep $scope $line")
+          // println(s"w $a ${get(value).int} $roughStep $scope $line")
           memory(a) = get(value)
           done(vars)
         case Load(addr, index, _) if !isDummy =>
           val a = get(addr).int + getVC(index).int
           val v = getMemoryOrElse(a, !!!!(line, get(addr), getVC(index)))
-          println(s"r $a ${v.int} $roughStep $scope $line")
+          // println(s"r $a ${v.int} $roughStep $scope $line")
           done(set(dest, v))
         case UnOpTree(op, value) if !isDummy =>
           val r = op match {
@@ -141,6 +141,18 @@ class AsmInterpreter {
       val get = getWith(varsOut) _
       incRoughStep(s"$roughStep: jump $ji1; $callStack")
 
+      def doLoop(lt: ForLoopTop, loopExtractor: ForLoopVar => XID) = {
+        val vars = (varsOut -- lt.merges.flatMap(_.loop.asXVar)).map { case xv -> word =>
+          lt.merges.find(loopExtractor(_) == xv).flatMap(_.loop.asXVar).getOrElse(xv) -> word
+        }
+        val c = lt.cond.opBase.fn(
+          getWith(vars)(lt.cond.left), lt.cond.rightVC.fold(getWith(vars), identity),
+        )
+        // println(lt.i, getWith(vars)(lt.cond.left), lt.cond.rightVC.fold(getWith(vars), identity)
+        //  , c)
+        tailcall(interpretBlock(fun, if (c != lt.negated) lt.body else lt.kont, vars))
+      }
+
       fun.body.jumps(ji1) match {
         case j1: StartFun => !!!!(j1)
         case Return(_, _, XReg.DUMMY, _) => done(None)
@@ -148,6 +160,10 @@ class AsmInterpreter {
         case Branch(_, _, Branch.Cond(op, left, right), _, tru2, fls2) =>
           val c = op.fn(get(left), right.fold(get, identity))
           tailcall(interpretBlock(fun, if (c) tru2 else fls2, varsOut))
+        case lt: ForLoopTop =>
+          doLoop(lt, _.in)
+        case ForLoopBottom(_, _, _, loopTop, _) =>
+          doLoop(fun.body.jumps(loopTop).asInstanceOf[ForLoopTop], _.upd)
         case Merge(_, _, _, XReg.DUMMY, bi2) =>
           tailcall(interpretBlock(fun, bi2, varsOut))
         case Merge(_, _, inputs, outputID, bi2) =>
@@ -183,11 +199,12 @@ class AsmInterpreter {
     this.output = output
     functions = prog.functions.map(f => f.name -> f).toMap
     roughStep = 0
-    memory = Array.fill(1 << AnsCaml.config.memorySizeLog2)(Word(0))
+    memory = Array.fill(1 << AnsCaml.config.memorySizeLog2 + 1)(Word(0))
     callStack = Nil
     regs.clear()
     regs ++= XReg.toConstants
     regs(XReg.HEAP) = Word(0)
+    regs(XReg.STACK) = Word(memory.size - 1)
 
     interpretFn(ID.Special.MAIN, Nil).result
 

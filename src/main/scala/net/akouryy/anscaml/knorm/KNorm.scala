@@ -34,6 +34,7 @@ object KNorm {
   sealed trait KRaw {
     def mayHaveEffect: Boolean = this match {
       case IfCmp(_, _, _, tru, fls) => tru.raw.mayHaveEffect || fls.raw.mayHaveEffect
+      case ForCmp(_, _, _, _, _, _, body, kont) => body.raw.mayHaveEffect || kont.raw.mayHaveEffect
       case Let(_, bound, kont) => bound.raw.mayHaveEffect || kont.raw.mayHaveEffect
       case LetTuple(_, _, kont) => kont.raw.mayHaveEffect
       case LetRec(_, kont) => kont.raw.mayHaveEffect
@@ -60,6 +61,8 @@ object KNorm {
   final case class Var(v: ID) extends KRaw with KCRaw
 
   final case class KTuple(elems: List[ID]) extends KRaw with KCRaw
+
+  final case class ForUpdater(elems: List[ID]) extends KRaw with KCRaw
 
   final case class KArray(len: ID, elem: ID) extends KRaw with KCRaw
 

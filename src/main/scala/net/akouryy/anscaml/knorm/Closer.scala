@@ -36,6 +36,7 @@ class Closer {
       case BinOpTree(_, x, y) => Set(x, y)
       case Var(v) => Set(v)
       case KTuple(elems) => elems.toSet
+      case ForUpdater(elems) => elems.toSet
       case KArray(x, y) => Set(x, y)
       case Get(x, y) => Set(x, y)
       case Put(x, y, z) => Set(x, y, z)

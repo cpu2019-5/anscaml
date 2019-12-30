@@ -109,7 +109,7 @@ case object FLe extends CmpOpV {
   override def fn(l: Word, r: Word): Boolean = l.float <= r.float
 }
 
-object CmpOpVC {
+object CmpOp {
   def fromSyntax(op: syntax.CmpOp): Either[CmpOpV, CmpOpVC] = op match {
     case syntax.CmpOp.Eq | syntax.CmpOp.Feq => Right(Eq)
     case syntax.CmpOp.Le => Right(Le)

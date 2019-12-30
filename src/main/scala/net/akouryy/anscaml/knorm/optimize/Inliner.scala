@@ -58,7 +58,7 @@ class Inliner {
 
     case Apply(fn, args, isRecCall) =>
       bodyEnv.get(fn) match {
-        case Some((size, fDef)) if size <= AnsCaml.config.inlineLimit / (if (isRecCall) 2 else 1) =>
+        case Some((size, fDef)) if size <= AnsCaml.config.inlineLimit / (if (isRecCall) 5 else 1) =>
           val body = Alpha.convert(fDef.body, fDef.args.map(_.name).zip(args).toMap)
           KNorm(
             kn.comment + body.comment :+ s"[KO Inliner] ${fn.str} in ${scopeFn.str}",

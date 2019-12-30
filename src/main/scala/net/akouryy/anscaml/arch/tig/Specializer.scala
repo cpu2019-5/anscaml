@@ -41,6 +41,7 @@ class Specializer {
   private[this] var currentInputJumpIndex: asm.JumpIndex = _
   private[this] var currentLines = mutable.ListBuffer[asm.Line]()
   private[this] var currentFunIsLeaf: Boolean = _
+  private[this] var currentForUpdater = Option.empty[KNorm.ForUpdater]
 
   private[this] val mviEnv = mutable.Map[XVar, asm.Mvi]()
 
@@ -207,6 +208,9 @@ class Specializer {
           Line(NC, XReg.HEAP, asm.BinOpVCTree(asm.Add, XReg.HEAP, asm.C(Word(i)))),
         )
         ()
+      case raw: KNorm.ForUpdater =>
+        assert(currentForUpdater.isEmpty)
+        currentForUpdater = Some(raw)
       case KNorm.KArray(len, elem) =>
         val l = wrapVar(len)
         val e = wrapVar(elem)
@@ -300,7 +304,7 @@ class Specializer {
         currentChart.jumps(condJumpIndex) = asm.Branch(
           cm,
           condJumpIndex,
-          asm.CmpOpVC.fromSyntax(op).fold(asm.Branch.CondV(_, l, r), asm.Branch.CondVC(_, l, V(r))),
+          asm.CmpOp.fromSyntax(op).fold(asm.Branch.CondV(_, l, r), asm.Branch.CondVC(_, l, V(r))),
           currentBlockIndex, trueStartBlockIndex, falseStartBlockIndex,
         )
 
@@ -347,6 +351,71 @@ class Specializer {
         currentBlockIndex = kontBlockIndex
         currentInputJumpIndex = mergeJumpIndex
         currentLines.clear()
+
+      case KNorm.CForCmp(op, left, right, negated, loopVars, initVars, body, kont) =>
+        /*
+          1. ForLoopTop
+          2. body top
+          3. ...body...
+          4. body bottom
+          5. ForLoopBottom
+          6. kont
+         */
+        val l = wrapVar(left)
+        val r = wrapVar(right)
+        val loopXVars = loopVars.map(wrapVar)
+        val initXVars = initVars.map(wrapVar)
+        // 1. ForLoopTop
+        val inputBlockIndex = currentBlockIndex
+        val inputBlockInputJumpIndex = currentInputJumpIndex
+        val inputBlockLines = currentLines.toList
+        val forTopJumpIndex = JumpIndex.generate()
+        // 2. body top
+        val bodyTopBlockIndex = BlockIndex.generate()
+        currentBlockIndex = bodyTopBlockIndex
+        currentInputJumpIndex = forTopJumpIndex
+        currentLines.clear()
+        assert(currentForUpdater.isEmpty)
+        // 3. ...body...
+        specializeExpr(XReg.DUMMY, isTail = false, body)
+        // 4. body bottom
+        val bodyBottomBlockIndex = currentBlockIndex
+        val bodyBottomBlockInputIndex = currentInputJumpIndex
+        val updXVars = currentForUpdater match {
+          case Some(KNorm.ForUpdater(elems)) =>
+            currentForUpdater = None
+            elems.map(wrapVar)
+          case None => !!!!(body)
+        }
+        val bodyBottomBlockLines = currentLines.toList // get after wrapVar's
+        // 5. ForLoopBottom
+        val forBottomJumpIndex = JumpIndex.generate()
+        // 6. kont
+        val kontTopBlockIndex = BlockIndex.generate()
+        currentBlockIndex = kontTopBlockIndex
+        currentInputJumpIndex = forTopJumpIndex
+        currentLines.clear()
+        specializeExpr(dest, isTail, kont)
+
+        // register all
+        val merges = loopXVars.zipStrict(initXVars).zipStrict(updXVars).map {
+          case ((l, i), u) => asm.ForLoopVar(in = i, upd = u, loop = l)
+        }
+        currentChart.blocks(inputBlockIndex) = asm.Block(
+          inputBlockIndex, inputBlockLines, inputBlockInputJumpIndex, forTopJumpIndex,
+        )
+        currentChart.jumps(forTopJumpIndex) = asm.ForLoopTop(
+          cm, forTopJumpIndex,
+          asm.CmpOp.fromSyntax(op).fold(asm.Branch.CondV(_, l, r), asm.Branch.CondVC(_, l, V(r))),
+          negated, merges,
+          inputBlockIndex, forBottomJumpIndex, bodyTopBlockIndex, kontTopBlockIndex,
+        )
+        currentChart.blocks(bodyBottomBlockIndex) = asm.Block(
+          bodyBottomBlockIndex, bodyBottomBlockLines, bodyBottomBlockInputIndex, forBottomJumpIndex,
+        )
+        currentChart.jumps(forBottomJumpIndex) = asm.ForLoopBottom(
+          NC, forBottomJumpIndex, bodyBottomBlockIndex, forTopJumpIndex, merges,
+        )
     }
   }
 
