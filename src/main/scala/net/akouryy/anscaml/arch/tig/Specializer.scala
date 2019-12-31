@@ -363,7 +363,7 @@ class Specializer {
          */
         val l = wrapVar(left)
         val r = wrapVar(right)
-        val loopXVars = loopVars.map(wrapVar)
+        val loopXVars = loopVars.map(id => XVar(id.str))
         val initXVars = initVars.map(wrapVar)
         // 1. ForLoopTop
         val inputBlockIndex = currentBlockIndex
@@ -387,7 +387,7 @@ class Specializer {
             elems.map(wrapVar)
           case None => !!!!(body)
         }
-        val bodyBottomBlockLines = currentLines.toList // get after wrapVar's
+        val bodyBottomBlockLines = currentLines.toList // get after `wrapVar`s
         // 5. ForLoopBottom
         val forBottomJumpIndex = JumpIndex.generate()
         // 6. kont

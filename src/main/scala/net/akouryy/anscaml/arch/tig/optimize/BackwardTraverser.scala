@@ -130,8 +130,9 @@ class BackwardTraverser {
         u --= merges.flatMap(flv => flv.loop.asXVar)
         u ++= merges.flatMap(flv => flv.in.asXVar)
         u
-      case ForLoopBottom(_, _, _, _, merges) =>
-        merges.flatMap(flv => flv.upd.asXVar).to(mutable.Set)
+      case ForLoopBottom(_, _, _, loopTop, merges) =>
+        merges.flatMap(flv => flv.upd.asXVar).to(mutable.Set) ++
+        useSets(c.jumps(loopTop).asInstanceOf[ForLoopTop].kont)
     }
 
     var isBlockChanging = false

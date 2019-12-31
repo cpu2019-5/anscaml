@@ -67,6 +67,14 @@ object AnsCaml {
 
     val (asm, _) = new arch.tig.Specializer()(cl, sw)
 
+    /*(config.asmIn, config.asmOut) match {
+      case (Some(in), Some(out)) =>
+        Using.resources(new FileInputStream(in), new FileOutputStream(out)) {
+          new arch.tig.asm.AsmInterpreter()(asm, _, _)
+        }
+      case _ => // nop
+    }*/
+
     if (config.xGenerateAsmGraphs) {
       Using.resource(new java.io.PrintWriter("../temp/raw.dot")) {
         _.write(new arch.tig.GraphDrawer()(asm))
@@ -84,14 +92,6 @@ object AnsCaml {
     }
 
     val reg = new arch.tig.RegisterAllocator()(asm, arch.tig.analyze.Liveness.analyzeProgram(asm))
-
-    /*(config.asmIn, config.asmOut) match {
-      case (Some(in), Some(out)) =>
-        Using.resources(new FileInputStream(in), new FileOutputStream(out)) {
-          new arch.tig.asm.AsmInterpreter()(reg, _, _)
-        }
-      case _ => // nop
-    }*/
 
     val lo = arch.tig.emit.LastOptimizer(reg)
 

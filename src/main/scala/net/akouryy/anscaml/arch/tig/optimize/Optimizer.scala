@@ -10,17 +10,19 @@ object Optimizer {
   def apply(iterationCount: Int, asm: Program): Unit = {
     for (i <- 0 until iterationCount) {
       Logger.log("TO", s"iteration $i")
-      val changedER = EarlyReturn(asm)
-      val changedMM = MergeMerge(asm)
+      var changed = false
+      changed = EarlyReturn(asm) || changed // avoid short-circuit evaluation
+      changed = MergeMerge(asm) || changed
       val (changedBT2, _) = new BackwardTraverser()(asm)
-      val changedIF = new ImmediateFolder(asm)()
-      val changedJF = new JumpFolder()(asm)
+      changed = changedBT2 || changed
+      changed = new ImmediateFolder(asm)() || changed
+      changed = new JumpFolder()(asm) || changed
       val (changedBT, useSets) = new BackwardTraverser()(asm)
-      val changedDI = DistributeIf(asm, useSets)
-      val changedXF = ComplexFolder(asm)
+      changed = changedBT || changed
+      changed = DistributeIf(asm, useSets) || changed
+      changed = ComplexFolder(asm) || changed
       AliasSolver(asm)
-      if (!changedER && !changedMM && !changedDI && !changedIF && !changedBT && !changedBT2 &&
-          !changedJF && !changedXF) return
+      if (!changed) return
       if (AnsCaml.config.xGenerateAsmGraphs) {
         Using.resource(new java.io.PrintWriter(s"../temp/to-$i.dot")) {
           _.write(new arch.tig.GraphDrawer()(asm))

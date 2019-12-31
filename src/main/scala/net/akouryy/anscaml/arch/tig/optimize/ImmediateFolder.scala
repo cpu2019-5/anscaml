@@ -250,7 +250,9 @@ class ImmediateFolder(prog: Program) {
           (true, NC, cond2)
         } else if (!op.fn(t, right) && op.fn(f, right)) {
           (false, NC, cond2)
-        } else ????(cond)
+        } else {
+          (op.fn(t, right), NC, CondVC(Eq, XReg.ZERO, V(XReg.ZERO)))
+        }
       case Cond(_, _, V(FixedReg(r))) =>
         (true, NC, cond.mapLR(wrapXID)(_ => V(r), _ => r))
       case _ =>
@@ -277,14 +279,14 @@ class ImmediateFolder(prog: Program) {
         )
       case j @ ForLoopTop(cm, _, cond, negated, merges, _, _, _, _) =>
         val (preserveTruAndFls, newComment, newCond) = optCond(cond)
-        j.copy(
+        j /*.copy(
           comment = cm + newComment, cond = newCond, negated = !preserveTruAndFls ^ negated,
-          merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
-        )
+          //merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
+        )*/
       case j @ ForLoopBottom(_, _, _, _, merges) =>
-        j.copy(
+        j /*.copy(
           merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
-        )
+        )*/
     }
 
     if (newJ != j) {

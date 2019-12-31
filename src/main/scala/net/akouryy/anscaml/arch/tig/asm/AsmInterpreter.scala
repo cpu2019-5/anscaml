@@ -11,7 +11,7 @@ import scala.util.control.TailCalls._
 class AsmInterpreter {
   private[this] var input: FileInputStream = _
   private[this] var output: FileOutputStream = _
-  private[this] var roughStep: Int = _
+  private[this] var roughStep: Long = _
 
   private[this] var memory: Array[Word] = _
   private[this] val regs = mutable.Map[XReg, Word]()
@@ -89,7 +89,7 @@ class AsmInterpreter {
           val r = op match {
             case Floor => Word.fromFloat(get(value).float.floor)
             case Itof => Word.fromFloat(get(value).int.toFloat)
-            case Ftoi => Word(get(value).float.toInt)
+            case Ftoi => Word(get(value).float.round)
             case FInv => Word.fromFloat(1.0F / get(value).float)
             case FSqrt => Word.fromFloat(Math.sqrt(get(value).float.toDouble).toFloat)
           }

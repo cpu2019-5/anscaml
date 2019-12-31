@@ -16,7 +16,7 @@ class KNInterpreter {
   private[this] var input: FileInputStream = _
   private[this] var output: FileOutputStream = _
 
-  private[this] var roughStep: Int = _
+  private[this] var roughStep: Long = _
 
   private[this] val stdlib =
     Map[String, List[Value] => Value](
@@ -25,8 +25,10 @@ class KNInterpreter {
       "fneg" -> { case List(VFloat(f)) => VFloat(-f) },
       "fabs" -> { case List(VFloat(f)) => VFloat(f.abs) },
       "fsqr" -> { case List(VFloat(f)) => VFloat(f * f) },
+      "sqrt" -> { case List(VFloat(f)) => VFloat(Math.sqrt(f).toFloat) },
       "floor" -> { case List(VFloat(f)) => VFloat(f.floor) },
       "float_of_int" -> { case List(VInt(i)) => VFloat(i.toFloat) },
+      "int_of_float" -> { case List(VFloat(f)) => VInt((f + 0.5).toInt) },
       "bits_of_float" -> {
         case List(VFloat(f)) => VInt(java.lang.Float.floatToRawIntBits(f))
       },
@@ -50,6 +52,7 @@ class KNInterpreter {
         }
       case KNorm.Var(v) => done(get(v))
       case KNorm.KTuple(elems) => done(VTuple(elems map get))
+      case KNorm.ForUpdater(elems) => done(VTuple(elems map get))
       case KNorm.KArray(len, elem) =>
         get(len) match {
           case VInt(l) => done(VArray(Array.fill(l)(get(elem))))
@@ -80,6 +83,23 @@ class KNInterpreter {
         }
         if (cond) interpret(tru, env)
         else interpret(fls, env)
+      case KNorm.ForCmp(op, left, right, negated, loopVars, initVars, body, kont) =>
+        val newEnv = env ++ loopVars.zipStrict(initVars map get)
+        val cond = (op, newEnv(left), newEnv(right)) match {
+          case (CmpOp.II(fn), VInt(l), VInt(r)) => fn(l, r)
+          case (CmpOp.FF(fn), VFloat(l), VFloat(r)) => fn(l, r)
+          case (_, l, r) => !!!!(kc, l, r)
+        }
+        if (cond ^ negated) {
+          for {
+            b <- tailcall(interpret(body, newEnv))
+            l <- tailcall(interpret(kc, env ++ loopVars.zipStrict(b.asInstanceOf[VTuple].v)))
+          } yield {
+            l
+          }
+        } else {
+          tailcall(interpret(kont, newEnv))
+        }
       case KNorm.Let(Entry(name, _), bound, kont) =>
         for {
           b <- tailcall(interpret(bound, env))
