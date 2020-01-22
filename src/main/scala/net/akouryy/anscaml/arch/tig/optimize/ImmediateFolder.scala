@@ -85,8 +85,9 @@ class ImmediateFolder(prog: Program) {
 
   private[this] def optBlock(c: Chart)(b: Block): Unit = {
     var blockChanged = false
-    currentLoadEnv = c.jumps(b.input).inputBIs match {
+    currentLoadEnv = c.jumps(b.input).directInputBIs(c) match {
       case Nil => mutable.Map()
+      case list if list.exists(!loadEnvOut.contains(_)) => mutable.Map() // b: top of for-loop body
       case list @ _ :: _ =>
         list.map(loadEnvOut).foldLeftNonempty { (ess, fss) =>
           ess.flatMap { case (mi, es) =>
@@ -279,14 +280,14 @@ class ImmediateFolder(prog: Program) {
         )
       case j @ ForLoopTop(cm, _, cond, negated, merges, _, _, _, _) =>
         val (preserveTruAndFls, newComment, newCond) = optCond(cond)
-        j /*.copy(
+        j.copy(
           comment = cm + newComment, cond = newCond, negated = !preserveTruAndFls ^ negated,
-          //merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
-        )*/
-      case j @ ForLoopBottom(_, _, _, _, merges) =>
-        j /*.copy(
           merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
-        )*/
+        )
+      case j @ ForLoopBottom(_, _, _, _, merges) =>
+        j.copy(
+          merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
+        )
     }
 
     if (newJ != j) {

@@ -74,13 +74,18 @@ sealed trait Jump {
     case _ => !!!!(this, from, to)
   }
 
-  final def inputBIs: List[BlockIndex] = this match {
+  /**
+    * @return The indices of `blocks`, such that each Block whose input is `this` is guaranteed
+    *         to be run right after one of `blocks`.
+    */
+  final def directInputBIs(c: Chart): List[BlockIndex] = this match {
     case _: StartFun => Nil
     case Return(_, _, _, input) => List(input)
     case Branch(_, _, _, input, _, _) => List(input)
     case Merge(_, _, inputs, _, _) => inputs.map(_.bi)
-    case ForLoopTop(_, _, _, _, _, input, _, _, _) => List(input)
-    case ForLoopBottom(_, _, input, _, _) => List(input)
+    case ForLoopTop(_, _, _, _, _, input, flb, _, _) =>
+      List(input, c.jumps(flb).asInstanceOf[ForLoopBottom].input)
+    case _: ForLoopBottom => !!!!(this)
   }
 }
 
@@ -154,7 +159,15 @@ final case class MergeInput(bi: BlockIndex, xid: XID) {
 final case class ForLoopTop(
   comment: Comment, i: JumpIndex, cond: Branch.Cond, negated: Boolean, merges: List[ForLoopVar],
   input: BlockIndex, loopBottom: JumpIndex, body: BlockIndex, kont: BlockIndex,
-) extends Jump
+) extends Jump {
+
+  val loopVars: List[XVar] = merges.flatMap(_.loop.asXVar)
+
+  assert(merges.flatMap(_.loop.asXReg).forall(!XReg.toConstants.contains(_)))
+
+  assert(loopVars.isEmpty ||
+         (cond.left.asXVar ++ cond.rightVC.asVXVar).count(loopVars contains _) == 1)
+}
 
 final case class ForLoopBottom(
   comment: Comment, i: JumpIndex, input: BlockIndex, loopTop: JumpIndex, merges: List[ForLoopVar],
