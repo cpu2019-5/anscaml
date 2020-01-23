@@ -23,11 +23,11 @@ object Optimizer {
       changed = ComplexFolder(asm) || changed
       AliasSolver(asm)
       if (!changed) return
-      if (AnsCaml.config.xGenerateAsmGraphs) {
+      /*if (AnsCaml.config.xGenerateAsmGraphs) {
         Using.resource(new java.io.PrintWriter(s"../temp/to-$i.dot")) {
           _.write(new arch.tig.GraphDrawer()(asm))
         }
-      }
+      }*/
     }
   }
 }

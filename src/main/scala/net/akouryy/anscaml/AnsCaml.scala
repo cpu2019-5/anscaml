@@ -76,8 +76,10 @@ object AnsCaml {
     }*/
 
     if (config.xGenerateAsmGraphs) {
-      Using.resource(new java.io.PrintWriter("../temp/raw.dot")) {
-        _.write(new arch.tig.GraphDrawer()(asm))
+      for ((fn, graph) <- new arch.tig.GraphDrawer()(asm)) {
+        Using.resource(new java.io.PrintWriter(s"../temp/graph/raw-$fn.dot")) {
+          _.write(graph)
+        }
       }
     }
 
@@ -85,8 +87,10 @@ object AnsCaml {
       arch.tig.optimize.Optimizer(config.optimizationCount, asm)
     } finally {
       if (config.xGenerateAsmGraphs) {
-        Using.resource(new java.io.PrintWriter("../temp/dbg.dot")) {
-          _.write(new arch.tig.GraphDrawer()(asm))
+        for ((fn, graph) <- new arch.tig.GraphDrawer()(asm)) {
+          Using.resource(new java.io.PrintWriter(s"../temp/graph/dbg-$fn.dot")) {
+            _.write(graph)
+          }
         }
       }
     }
@@ -96,8 +100,10 @@ object AnsCaml {
     val lo = arch.tig.emit.LastOptimizer(reg)
 
     if (config.xGenerateAsmGraphs) {
-      Using.resource(new java.io.PrintWriter("../temp/reg.dot")) {
-        _.write(new arch.tig.GraphDrawer()(lo))
+      for ((fn, graph) <- new arch.tig.GraphDrawer()(lo)) {
+        Using.resource(new java.io.PrintWriter(s"../temp/graph/reg-$fn.dot")) {
+          _.write(graph)
+        }
       }
     }
 
