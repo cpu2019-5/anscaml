@@ -10,6 +10,7 @@ import syntax.BinOp
 import typ.Typ
 
 import scala.collection.{immutable, mutable}
+import scala.util.Using
 
 object Specializer {
 
@@ -365,6 +366,9 @@ class Specializer {
         val r = wrapVar(right)
         val loopXVars = loopVars.map(id => XVar(id.str))
         val initXVars = initVars.map(wrapVar)
+        for ((iv, lv) <- initVars.zipStrict(loopVars)) {
+          tyEnv(XVar(lv.str)) = tyEnv(XVar(iv.str))
+        }
         // 1. ForLoopTop
         val inputBlockIndex = currentBlockIndex
         val inputBlockInputJumpIndex = currentInputJumpIndex
@@ -414,7 +418,7 @@ class Specializer {
           bodyBottomBlockIndex, bodyBottomBlockLines, bodyBottomBlockInputIndex, forBottomJumpIndex,
         )
         currentChart.jumps(forBottomJumpIndex) = asm.ForLoopBottom(
-          NC, forBottomJumpIndex, bodyBottomBlockIndex, forTopJumpIndex, merges,
+          NC, forBottomJumpIndex, bodyBottomBlockIndex, forTopJumpIndex,
         )
     }
   }

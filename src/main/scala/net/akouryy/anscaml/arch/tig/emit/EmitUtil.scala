@@ -14,8 +14,7 @@ object EmitUtil {
       case Block(_, Nil, _, ji1) =>
         c.jumps(ji1) match {
           case j: StartFun => !!!!(j)
-          case _: Return => bi0
-          case _: Branch => bi0
+          case _: Return | _: Branch | _: ForLoopTop | _: ForLoopBottom => bi0
           case j @ Merge(_, _, _, o, bi2) =>
             if (o != XReg.DUMMY) !!!!(j)
             nextNonEmptyBlockIndex(c, bi2)

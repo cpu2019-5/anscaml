@@ -128,12 +128,7 @@ object ComplexFolder {
               ForLoopVar(in = wrap(in), upd = wrap(upd), loop = loop)
             }
           )
-        case j @ ForLoopBottom(_, _, _, _, merges) =>
-          j.copy(
-            merges = merges.map { case ForLoopVar(in, upd, loop) =>
-              ForLoopVar(in = wrap(in), upd = wrap(upd), loop = loop)
-            }
-          )
+        case j: ForLoopBottom => j
       }
     }
   }

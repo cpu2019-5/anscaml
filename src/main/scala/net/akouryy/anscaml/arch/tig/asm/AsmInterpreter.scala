@@ -193,7 +193,7 @@ class AsmInterpreter {
           tailcall(interpretBlock(fun, bi2, varsOut ++ vs))
         case lt: ForLoopTop =>
           doLoop(lt, _.in)
-        case ForLoopBottom(_, _, _, loopTop, _) =>
+        case ForLoopBottom(_, _, _, loopTop) =>
           doLoop(fun.body.jumps(loopTop).asInstanceOf[ForLoopTop], _.upd)
       }
     }

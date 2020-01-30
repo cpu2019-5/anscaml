@@ -70,12 +70,12 @@ object Liveness {
       case ForLoopTop(_, _, cond, _, merges, _, _, body, kont) =>
         info(body).head ++ info(kont).head ++ cond.left.asXVar ++ cond.rightVC.asVXVar --
         merges.flatMap(_.loop.asXVar) ++ merges.flatMap(_.in.asXVar)
-      case ForLoopBottom(_, _, _, loopTopIndex, merges) =>
+      case ForLoopBottom(_, _, _, loopTopIndex) =>
         // (liveIn[kont] ∪ liveCond[top] ∪ liveIn[body]) \ (loop vars) ∪ (upd vars)
         val top = c.jumps(loopTopIndex).asInstanceOf[ForLoopTop]
         info(top.kont).head ++ top.cond.left.asXVar ++ top.cond.rightVC.asVXVar ++
-        info.get(top.body).foldF(_.head, Set()) -- merges.flatMap(_.loop.asXVar).toSet ++
-        merges.flatMap(_.upd.asXVar).toSet
+        info.get(top.body).foldF(_.head, Set()) -- top.merges.flatMap(_.loop.asXVar).toSet ++
+        top.merges.flatMap(_.upd.asXVar).toSet
     }
     val liveOut = live
     val liveInsRev = b.lines.reverseIterator.map { line =>

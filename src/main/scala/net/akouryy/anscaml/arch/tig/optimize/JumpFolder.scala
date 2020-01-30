@@ -34,7 +34,7 @@ class JumpFolder {
         chart.jumps -= ji1
         removeBlock(chart, body)
         removeBlock(chart, kont)
-      case ForLoopBottom(_, _, _, loopTop, _) =>
+      case ForLoopBottom(_, _, _, loopTop) =>
         assert(!chart.jumps.contains(loopTop))
         chart.jumps -= ji1
     }

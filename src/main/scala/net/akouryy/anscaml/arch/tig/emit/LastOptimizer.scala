@@ -67,8 +67,7 @@ object LastOptimizer {
               }
             }).map { case Emitter.Move(s, d) => Line(NC, d, Mv(s)) })
             ForLoopTop(cm, ji, cond, negated, Nil, input, loopBottom, body, kont)
-          case j: ForLoopBottom =>
-            j.copy(merges = Nil)
+          case j: ForLoopBottom => j
         }
       }
 

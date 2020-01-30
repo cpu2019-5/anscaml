@@ -37,7 +37,7 @@ object AliasSolver {
           case j: Branch => j.copy(cond = wrapCond(j.cond))
           case j: Merge => j.copy(inputs = j.inputs.map(i => MergeInput(i.bi, wrap(i.xid))))
           case j: ForLoopTop => j.copy(cond = wrapCond(j.cond), merges = j.merges.map(wrapFLV))
-          case j: ForLoopBottom => j.copy(merges = j.merges.map(wrapFLV))
+          case _: ForLoopBottom => j
         }
       }
     }

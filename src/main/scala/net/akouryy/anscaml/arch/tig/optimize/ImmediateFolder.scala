@@ -123,6 +123,8 @@ class ImmediateFolder(prog: Program) {
 
         case Store(Fixed(a), C(index), value, orig) =>
           Store(XReg.ZERO, C.int(a.int + index.int), wrapXID(value), orig)
+        case Store(BoundTo(BinOpVCTree(Add, base, C(i1))), C(i2), value, orig) =>
+          Store(wrapXID(base), C.int(i1.int + i2.int), wrapXID(value), orig)
         case Store(addr, C(index), value, orig) =>
           Store(addr, C(index), wrapXID(value), orig)
 
@@ -132,6 +134,8 @@ class ImmediateFolder(prog: Program) {
           Load(XReg.ZERO, C.int(a.int + i.int), orig)
         case Load(Fixed(a), index, orig) =>
           Load(wrapXID(index.asV.get), C(a), orig)
+        case Load(BoundTo(BinOpVCTree(Add, base, C(i1))), C(i2), orig) =>
+          Load(wrapXID(base), C.int(i1.int + i2.int), orig)
         case Load(addr, index, orig) =>
           Load(addr, wrapVC(index), orig)
 
@@ -143,6 +147,8 @@ class ImmediateFolder(prog: Program) {
           Mvi(imm)
         case BinOpVCTree(op, Fixed(l), right) if op.isCommutative =>
           BinOpVCTree(op, right.asV.get, C(l))
+        case BinOpVCTree(Add | Sha | Bor, src, Fixed(Word(0))) => Mv(src)
+        case BinOpVCTree(Band, src, Fixed(Word(-1))) => Mv(src)
         case BinOpVCTree(op, left, right) =>
           BinOpVCTree(op, left, wrapVC(right))
 
@@ -284,10 +290,7 @@ class ImmediateFolder(prog: Program) {
           comment = cm + newComment, cond = newCond, negated = !preserveTruAndFls ^ negated,
           merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
         )
-      case j @ ForLoopBottom(_, _, _, _, merges) =>
-        j.copy(
-          merges = merges.map(flv => flv.copy(in = wrapXID(flv.in), upd = wrapXID(flv.upd))),
-        )
+      case j: ForLoopBottom => j
     }
 
     if (newJ != j) {

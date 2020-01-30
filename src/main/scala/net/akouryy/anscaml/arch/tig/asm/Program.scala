@@ -170,7 +170,7 @@ final case class ForLoopTop(
 }
 
 final case class ForLoopBottom(
-  comment: Comment, i: JumpIndex, input: BlockIndex, loopTop: JumpIndex, merges: List[ForLoopVar],
+  comment: Comment, i: JumpIndex, input: BlockIndex, loopTop: JumpIndex,
 ) extends Jump
 
 final case class ForLoopVar(in: XID, upd: XID, loop: XID)

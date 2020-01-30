@@ -263,7 +263,7 @@ class Emitter(program: Program) {
         draftCond(cm, cond, blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, fls)))
         emitBlock(tru)
         emitBlock(fls)
-      case ForLoopBottom(cm, _, _, loopTop, Nil) =>
+      case ForLoopBottom(cm, _, _, loopTop) =>
         val ForLoopTop(_, _, cond, negated, Nil, _, _, body, kont) =
           currentFun(loopTop).asInstanceOf[ForLoopTop]
         val (tru, fls) = if (!negated) (body, kont) else (kont, body)

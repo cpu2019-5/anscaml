@@ -77,10 +77,12 @@ class GraphDrawer {
                |$loopBottom -> $i [constraint = false; color = ${forColors(i)}];
                |$loopBottom -> $kont [label = "false"]
                |""".stripMargin
-          case asm.ForLoopBottom(_, i, input, loopTop, merges) =>
+          case asm.ForLoopBottom(_, i, input, loopTop) =>
             s"""$i[label = "ForEnd.${i.indexString} [${loopTop.indexString}]"; shape = invhouse;
                |   style = filled; fillcolor = ${forColors(loopTop)}];
-               |$input -> $i [label = "${merges.map(_.upd).mkString(", ")}"];
+               |$input -> $i [label = "${
+              f(loopTop).asInstanceOf[asm.ForLoopTop].merges.map(_.upd).mkString(", ")
+            }"];
                |""".stripMargin
         })
       }

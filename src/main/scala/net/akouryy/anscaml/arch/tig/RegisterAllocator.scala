@@ -153,10 +153,8 @@ final class RegisterAllocator {
           ForLoopTop(cm, j.i, cond.mapLR(wrap)(wrapVC, wrap), negated, merges.map {
             case ForLoopVar(in, upd, loop) => ForLoopVar(wrap(in), wrap(upd), wrap(loop))
           }, input, loopBottom, body, kont)
-        case ForLoopBottom(cm, _, input, loopTop, merges) =>
-          ForLoopBottom(cm, j.i, input, loopTop, merges.map {
-            case ForLoopVar(in, upd, loop) => ForLoopVar(wrap(in), wrap(upd), wrap(loop))
-          })
+        case ForLoopBottom(cm, _, input, loopTop) =>
+          ForLoopBottom(cm, j.i, input, loopTop)
       }
     }
 
