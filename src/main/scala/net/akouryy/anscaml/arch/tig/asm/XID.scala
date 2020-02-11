@@ -5,7 +5,7 @@ import base._
 
 import scala.collection.immutable
 
-sealed trait XID extends Any {
+sealed trait XID extends Any with Ordered[XID] {
   def idStr: String
 
   final def asXVar: Option[XVar] = this match {
@@ -22,6 +22,15 @@ sealed trait XID extends Any {
     case v: XVar => ifVar(v)
     case r: XReg => ifReg(r)
   }
+
+  override final def compare(that: XID): Int = {
+    (this, that) match {
+      case (_: XReg, _: XVar) => -1
+      case (_: XVar, _: XReg) => 1
+      case (XReg(a), XReg(b)) => a compare b
+      case (XVar(a), XVar(b)) => a compare b
+    }
+  }
 }
 
 final case class XVar(idStr: String) extends AnyVal with XID {
@@ -33,12 +42,10 @@ object XVar {
     XVar(ID.generate(str, allowEmptySuffix).str)
 }
 
-final case class XReg private(id: Int) extends AnyVal with XID with Ordered[XReg] {
+final case class XReg private(id: Int) extends AnyVal with XID {
   override def idStr: String = if (id == -1) "$reg_x" else s"$$reg$id"
 
   override def toString: String = if (id == -1) "%rx" else s"%r$id"
-
-  override def compare(that: XReg): Int = id compare that.id
 }
 
 object XReg {

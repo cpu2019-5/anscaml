@@ -3,6 +3,7 @@ package knorm
 
 import base._
 import KNorm._
+import pprint.Tree
 
 object PPrinter {
 
@@ -83,6 +84,12 @@ object PPrinter {
 
       case KNorm(NC, kn) => pp.treeify(kn)
       case KClosed(NC, kc) => pp.treeify(kc)
+
+      case kn0 @ KNorm(cmt: CM, kn1) =>
+        pp.treeify(kn1) match {
+          case Tree.Apply(prefix, body) => Tree.Apply(prefix, Iterator(pp.treeify(cmt)) ++ body)
+          case _ => pp.treeify(kn0)
+        }
 
       case IfCmp(op, ID(left), ID(right), tru, fls) =>
         pprint.Tree.Apply("IfCmp", Iterator(

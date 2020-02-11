@@ -52,6 +52,8 @@ class JumpFolder {
       case j: Return => j.copy(input = bi0)
       case j: Branch => j.copy(input = bi0)
       case j: Merge => j.copy(inputs = j.inputs.map(_.mapBI(bi => if (bi == bi2) bi0 else bi)))
+      case j: ForLoopTop => j.copy(input = bi0)
+      case j: ForLoopBottom => j.copy(input = bi0)
     }
   }
 

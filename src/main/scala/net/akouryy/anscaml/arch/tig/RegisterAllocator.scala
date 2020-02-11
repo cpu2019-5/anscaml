@@ -23,9 +23,21 @@ final class RegisterAllocator {
     val g = mutable.Map[XVar, Set[XID]]().withDefault(_ => Set())
     for {
       bi <- f.body.blocks.keysIterator
-      live <- liveness(bi)
+      live <- liveness(bi) /* ブロック先頭、各行間、ブロック末尾 */
       v <- live
     } g(v) ++= live - v
+
+    /* 「マージ用mv処理→条件判定」の順になるため条件式だけで使用される(body/kontで不要な)変数もループ変数と干渉 */
+    for {
+      Util.The(flt: ForLoopTop) <- f.body.jumps.valuesIterator
+      ForLoopVar(_, _, lv) <- flt.merges
+      Branch.Cond(_, l, r) = flt.cond
+      cv <- l.asXVar ++ r.asVXVar
+    } {
+      g(cv) += lv
+      lv.asXVar.foreach(g(_) += cv)
+    }
+
     if (avoidCallerSave) {
       for {
         b <- f.body.blocks.valuesIterator

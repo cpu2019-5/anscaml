@@ -12,4 +12,10 @@ object Util {
     }
     Some(i)
   }
+
+  object The {
+    /** https://github.com/scala/bug/issues/900 */
+    def unapply[A](a: A): Option[A] = Some(a)
+  }
+
 }

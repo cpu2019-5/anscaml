@@ -71,7 +71,7 @@ object Liveness {
         info(body).head ++ info(kont).head ++ cond.left.asXVar ++ cond.rightVC.asVXVar --
         merges.flatMap(_.loop.asXVar) ++ merges.flatMap(_.in.asXVar)
       case ForLoopBottom(_, _, _, loopTopIndex) =>
-        // (liveIn[kont] ∪ liveCond[top] ∪ liveIn[body]) \ (loop vars) ∪ (upd vars)
+        /* (liveIn[kont] ∪ liveCond[top] ∪ liveIn[body]) \ (loop vars) ∪ (upd vars) */
         val top = c.jumps(loopTopIndex).asInstanceOf[ForLoopTop]
         info(top.kont).head ++ top.cond.left.asXVar ++ top.cond.rightVC.asVXVar ++
         info.get(top.body).foldF(_.head, Set()) -- top.merges.flatMap(_.loop.asXVar).toSet ++

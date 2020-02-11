@@ -92,7 +92,7 @@ class SwarmAnalyzer {
     norm.raw match {
       case IfCmp(_, _, _, tru, fls) => buildEnv(tru); buildEnv(fls)
       case raw @ ForCmp(_, _, _, _, loopVars, initVars, body, kont) =>
-        // left and right does not swarms
+        // left and right does not swarm
         val updater = ID.generate(s"$$upd")
         val initTyps = initVars.map(typEnv)
         typEnv(updater) = Typ.TTuple(initTyps)
@@ -146,6 +146,7 @@ class SwarmAnalyzer {
           relate(lv, (iv, None))
           relate(lv, (updater, Some(SRTuple(i))))
         }
+        mergeAll(body)
         mergeAll(kont)
       case Let(entry, bound, kont) =>
         val bs = mergeAll(bound)

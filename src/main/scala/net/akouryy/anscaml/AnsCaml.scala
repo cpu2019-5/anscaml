@@ -67,13 +67,13 @@ object AnsCaml {
 
     val (asm, _) = new arch.tig.Specializer()(cl, sw)
 
-    /*(config.asmIn, config.asmOut) match {
+    (config.asmIn, config.asmOut) match {
       case (Some(in), Some(out)) =>
         Using.resources(new FileInputStream(in), new FileOutputStream(out)) {
           new arch.tig.asm.AsmInterpreter()(asm, _, _)
         }
       case _ => // nop
-    }*/
+    }
 
     if (config.xGenerateAsmGraphs) {
       for ((fn, graph) <- new arch.tig.GraphDrawer()(asm)) {

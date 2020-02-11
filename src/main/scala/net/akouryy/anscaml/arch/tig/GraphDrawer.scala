@@ -33,7 +33,7 @@ class GraphDrawer {
     for (f <- p.functions) {
       current.clear()
       current ++=
-      s"""digraph Program_${Math.abs(f.hashCode)} {
+      s"""digraph Program_${Math.abs(f.name.hashCode)} {
          |graph [fontname = "Monaco", fontsize = 12, ranksep = 0.5];
          |node [shape = box, fontname = "Monaco", fontsize = 11; colorscheme = pastel19];
          |edge [fontname = "Monaco", fontsize = 11; colorscheme = pastel19];
@@ -73,9 +73,9 @@ class GraphDrawer {
             s"""$i[label = "For.${i.indexString}\n$neg${condStr(cond)}\n$loopVars"; shape = house;
                |   style = filled; fillcolor = ${forColors(i)}];
                |$input -> $i [label = "${merges.map(_.in).mkString(", ")}"];
-               |$i -> $body [label = "true"];
+               |$i -> $body;
                |$loopBottom -> $i [constraint = false; color = ${forColors(i)}];
-               |$loopBottom -> $kont [label = "false"]
+               |$loopBottom -> $kont
                |""".stripMargin
           case asm.ForLoopBottom(_, i, input, loopTop) =>
             s"""$i[label = "ForEnd.${i.indexString} [${loopTop.indexString}]"; shape = invhouse;

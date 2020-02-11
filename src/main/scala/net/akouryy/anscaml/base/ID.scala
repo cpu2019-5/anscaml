@@ -61,6 +61,7 @@ object ID {
     val KN_INT = "$i"
     val ASM_F_INV = "$inv"
     val KO_LOOP_VAR = "$loop"
+    val KO_UPD_VAR = "$lup"
     val MAIN = "$main"
     val ASM_NOT = "not"
     val EMIT_SELECT_FLS = "$slf"

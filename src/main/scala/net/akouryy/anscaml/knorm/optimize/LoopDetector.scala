@@ -12,21 +12,20 @@ import scala.annotation.tailrec
   * 停止条件が引数と不変変数の比較であるような再帰関数を置き換えてループにする。
   * ループ前後で不変な(`a_i = b_i`なる)変数は予め除いておく(`a_i`を使い回す)。
   * {{{let rec f a... =
-  *    X;
-  *    if a_i <=> c then (
-  *      Y;
-  *      f b... (* simple tail-rec *)
-  *    ) else
-  *      Z}}}
+  *   X;                                         (* defines p... (outerVars) *)
+  *   if ap_i <=> c then (
+  *     Y;                                       (* may define b... *)
+  *     f b...
+  *   ) else
+  *     Z}}}
   * ↓
-  * {{{let rec f a... =
-  *    X;
-  *    FOR(l... = a...; l_i <=> c; update l...) (
-  *      [l/a]Y;
-  *      [b/a]X;
-  *      b...
-  *    );
-  *    [l/a]Z}}}
+  * {{{let f a... =
+  *   X;                                         (* defines p... *)
+  *   FOR l...=ap...; l_i <=> c; l...=bq... DO
+  *     [l/ap]Y;                                 (* may define b... *)
+  *     [b/a][[q/p]]X;                           (* defines q... *)
+  *   END;
+  *   [l/ap]Z}}}
   *
   * ちょっとだけ参考: https://eguchishi.hatenablog.com/entry/2017/09/09/150229
   */
@@ -35,6 +34,10 @@ class LoopDetector {
     detect(kn)
   }
 
+  /**
+    * @return Option of (generator of the new body from a loop expression;
+    *         the loop condition; the loop body; the expression following the loop)
+    */
   private[this] def digExprX(kn: KNorm): Option[(KNorm => KNorm, (CmpOp, ID, ID), KNorm, KNorm)] = {
     kn.raw match {
       case IfCmp(op, left, right, tru, fls) => Some((identity, (op, left, right), tru, fls))
@@ -56,9 +59,13 @@ class LoopDetector {
     }
   }
 
-  @tailrec private[this] def findFixedVars(kn: KNorm, acc: Set[ID]): Set[ID] = {
+  /**
+    * @return (Set of fixed vars; Set of unfixed vars)
+    */
+  @tailrec private[this] def findFixedAndUnfixedOuterVars(kn: KNorm, accF: Set[ID], accU: Set[ID])
+  : (Set[ID], Set[ID]) = {
     object Fixed {
-      def unapply(x: ID): Option[ID] = Option.when(acc contains x)(x)
+      def unapply(x: ID): Option[ID] = Option.when(accF contains x)(x)
     }
 
     kn.raw match {
@@ -66,12 +73,16 @@ class LoopDetector {
       KInt(_) | KFloat(_) | BinOpTree(_, Fixed(_), Fixed(_)) | Var(Fixed(_)) | KTuple(Nil)
       // TODO: KTuple
       ), kont) =>
-        findFixedVars(kont, acc + name)
+        findFixedAndUnfixedOuterVars(kont, accF + name, accU)
+      case Let(Entry(name, _), _, kont) =>
+        findFixedAndUnfixedOuterVars(kont, accF, accU + name)
       case LetTuple(elems, Fixed(_), kont) =>
-        findFixedVars(kont, acc ++ elems.map(_.name))
+        findFixedAndUnfixedOuterVars(kont, accF ++ elems.map(_.name), accU)
+      case LetTuple(elems, _, kont) =>
+        findFixedAndUnfixedOuterVars(kont, accF, accU ++ elems.map(_.name))
       case raw: HasKont =>
-        findFixedVars(raw.kont, acc)
-      case _ => acc
+        findFixedAndUnfixedOuterVars(raw.kont, accF, accU)
+      case _ => (accF, accU)
     }
   }
 
@@ -84,20 +95,22 @@ class LoopDetector {
       args = fDef.args.map(_.name)
       fixedArgs = args.zipStrict(recCall.args)
         .filter { case (p, a) => p == a }.map(_._2).toSet
-      fixedVars = findFixedVars(xGen(KNorm(NC, KTuple(Nil))), fixedArgs)
-      isRightFixed = args.contains(left) && fixedVars.contains(right)
+      (fixedOuterVars, unfixedOuterVars)
+      = findFixedAndUnfixedOuterVars(xGen(KNorm(NC, KTuple(Nil))), fixedArgs, Set())
+      isRightFixed = (args ++ unfixedOuterVars).contains(left) && fixedOuterVars.contains(right)
       () = println(s"[KO-LD] ${fnName.str}: ${left.str} $op ${right.str}, " +
                    s"fixed args ${fixedArgs.map(_.str)}, " +
-                   s"fixed vars ${fixedVars.map(_.str)}")
-      if isRightFixed || fixedVars.contains(left) && args.contains(right)
-      initVars = args.filter(!fixedArgs.contains(_))
+                   s"fixed vars ${fixedOuterVars.map(_.str)}")
+      if isRightFixed || fixedOuterVars.contains(left) && args.contains(right)
+      initVars = args.filter(!fixedArgs.contains(_)) ++ unfixedOuterVars
       loopVars = initVars.map(a => ID.generate(a.str + ID.Special.KO_LOOP_VAR))
-      updateVars = recCall.args.filter(!fixedArgs.contains(_))
+      updateOuterVars = unfixedOuterVars.map(ov => ID.generate(ov.str + ID.Special.KO_UPD_VAR))
+      updateVars = recCall.args.filter(!fixedArgs.contains(_)) ++ updateOuterVars
       i2l = initVars.zipStrict(loopVars).toMap
     } yield {
       println(s"[KO-LD] ${fnName.str}: ${left.str} $op ${right.str}, " +
               s"fixed args ${fixedArgs.map(_.str)}, " +
-              s"fixed vars ${fixedVars.map(_.str)}")
+              s"fixed vars ${fixedOuterVars.map(_.str)}")
 
       xGen(KNorm(CM(s"[KO-LD] start loop for ${fnName.str}"),
         ForCmp(
