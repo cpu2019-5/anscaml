@@ -90,6 +90,35 @@ final class RegisterAllocator {
     pr.toIndexedSeq.sortBy(_._2).map(_._1) ++ XReg.NORMAL_REGS
   }
 
+  private[this] def buildAffinities(f: FDef): Coalescer.Affinities = {
+    val aff = mutable.Map[XID, mutable.Map[XID, Int]]()
+
+    @inline def relate(x: XID, y: XID, w: Int) =
+      for ((a, b) <- Seq((x, y), (y, x))) {
+        aff.getOrElseUpdate(a, mutable.Map().withDefaultValue(0))(b) += w
+      }
+
+    for {
+      (_, b) <- f.blocks
+      line <- b.lines
+    } line match {
+      case Line(_, x: XVar, Mv(y: XVar)) => relate(x, y, 50)
+      case Line(_, x, Mv(y: XReg)) if XReg.NORMAL_REGS_SET contains y => relate(x, y, 50)
+
+      case Line(_, ret, CallDir(_, args, _)) =>
+        if (ret match {
+          case _: XVar => true
+          case ret: XReg => XReg.NORMAL_REGS_SET contains ret
+        }) {
+          relate(ret, XReg.RETURN, 10)
+        }
+        for ((a: XVar, i) <- args.zipWithIndex) relate(a, XReg.NORMAL_REGS(i), 50)
+      case _ =>
+    }
+
+    aff.view.mapValues(_.toMap).toMap
+  }
+
   private[this] def allocateInFun(f: FDef, interference: IGraph): Map[XID, XReg] = {
     val preferencesBase = buildPreferencesBase(f)
     val regEnv = mutable.Map[XVar, XReg]()
@@ -119,7 +148,8 @@ final class RegisterAllocator {
       }
     }
 
-    regEnv.toMap
+    new Coalescer(interference, buildAffinities(f), regEnv.toMap)()
+    //regEnv.toMap
   }
 
   private[this] def applyAllocation(f: FDef, regEnv: Map[XID, XReg]): FDef = {
@@ -207,7 +237,7 @@ final class RegisterAllocator {
         val newF = applyAllocation(f, regEnv)
 
         safeRegsMap(newF.name) = newF.info.safeRegs
-        // println(newF.name, XReg.toRangeString(newF.info.safeRegs))
+        Logger.log("RA", newF.name)
 
         newF
       },

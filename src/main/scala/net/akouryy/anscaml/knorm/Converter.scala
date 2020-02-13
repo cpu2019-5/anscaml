@@ -27,7 +27,7 @@ object Converter {
             case KNorm.KInt(i) if i >= 0 => ID.generate(s"${ID.Special.KN_INT}$i")
             case KNorm.KInt(i) if i < 0 => ID.generate(s"${ID.Special.KN_INT}_${-i}")
             case KNorm.KFloat(f) =>
-              ID.generate(s"${ID.Special.KN_FLOAT}${f.toString.replace('.', '_')}")
+              ID.generate(ID.Special.KN_FLOAT + f.toString.replace('.', '_').replace('-', '_'))
             case _ => ID.generate()
           }
           val (kt, ke) = kont(x, env + (x -> t))
