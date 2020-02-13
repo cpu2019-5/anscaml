@@ -11,7 +11,7 @@ object CommandParser {
     doEmitComment: Boolean = true,
     doPrependStandardLibrary: Boolean = true,
     inputFiles: Seq[File] = Seq(),
-    inlineLimit: Int = 0,
+    inlineLimit: Int = 1000,
     outputFile: File = new File("."),
     memorySizeLog2: Int = 19,
     optimizationCount: Int = 100,

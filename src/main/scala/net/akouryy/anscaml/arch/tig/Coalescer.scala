@@ -5,7 +5,7 @@ import asm.{XID, XReg, XVar}
 import base._
 import Coalescer._
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.util.control.Breaks
 
 /**
@@ -14,7 +14,8 @@ import scala.util.control.Breaks
   *      Association for Computing Machinery, New York, NY, USA, 227–237. DOI:https://doi.org/10.1145/1375581.1375610
   */
 class Coalescer(
-  rawIntf: RegisterAllocator#IGraph, affinities: Affinities, rawColors: Map[XID, XReg],
+  rawIntf: RegisterAllocator#IGraph, rawAffs: Affinities, rawColors: Map[XID, XReg],
+  availableRegs: immutable.SortedSet[XReg],
 ) {
   private[this] val ALPHA = 0.1
 
@@ -23,27 +24,48 @@ class Coalescer(
 
   private[this] val colors: mutable.Map[XID, XReg] = {
     val m = rawColors.to(mutable.Map)
-    for (xr <- XReg.NORMAL_REGS) m(xr) = xr
+    m --= XReg.NORMAL_REGS_SET -- availableRegs
+    for (xr <- availableRegs) m(xr) = xr
     m
   }
 
-  private[this] val hasFixated: mutable.Map[XID, Boolean] = {
+  private[this] val affinities: Affinities =
+    (for {
+      x <- colors.keysIterator
+    } yield {
+      (x, rawAffs.getOrElse(x, Map()).filter(colors contains _._1))
+    }).toMap
+
+  private[this] val isFixated: mutable.Map[XID, Boolean] = {
     val m = mutable.Map[XID, Boolean]()
     for (Util.The(xv: XVar) <- colors.keysIterator) m(xv) = false
-    for (xr <- XReg.NORMAL_REGS) m(xr) = true
+    for (xr <- availableRegs) m(xr) = true
     m
   }
 
   private[this] val intf: Interferences = {
-    val m = rawIntf.toMap[XID, Set[XID]].to(mutable.Map)
-    for (xv <- colors.keysIterator; if !m.contains(xv)) {
-      m(xv) = Set()
+    val m = mutable.Map[XID, Set[XID]]()
+    for (Util.The(xv: XVar) <- colors.keysIterator) {
+      m(xv) = rawIntf.get(xv).foldF(_.filter(colors.contains), Set())
     }
+    for (xr <- availableRegs) m(xr) = Set()
     for {
       (xv, is) <- rawIntf
       Util.The(xr: XReg) <- is
+      if availableRegs contains xr
     } {
       m(xr) += xv
+    }
+    m.toMap
+  }
+
+  private[this] val adm: Map[XID, Set[XReg]] = {
+    val m = mutable.Map[XID, Set[XReg]]()
+    for (Util.The(xv: XVar) <- colors.keysIterator) {
+      m(xv) = availableRegs -- intf(xv).flatMap(_.asXReg)
+    }
+    for (xr <- availableRegs) {
+      m(xr) = Set(xr)
     }
     m.toMap
   }
@@ -51,23 +73,18 @@ class Coalescer(
   /**
     * [5.0] main
     */
-  def apply(): Map[XID, XReg] = {
+  def coalesce: Map[XID, XReg] = {
     queue.clear()
-    createInitialChunks()
+    queue ++= createInitialChunks().filter(_.elems.sizeIs >= 2)
     while (queue.nonEmpty) {
       val chunk = queue.dequeue()
-      queue ++= recolorChunk(chunk)
+      queue ++= recolorChunk(chunk).filter(_.elems.sizeIs >= 2)
     }
     colors.toMap
   }
 
-  private[this] def adm(x: XID): Set[XReg] = x match {
-    case XVar(_) => XReg.NORMAL_REGS_SET
-    case xr: XReg => Set(xr)
-  }
-
   /** [5.1] createInitialChunks(queue) */
-  private[this] def createInitialChunks(): Unit = {
+  private[this] def createInitialChunks() = {
     val chunks = colors.keys.map(x => new Chunk(Set(x))).to(mutable.Set)
     val flatAfs = for ((v, afs) <- affinities.toSeq; (w, gain) <- afs) yield (v, w, gain)
 
@@ -79,14 +96,14 @@ class Coalescer(
         chunks += new Chunk(vc.elems ++ wc.elems)
       }
     }
-    queue ++= chunks
+    chunks
   }
 
   /** [5.2] p(v, c) */
   private[this] def nodeColorPreference(x: XID, color: XReg) = {
     val a = adm(x)
     if (a contains color) {
-      val k = XReg.NORMAL_REGS.length
+      val k = availableRegs.size
       (1.0 + k - a.size) / k
     } else {
       0.0
@@ -96,24 +113,25 @@ class Coalescer(
   /** [5.2] recolorChunk */
   private[this] def recolorChunk(chunk: Chunk): Seq[Chunk] = {
     var best = Option.empty[(XReg, Chunk)]
+    val chunkSize = chunk.elems.size
     Breaks.breakable {
       for (color <- chunk.computeColorOrder) {
         var nSuccessful = 0
         for (node <- chunk.elems) {
           if (changeTo(node, color)) {
             nSuccessful += 1
-            hasFixated(node) = true
+            isFixated(node) = true
           }
         }
         for (node <- chunk.elems) {
-          hasFixated(node) = false
+          isFixated(node) = false
         }
-        if (nSuccessful > 0) {
+        if (nSuccessful > 1) {
           val localBest = fragmentChunk(chunk, color)
           if (best.forall(_._2.totalGain < localBest.totalGain)) {
             best = Some((color, localBest))
           }
-          if (chunk.elems.sizeIs == nSuccessful) {
+          if (nSuccessful == chunkSize) {
             Breaks.break()
           }
         }
@@ -123,7 +141,7 @@ class Coalescer(
       case Some((bestColor, bestChunk)) =>
         for (node <- bestChunk.elems) {
           changeTo(node, bestColor)
-          hasFixated(node) = true
+          isFixated(node) = true
         }
         getNewChunks(chunk, bestChunk)
       case None =>
@@ -131,25 +149,38 @@ class Coalescer(
     }
   }
 
+  private[this] def splitIntoAffComponents(rawElems: Set[XID]) = {
+    val elems = rawElems.to(mutable.Set)
+    val queue = mutable.Queue[XID]()
+
+    for (root <- elems.toSeq; if elems contains root) yield {
+      val currentElems = mutable.Set[XID]()
+      queue.clear()
+      queue.enqueue(root)
+      while (queue.nonEmpty) {
+        val node = queue.dequeue()
+        if (elems contains node) {
+          elems -= node
+          currentElems += node
+          queue.enqueueAll(affinities(node).keys)
+        }
+      }
+      new Chunk(currentElems.toSet)
+    }
+  }
+
   /**
     * [5.2] fragmentChunk
-    * TODO: 連結成分を返す
     */
-  private[this] def fragmentChunk(chunk: Chunk, color: XReg) = {
-    new Chunk(chunk.elems.filter(colors(_) == color))
+  private[this] def fragmentChunk(base: Chunk, color: XReg) = {
+    splitIntoAffComponents(base.elems.filter(colors(_) == color)).max
   }
 
   /**
     * [5.2] getNewChunks
-    * TODO: 連結成分ごとに分ける
     */
-  private[this] def getNewChunks(chunk: Chunk, toRemove: Chunk) = {
-    val elems = chunk.elems -- toRemove.elems
-    if (elems.isEmpty) {
-      Seq()
-    } else {
-      Seq(new Chunk(elems))
-    }
+  private[this] def getNewChunks(base: Chunk, toRemove: Chunk) = {
+    splitIntoAffComponents(base.elems -- toRemove.elems)
   }
 
   /** [5.3] commit */
@@ -174,57 +205,66 @@ class Coalescer(
   }
 
   /** [5.3] isLoose */
-  private[this] def isLoose(node: XID) = !hasFixated(node) && !tempColors.contains(node)
+  private[this] def isLoose(node: XID) = !isFixated(node) && !tempColors.contains(node)
 
   /** [5.3] getColor */
   private[this] def getColor(node: XID) = tempColors.getOrElse(node, colors(node))
 
   /**
     * [5.3] makeAvoidList
-    * TODO: やる
     */
-  private[this] def makeAvoidList(neigh: XID, color: XReg): Seq[XReg] = {
-    XReg.NORMAL_REGS.filter(_ != color)
+  private[this] def makeAvoidList(node: XID, avoidColor: XReg): Seq[XReg] = {
+    val prio = mutable.Map[XReg, Double]()
+    val neighCol = mutable.Map[XReg, Int]()
+    for (xr <- availableRegs) {
+      prio(xr) = nodeColorPreference(node, xr)
+      neighCol(xr) = 0
+    }
+    for (neigh <- intf(node)) {
+      if (isLoose(neigh)) {
+        neighCol(colors(neigh)) += 1
+      } else {
+        prio(colors(neigh)) = 0.0
+      }
+    }
+    val nLoose = intf(node).count(isLoose)
+    if (nLoose > 0) {
+      prio.mapValuesInPlace((c, p) => p * (1.0 - neighCol(c).toDouble / nLoose))
+    }
+    prio(avoidColor) = 0.0
+
+    availableRegs.toSeq.filter(prio(_) > 0.0).sortBy(prio)(Ordering.Double.IeeeOrdering).reverse
   }
 
   /** [5.3] recolorNode */
   private[this] def recolorNode(
-    node: XID, colorList: Seq[XReg], changed: mutable.Stack[XID],
-  ): Boolean = {
-    val gauge = changed.size
+    node: XID, colorList: Seq[XReg], changed: mutable.Stack[XID], depth: Int
+  ): Boolean =
+    depth < 4 && {
+      val gauge = changed.size
 
-    for (color <- colorList) {
-      var success = true
-      tempColors(node) = color
-      changed.push(node)
-      Breaks.breakable {
-        for (neigh <- intf(node)) {
-          if (getColor(neigh) == color) {
-            success = false
-            if (isLoose(neigh)) {
-              success = recolorNode(neigh, makeAvoidList(neigh, color), changed)
-            }
-          }
-          if (!success) {
-            rollback(changed, gauge)
-            Breaks.break
-          }
+      colorList.exists { color =>
+        tempColors(node) = color
+        changed.push(node)
+        val success = intf(node).forall { neigh =>
+          getColor(neigh) != color ||
+          isLoose(neigh) && recolorNode(neigh, makeAvoidList(neigh, color), changed, depth + 1)
         }
-        if (success) {
-          return true
+        if (!success) {
+          rollback(changed, gauge)
         }
+        success
       }
     }
-    false
-  }
 
   /** [5.3] changeTo */
   private[this] def changeTo(node: XID, targetColor: XReg): Boolean = {
+    assert(tempColors.isEmpty)
     if (colors(node) == targetColor) {
       true
     } else if (isLoose(node) && adm(node).contains(targetColor)) {
       val changed = mutable.Stack[XID]()
-      if (recolorNode(node, List(targetColor), changed)) {
+      if (recolorNode(node, List(targetColor), changed, depth = 0)) {
         commit(changed)
         true
       } else {
@@ -235,24 +275,27 @@ class Coalescer(
     }
   }
 
+  private[this] var chunkCnt = 0
+
   private[this] final class Chunk(val elems: Set[XID]) extends Ordered[Chunk] {
+    private val chunkUID = chunkCnt
+    chunkCnt += 1
+
     def interferesWith(that: Chunk): Boolean = {
       elems.exists(e => (intf(e) & that.elems).nonEmpty)
     }
 
     /**
       * [5.2] p(C, c)
-      * TODO: memoize
       */
-    private def colorPreference(color: XReg): Double = {
-      elems.map(nodeColorPreference(_, color)).sum
-    }
+    private val colorPreference: Map[XReg, Double] =
+      availableRegs.toSet[XReg].map(c => (c, elems.map(nodeColorPreference(_, c)).sum)).toMap
 
     /**
       * [5.2] d(C, c)
       */
     private[this] def colorDislike(color: XReg): Double = {
-      val X = queue.filter(this.interferesWith)
+      val X = queue.toSeq.filter(this.interferesWith)
       1.0 - X.map(_.colorPreference(color)).sum / X.size
     }
 
@@ -260,29 +303,24 @@ class Coalescer(
       * [5.2] computeColorOrder
       */
     def computeColorOrder: IndexedSeq[XReg] = {
-      import Ordering.Double.TotalOrdering
-
-      XReg.NORMAL_REGS.sortBy(c => (1 - ALPHA) * colorPreference(c) + ALPHA * colorDislike(c))
+      availableRegs.toIndexedSeq.sortBy(
+        c => (1 - ALPHA) * colorPreference(c) + ALPHA * colorDislike(c)
+      )(Ordering.Double.IeeeOrdering).reverse
     }
-
-    private lazy val sortedElems = elems.toSeq.sorted
 
     /** [5.1] cost(C) */
     lazy val totalGain: Int = {
-      val gains =
-        for {
-          v <- elems
-          affs <- affinities.get(v).toSeq
-          (w, gain) <- affs
-          if elems contains w
-        } yield gain
-      gains.sum / 2
+      (for {
+        v <- elems
+        (w, gain) <- affinities(v)
+        if elems contains w
+      } yield gain)
+        .sum
     }
 
     /** `(this compare that) == 0` only if `this == that` */
     override def compare(that: Chunk): Int = {
-      import scala.math.Ordering.Implicits.seqOrdering
-      (totalGain, sortedElems).compare((that.totalGain, that.sortedElems))
+      Ordering.Tuple2[Int, Int].compare((totalGain, chunkUID), (that.totalGain, that.chunkUID))
     }
   }
 

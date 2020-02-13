@@ -18,6 +18,7 @@ final class RegisterAllocator {
   private[this] var currentSafeRegs: immutable.SortedSet[XReg] = _
   private[this] var regCntMax: Int = _
   private[this] var regCntSum: Int = _
+  private[this] var program: Program = _
 
   private[this] def interferenceGraph(f: FDef, avoidCallerSave: Boolean): IGraph = {
     val g = mutable.Map[XVar, Set[XID]]().withDefault(_ => Set())
@@ -38,14 +39,27 @@ final class RegisterAllocator {
       lv.asXVar.foreach(g(_) += cv)
     }
 
-    if (avoidCallerSave) {
-      for {
-        b <- f.body.blocks.valuesIterator
-        liveList = liveness(b.i)
-        ((liveIn, liveOut), Line(_, _, CallDir(callee, _, _)))
-          <- liveList.zip(liveList.tail).zipStrict(b.lines)
-        v <- liveIn & liveOut
-      } {
+    /* MVNIR: Moved Variables Non-Interference Rule (移動変数非干渉則) */
+    for {
+      b <- f.body.blocks.valuesIterator
+      Line(_, dest: XVar, Mv(src: XVar)) <- b.lines
+    } {
+      g(dest) -= src
+      g(src) -= dest
+    }
+
+    for {
+      b <- f.body.blocks.valuesIterator
+      liveList = liveness(b.i)
+      ((liveIn, liveOut), Line(_, _, CallDir(callee, _, _)))
+        <- liveList.zip(liveList.tail).zipStrict(b.lines)
+      v <- liveIn & liveOut
+    } {
+      /* TODO: unit */
+      g(v) += XReg.RETURN
+      val arity = program.functions.find(_.name == callee).get.typ.args.length
+      g(v) ++= XReg.NORMAL_REGS.slice(0, arity)
+      if (avoidCallerSave) {
         g(v) ++= XReg.NORMAL_REGS_SET --
                  safeRegsMap.getOrElse(callee, throw new SpillError(s"unsafe function $callee"))
       }
@@ -98,8 +112,12 @@ final class RegisterAllocator {
         aff.getOrElseUpdate(a, mutable.Map().withDefaultValue(0))(b) += w
       }
 
+    for ((a, i) <- f.args.zipWithIndex) {
+      relate(a, XReg.NORMAL_REGS(i), 30)
+    }
+
     for {
-      (_, b) <- f.blocks
+      b <- f.blocks.valuesIterator
       line <- b.lines
     } line match {
       case Line(_, x: XVar, Mv(y: XVar)) => relate(x, y, 50)
@@ -113,6 +131,18 @@ final class RegisterAllocator {
           relate(ret, XReg.RETURN, 10)
         }
         for ((a: XVar, i) <- args.zipWithIndex) relate(a, XReg.NORMAL_REGS(i), 50)
+      case _ =>
+    }
+
+    for (jump <- f.jumps.valuesIterator) jump match {
+      case Return(_, _, v: XVar, _) => relate(v, XReg.RETURN, 50)
+      case Merge(_, _, inputs, outputID: XVar, _) =>
+        for (mi <- inputs) relate(outputID, mi.xid, 35)
+      case ForLoopTop(_, _, _, _, merges, _, _, _, _) =>
+        for (m <- merges) {
+          relate(m.in, m.loop, 39)
+          relate(m.upd, m.loop, 39)
+        }
       case _ =>
     }
 
@@ -148,8 +178,16 @@ final class RegisterAllocator {
       }
     }
 
-    new Coalescer(interference, buildAffinities(f), regEnv.toMap)()
-    //regEnv.toMap
+    if (regEnv.sizeIs < 2000) { /* TODO: tune parameter */
+      Logger.log("RA", s"${f.name}: begin coalescing")
+      new Coalescer(
+        interference, buildAffinities(f), regEnv.toMap,
+        immutable.SortedSet[XReg](XReg.NORMAL_REGS.last)
+        ++ regEnv.flatMap { case (x, reg) => x.asXVar.map(_ => reg) },
+      ).coalesce
+    } else {
+      regEnv.toMap
+    }
   }
 
   private[this] def applyAllocation(f: FDef, regEnv: Map[XID, XReg]): FDef = {
@@ -210,6 +248,7 @@ final class RegisterAllocator {
 
   def apply(program: Program, liveness: analyze.Liveness.Info): Program = {
     this.liveness = liveness
+    this.program = program
     safeRegsMap.clear()
     regCntMax = 0
     regCntSum = 0

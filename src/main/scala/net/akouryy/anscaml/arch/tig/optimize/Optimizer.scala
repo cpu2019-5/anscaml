@@ -4,8 +4,6 @@ package optimize
 
 import asm.Program
 
-import scala.util.Using
-
 object Optimizer {
   def apply(iterationCount: Int, asm: Program): Unit = {
     for (i <- 0 until iterationCount) {
@@ -21,7 +19,6 @@ object Optimizer {
       changed = changedBT || changed
       changed = DistributeIf(asm, useSets) || changed
       changed = ComplexFolder(asm) || changed
-      AliasSolver(asm)
       if (!changed) return
       /*if (AnsCaml.config.xGenerateAsmGraphs) {
         Using.resource(new java.io.PrintWriter(s"../temp/to-$i.dot")) {

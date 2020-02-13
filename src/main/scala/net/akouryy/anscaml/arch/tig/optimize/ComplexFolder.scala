@@ -3,7 +3,7 @@ package arch.tig
 package optimize
 
 import asm._
-import Branch.{Cond, CondV, CondVC}
+import Branch.{Cond, CondVC}
 import base._
 
 import scala.collection.mutable
@@ -15,7 +15,7 @@ object ComplexFolder {
       Branch(_, ji1, cond1, _, tbi2, fbi2) <- Some(fun(b0.output))
       Block(_, Nil, _, ji3) <- Some(fun(tbi2))
       Block(_, Nil, _, `ji3`) <- Some(fun(fbi2))
-      j3 @ (__ : Merge) <- Some(fun(ji3))
+      Util.The(j3: Merge) <- Some(fun(ji3))
       if j3.outputID != XReg.DUMMY
     } {
       val tmp = XVar.generate("$sel")
@@ -142,11 +142,11 @@ object ComplexFolder {
       val newDest = XVar.generate(tDest2.idStr)
       fun(bi0) :+= Line((tcm :+ "[XF] if-common") + fcm, newDest, commonInst)
       if (tLines2.sizeCompare(fLines2) >= 0) {
-        fun.blocks(tbi2) = tb2.copy(lines = Line(NC, tDest2, Alias(newDest)) :: tLines2)
+        fun.blocks(tbi2) = tb2.copy(lines = Line(NC, tDest2, Mv(newDest)) :: tLines2)
         fun.blocks(fbi2) = fb2.copy(lines = Line(NC, fDest2, Mv(newDest)) :: fLines2)
       } else {
         fun.blocks(tbi2) = tb2.copy(lines = Line(NC, tDest2, Mv(newDest)) :: tLines2)
-        fun.blocks(fbi2) = fb2.copy(lines = Line(NC, fDest2, Alias(newDest)) :: fLines2)
+        fun.blocks(fbi2) = fb2.copy(lines = Line(NC, fDest2, Mv(newDest)) :: fLines2)
       }
     }
   }
