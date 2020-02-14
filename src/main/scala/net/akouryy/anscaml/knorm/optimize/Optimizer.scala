@@ -13,7 +13,7 @@ object Optimizer {
       k = Assoc(k)
       k = new TypFolder()(k)
       k = new LoopDetector()(k)
-      k = new Inliner()(k)
+      k = new Inliner()(k, i)
       k = Eliminator(k)
       k = new PeepHole()(k)
       Logger.log("KO", s"iteration $i")

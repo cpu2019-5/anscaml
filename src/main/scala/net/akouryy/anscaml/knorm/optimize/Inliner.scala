@@ -27,10 +27,12 @@ class Inliner {
   import Inliner._
 
   private[this] val bodyEnv = mutable.Map[ID, (Int, FDef)]()
+  private[this] var optimizerIterationCount = 0
 
-  def apply(kn: KNorm): KNorm = {
+  def apply(kn: KNorm, optimizerIterationCount: Int): KNorm = {
     Logger.log("KO-IL", "Start")
     bodyEnv.clear()
+    this.optimizerIterationCount = optimizerIterationCount
     embed(ID("AnsMain"), kn)
   }
 
@@ -58,7 +60,9 @@ class Inliner {
 
     case Apply(fn, args, isRecCall) =>
       bodyEnv.get(fn) match {
-        case Some((size, fDef)) if size <= AnsCaml.config.inlineLimit / (if (isRecCall) 5 else 1) =>
+        case Some((size, fDef)) if size <= AnsCaml.config.inlineLimit / (
+          if (isRecCall) 5 * (optimizerIterationCount + 1) else 1
+          ) =>
           val body = Alpha.convert(fDef.body, fDef.args.map(_.name).zip(args).toMap)
           KNorm(
             kn.comment + body.comment :+ s"[KO Inliner] ${fn.str} in ${scopeFn.str}",

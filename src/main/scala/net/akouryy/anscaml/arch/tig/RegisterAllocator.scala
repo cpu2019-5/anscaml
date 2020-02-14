@@ -178,7 +178,8 @@ final class RegisterAllocator {
       }
     }
 
-    if (regEnv.sizeIs < 2000) { /* TODO: tune parameter */
+    if (regEnv.sizeIs < 2000) {
+      /* TODO: tune parameter */
       Logger.log("RA", s"${f.name}: begin coalescing")
       new Coalescer(
         interference, buildAffinities(f), regEnv.toMap,

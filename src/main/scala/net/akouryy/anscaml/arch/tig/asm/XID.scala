@@ -68,7 +68,6 @@ object XReg {
   val HEAP = XReg(29)
   val STACK = XReg(30)
   val LINK = XReg(31)
-  val C_255 = XReg(61)
   val C_ONE = XReg(62)
   val C_MINUS_ONE = XReg(63)
 
@@ -76,7 +75,6 @@ object XReg {
     Word(0) -> ZERO,
     Word(1) -> C_ONE,
     Word(-1) -> C_MINUS_ONE,
-    Word(255) -> C_255,
   )
 
   val toConstants: Map[XReg, Word] = fromConstants.map(_.swap)
