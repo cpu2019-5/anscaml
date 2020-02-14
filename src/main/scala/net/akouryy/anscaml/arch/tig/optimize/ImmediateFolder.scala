@@ -270,7 +270,7 @@ class ImmediateFolder(prog: Program) {
   private[this] def optJump(c: Chart)(j: Jump): Unit = {
     val newJ = j match {
       case StartFun(_, _, _) => j
-      case Return(cm, i, value, input) => Return(cm, i, wrapXID(value), input)
+      case Return(cm, i, value, addr, input) => Return(cm, i, wrapXID(value), addr, input)
       case Merge(cm, i, inputs, outputID, output) =>
         Merge(
           cm, i,

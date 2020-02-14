@@ -44,8 +44,8 @@ class GraphDrawer {
             s"""$i[label = "StartFun.${i.indexString}"; shape = component];
                |$i -> $ob [label = "($args)"];
                |""".stripMargin
-          case asm.Return(_, i, v, ib) =>
-            s"""$i[label = "Return.${i.indexString}"; shape = lpromoter];
+          case asm.Return(_, i, v, addr, ib) =>
+            s"""$i[label = "Return.${i.indexString}\n$addr"; shape = lpromoter];
                |$ib -> $i [label="$v"];
                |""".stripMargin
           case asm.Branch(_, i, cond, ib, tob, fob) =>

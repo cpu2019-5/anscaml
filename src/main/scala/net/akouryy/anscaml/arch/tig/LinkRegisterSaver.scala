@@ -6,7 +6,7 @@ import base._
 
 object LinkRegisterSaver {
   def apply(program: Program): Unit = {
-    for (f <- program.functions; if f.body.blocks.nonEmpty) {
+    for (f <- program.functions; if !f.info.isLeaf && f.body.blocks.nonEmpty) {
       val lrVar = XVar.generate(ID.Special.RA_LINK_REG)
       locally {
         val sbi = f.body.blocks.firstKey
@@ -15,17 +15,16 @@ object LinkRegisterSaver {
           lines = Line(CM("[LRS] save LR"), lrVar, Mv(XReg.LINK)) +: sb.lines
         )
       }
-      for (Return(_, _, _, rbi) <- f.body.jumps.valuesIterator) {
+      for (ret @ Return(_, ji, _, None, rbi) <- f.body.jumps.valuesIterator) {
         val rb = f.body.blocks(rbi)
-        val restore = Line(CM("[LRS] restore LR"), XReg.LINK, Mv(lrVar))
-        f.body.blocks(rbi) = rb.copy(
-          lines = rb.lines match {
-            case init :+ (last @ Line(_, _, _: CallDir)) =>
-              init :+ restore :+ last
-            case lines =>
-              lines :+ restore
-          }
-        )
+        rb.lines match {
+          case init :+ (last @ Line(_, _, _: CallDir)) =>
+            f.body.blocks(rbi) =
+              rb.copy(lines = init :+ Line(CM("[LRS] restore LR"), XReg.LINK, Mv(lrVar)) :+ last)
+          case _ =>
+            f.body.jumps(ji) = ret.copy(address = Some(lrVar))
+        }
+
       }
     }
   }

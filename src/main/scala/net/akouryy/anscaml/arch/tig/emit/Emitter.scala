@@ -137,18 +137,24 @@ class Emitter(program: Program) {
       case Nop if toDummy => // nop
       case Read => draftCommand(cm, FInst.read, FReg(if (toDummy) XReg.ZERO else dest))
       case Write(value: XReg) if toDummy => draftCommand(cm, FInst.write, FReg(value))
-      case CallDir(ID.Special.ASM_EXIT_FUN, Nil, Some(_)) if toDummy => draftCommand(cm, FInst.exit)
+      case CallDir(ID.Special.ASM_EXIT_FUN, Nil, Some(_)) if toDummy =>
+        draftCommand(cm, FInst.exit)
+        return isTail
       case CallDir(fn, args, Some(_)) if isTail /* destはdummyでもそうでなくてもよい */ =>
-        if (!Seq(XReg.DUMMY, XReg.RETURN).contains(dest)) !!!!(l)
+        if (!Seq(XReg.DUMMY, XReg.RETURN).contains(dest)) {
+          !!!!(l)
+        }
 
         val argMoves = moveSimultaneously(
-          args.zipWithIndex.map {
-            case (a, i) => Move(a.asXReg.get, XReg.NORMAL_REGS(i))
+          args.zipWithIndex.map { case (a, i) =>
+            Move(a.asXReg.get, XReg.NORMAL_REGS(i))
           }
         )
 
         draftRevertStack()
-        for (Move(s, d) <- argMoves) draftMv(CM("[E] move arg"), d, s)
+        for (Move(s, d) <- argMoves) {
+          draftMv(CM("[E] move arg"), d, s)
+        }
         draftCommand(cm :+ "[E] tail call", FInst.j, FLabel(LAbs, fn))
         return true
       case CallDir(fn, args, Some(saves)) /* destはdummyでもそうでなくてもよい */ =>
@@ -193,7 +199,9 @@ class Emitter(program: Program) {
             FReg(XReg.STACK), SImm(i),
             FReg(saves(key)))
         }
-        for (Move(s, d) <- argMoves) draftMv(CM(s"[E] move arg"), d, s)
+        for (Move(s, d) <- argMoves) {
+          draftMv(CM(s"[E] move arg"), d, s)
+        }
         draftCommand(cm, FInst.jal, FLabel(LAbs, fn))
         if (dest != XReg.DUMMY && dest != XReg.RETURN) {
           draftMv(NC, dest, XReg.RETURN)
@@ -241,7 +249,10 @@ class Emitter(program: Program) {
 
   private[this] def emitJump(ji: JumpIndex): Unit = {
     currentFun.body.jumps(ji) match {
-      case Return(cm, _, XReg.DUMMY | XReg.RETURN, _) =>
+      case Return(cm, _, XReg.DUMMY | XReg.RETURN, Some(addr: XReg), _) =>
+        draftRevertStack()
+        draftCommand(cm, FinalInst.jr, FReg(addr))
+      case Return(cm, _, XReg.DUMMY | XReg.RETURN, None, _) if currentFun.info.isLeaf =>
         draftRevertStack()
         draftCommand(cm, FinalInst.jr, FReg(XReg.LINK))
       case Branch(cm, _, cond, _, tru, fls) =>
@@ -267,7 +278,7 @@ class Emitter(program: Program) {
         draftCond(cm, cond, blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, fls)))
         draftCommand(NC, FinalInst.j,
           FLabel(LAbs, blockLabel(EmitUtil.nextNonEmptyBlockIndex(currentFun.body, tru))))
-      case j => !!!!(j)
+      case j => !!!!((j, j.directInputBIs(currentFun.body).map(currentFun.body.blocks)))
     }
   }
 

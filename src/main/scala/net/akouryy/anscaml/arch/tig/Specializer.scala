@@ -461,7 +461,8 @@ class Specializer {
     val returnJumpIndex = JumpIndex.generate()
     currentChart.blocks(currentBlockIndex) =
       asm.Block(currentBlockIndex, currentLines.toList, currentInputJumpIndex, returnJumpIndex)
-    currentChart.jumps(returnJumpIndex) = asm.Return(NC, returnJumpIndex, retVar, currentBlockIndex)
+    currentChart.jumps(returnJumpIndex) =
+      asm.Return(NC, returnJumpIndex, retVar, None, currentBlockIndex)
 
     asm.FDef(
       cFDef.entry.name.str,

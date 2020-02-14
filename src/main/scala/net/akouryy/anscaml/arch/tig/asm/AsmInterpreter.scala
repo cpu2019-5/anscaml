@@ -175,8 +175,8 @@ class AsmInterpreter {
 
       fun.body.jumps(ji1) match {
         case j1: StartFun => !!!!(j1)
-        case Return(_, _, XReg.DUMMY, _) => done(None)
-        case Return(_, _, value, _) => done(Some(get(value)))
+        case Return(_, _, XReg.DUMMY, _, _) => done(None)
+        case Return(_, _, value, _, _) => done(Some(get(value)))
         case Branch(_, _, Branch.Cond(op, left, right), _, tru2, fls2) =>
           val c = op.fn(get(left), right.fold(get, identity))
           tailcall(interpretBlock(fun, if (c) tru2 else fls2, varsOut))

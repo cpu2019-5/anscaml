@@ -16,7 +16,7 @@ object EarlyReturn {
 
   private[this] def goBackFrom(ji0: JumpIndex, chart: Chart): Boolean = {
     chart.jumps(ji0) match {
-      case Return(cm0, _, retID, bi1) =>
+      case Return(cm0, _, retID, addr, bi1) =>
         chart.blocks(bi1) match {
           case Block(_, Nil, ji2, _) =>
             chart.jumps(ji2) match {
@@ -26,7 +26,7 @@ object EarlyReturn {
                 chart.jumps.remove(ji2)
                 for (MergeInput(bi3, mergingID) <- inputs) {
                   val ji4 = JumpIndex.generate()
-                  chart.jumps(ji4) = Return(cm0, ji4, mergingID, bi3)
+                  chart.jumps(ji4) = Return(cm0, ji4, mergingID, addr, bi3)
                   chart.blocks(bi3) = chart.blocks(bi3).copy(output = ji4)
                   goBackFrom(ji4, chart)
                 }

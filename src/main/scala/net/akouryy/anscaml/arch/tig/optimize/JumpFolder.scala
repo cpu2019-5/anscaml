@@ -3,7 +3,6 @@ package arch.tig
 package optimize
 
 import asm._
-import base._
 
 /**
   * ==単独併合除去==

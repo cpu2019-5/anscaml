@@ -116,7 +116,7 @@ object ComplexFolder {
       )
       fun.jumps(b.output) = fun(b.output) match {
         case j: StartFun => !!!!(j)
-        case j @ Return(_, _, value, _) => j.copy(value = wrap(value))
+        case j @ Return(_, _, value, _, _) => j.copy(value = wrap(value))
         case j @ Branch(_, _, cond, _, _, _) =>
           j.copy(cond = cond.mapLR(wrap)(_.mapV(wrap), wrap))
         case j @ Merge(_, _, inputs, _, _) =>

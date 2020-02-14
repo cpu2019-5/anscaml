@@ -39,10 +39,11 @@ scalacOptions ++= Seq(
   "-encoding", "UTF-8",
   "-unchecked",
   "-deprecation",
+  "-Xlint:unused",
   "-Ywarn-dead-code",
   "-Ywarn-numeric-widen",
   "-Ywarn-value-discard",
-  "-Ywarn-unused",
+  "-Ywarn-unused:-patvars,_", // https://github.com/scala/bug/issues/10394#issuecomment-363086591
 
   "-feature",
   "-language:implicitConversions",

@@ -37,14 +37,14 @@ object LastOptimizer {
       f.body.jumps.mapValuesInPlace { (ji, j) =>
         j match {
           case _: StartFun | _: Branch => j
-          case Return(cm, _, src, bi) =>
+          case Return(cm, _, src, addr, bi) =>
             if (src == XReg.DUMMY) {
               j
             } else {
               if (src != XReg.RETURN) {
                 updateLines(bi, lines => lines :+ Line(NC, XReg.RETURN, Mv(src)))
               }
-              Return(cm, ji, XReg.RETURN, bi)
+              Return(cm, ji, XReg.RETURN, addr, bi)
             }
           case Merge(cm, _, inputs, dest, obi) =>
             Merge(cm, ji, inputs.map {

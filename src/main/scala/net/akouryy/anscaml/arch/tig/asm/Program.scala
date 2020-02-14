@@ -67,7 +67,7 @@ sealed trait Jump {
   val i: JumpIndex
 
   final def convertInput(from: BlockIndex, to: BlockIndex): Jump = this match {
-    case j @ Return(_, _, _, `from`) => j.copy(input = to)
+    case j @ Return(_, _, _, _, `from`) => j.copy(input = to)
     case j @ Branch(_, _, _, `from`, _, _) => j.copy(input = to)
     case j @ Merge(_, _, inputs, _, _) if inputs.exists(_.bi == from) =>
       j.copy(inputs = inputs.map(_.mapBI(bi => if (bi == from) to else bi)))
@@ -80,7 +80,7 @@ sealed trait Jump {
     */
   final def directInputBIs(c: Chart): List[BlockIndex] = this match {
     case _: StartFun => Nil
-    case Return(_, _, _, input) => List(input)
+    case Return(_, _, _, _, input) => List(input)
     case Branch(_, _, _, input, _, _) => List(input)
     case Merge(_, _, inputs, _, _) => inputs.map(_.bi)
     case ForLoopTop(_, _, _, _, _, input, flb, _, _) =>
@@ -91,7 +91,9 @@ sealed trait Jump {
 
 final case class StartFun(comment: Comment, i: JumpIndex, output: BlockIndex) extends Jump
 
-final case class Return(comment: Comment, i: JumpIndex, value: XID, input: BlockIndex) extends Jump
+final case class Return(
+  comment: Comment, i: JumpIndex, value: XID, address: Option[XID], input: BlockIndex,
+) extends Jump
 
 final case class Branch(
   comment: Comment, i: JumpIndex,

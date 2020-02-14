@@ -141,7 +141,7 @@ final class RegisterAllocator {
     }
 
     for (jump <- f.jumps.valuesIterator) jump match {
-      case Return(_, _, v: XVar, _) => relate(v, XReg.RETURN, 50)
+      case Return(_, _, v: XVar, _, _) => relate(v, XReg.RETURN, 50)
       case Merge(_, _, inputs, outputID: XVar, _) =>
         for (mi <- inputs) relate(outputID, mi.xid, 35)
       case ForLoopTop(_, _, _, _, merges, _, _, _, _) =>
@@ -235,7 +235,8 @@ final class RegisterAllocator {
         case Merge(cm, _, inputs, outputID, output) =>
           val newInputs = inputs.map(_.mapXID(wrap))
           Merge(cm, j.i, newInputs, wrap(outputID), output)
-        case Return(cm, _, value, input) => Return(cm, j.i, wrap(value), input)
+        case Return(cm, _, value, addr, input) =>
+          Return(cm, j.i, wrap(value), addr.map(wrap), input)
         case ForLoopTop(cm, _, cond, negated, merges, input, loopBottom, body, kont) =>
           ForLoopTop(cm, j.i, cond.mapLR(wrap)(wrapVC, wrap), negated, merges.map {
             case ForLoopVar(in, upd, loop) => ForLoopVar(wrap(in), wrap(upd), wrap(loop))
