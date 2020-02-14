@@ -17,8 +17,7 @@ class Emitter(program: Program) {
 
   private[this] case class MaxStackSize(n: Int)
 
-  private[this] val StackMetaDataSize = 1 // リンクレジスタ退避用
-  private[this] val LinkRegOffset = -1
+  private[this] val StackMetaDataSize = 0 // リンクレジスタ退避不要
 
   private[this] val fixedFLines = mutable.ListBuffer[FinalLine]()
   private[this] var currentFun: FDef = _
@@ -74,8 +73,6 @@ class Emitter(program: Program) {
             FInst.addi, FReg(XReg.STACK), FReg(XReg.STACK), SImm(+sz))
         )
       }
-      draftCommand(CM("[E] restore LR"),
-        FInst.load, FReg(XReg.LINK), FReg(XReg.STACK), SImm(LinkRegOffset))
     }
 
   /**
@@ -314,8 +311,6 @@ class Emitter(program: Program) {
         FinalInst.orhi, FReg(XReg.STACK), FReg(XReg.ZERO), UImm(1 << ml2 - 16))
     }
     if (!fun.info.isLeaf) {
-      draftCommand(CM("[E] save LR"),
-        FInst.store, FReg(XReg.STACK), SImm(LinkRegOffset), FReg(XReg.LINK))
       currentFLines += { case MaxStackSize(sz) =>
         if (sz == 0) Nil
         else List(

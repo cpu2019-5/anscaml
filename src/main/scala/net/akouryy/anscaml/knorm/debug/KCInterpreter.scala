@@ -32,7 +32,7 @@ class KCInterpreter {
       "$ext_fabs" -> { case List(VFloat(f)) => VFloat(f.abs) },
       "$ext_fsqr" -> { case List(VFloat(f)) => VFloat(f * f) },
       "$ext_floor" -> { case List(VFloat(f)) => VFloat(f.floor) },
-      "$ext_sqrt" -> { case List(VFloat(f)) => VFloat(Math.sqrt(f).toFloat) },
+      "$ext_sqrt" -> { case List(VFloat(f)) => VFloat(Math.sqrt(f.toDouble).toFloat) },
       "$ext_float_of_int" -> { case List(VInt(i)) => VFloat(i.toFloat) },
       "$ext_int_of_float" -> { case List(VFloat(f)) => VInt((f + 0.5).toInt) },
       "$ext_bits_of_float" -> {

@@ -10,7 +10,6 @@ import syntax.BinOp
 import typ.Typ
 
 import scala.collection.{immutable, mutable}
-import scala.util.Using
 
 object Specializer {
 

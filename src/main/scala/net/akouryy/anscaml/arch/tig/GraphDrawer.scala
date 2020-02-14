@@ -1,8 +1,6 @@
 package net.akouryy.anscaml
 package arch.tig
 
-import base._
-
 import scala.collection.mutable
 
 class GraphDrawer {

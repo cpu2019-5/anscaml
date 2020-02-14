@@ -25,7 +25,7 @@ class KNInterpreter {
       "fneg" -> { case List(VFloat(f)) => VFloat(-f) },
       "fabs" -> { case List(VFloat(f)) => VFloat(f.abs) },
       "fsqr" -> { case List(VFloat(f)) => VFloat(f * f) },
-      "sqrt" -> { case List(VFloat(f)) => VFloat(Math.sqrt(f).toFloat) },
+      "sqrt" -> { case List(VFloat(f)) => VFloat(Math.sqrt(f.toDouble).toFloat) },
       "floor" -> { case List(VFloat(f)) => VFloat(f.floor) },
       "float_of_int" -> { case List(VInt(i)) => VFloat(i.toFloat) },
       "int_of_float" -> { case List(VFloat(f)) => VInt((f + 0.5).toInt) },

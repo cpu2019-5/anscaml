@@ -60,6 +60,7 @@ object ID {
     val GC_VAL = "$gcv"
     val KN_INT = "$i"
     val ASM_F_INV = "$inv"
+    val RA_LINK_REG = "$lr"
     val KO_LOOP_VAR = "$loop"
     val KO_UPD_VAR = "$lup"
     val MAIN = "$main"

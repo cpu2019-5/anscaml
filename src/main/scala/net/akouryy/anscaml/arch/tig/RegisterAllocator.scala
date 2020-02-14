@@ -20,7 +20,7 @@ final class RegisterAllocator {
   private[this] var regCntSum: Int = _
   private[this] var program: Program = _
 
-  private[this] def interferenceGraph(f: FDef, avoidCallerSave: Boolean): IGraph = {
+  private[this] def interferenceGraph(f: FDef, avoidCallerSaveThreshold: Int): IGraph = {
     val g = mutable.Map[XVar, Set[XID]]().withDefault(_ => Set())
     for {
       bi <- f.body.blocks.keysIterator
@@ -53,15 +53,21 @@ final class RegisterAllocator {
       liveList = liveness(b.i)
       ((liveIn, liveOut), Line(_, _, CallDir(callee, _, _)))
         <- liveList.zip(liveList.tail).zipStrict(b.lines)
+      if callee != ID.Special.ASM_EXIT_FUN
       v <- liveIn & liveOut
     } {
-      /* TODO: unit */
-      g(v) += XReg.RETURN
-      val arity = program.functions.find(_.name == callee).get.typ.args.length
-      g(v) ++= XReg.NORMAL_REGS.slice(0, arity)
-      if (avoidCallerSave) {
-        g(v) ++= XReg.NORMAL_REGS_SET --
-                 safeRegsMap.getOrElse(callee, throw new SpillError(s"unsafe function $callee"))
+      /* TODO: unit; TODO: 末尾再帰をどうやって避けてるか確認 */
+      val arity = program.functions.find(_.name == callee).getOrElse(!!!!(callee)).typ.args.length
+      g(v) ++= Seq(XReg.RETURN) ++ XReg.NORMAL_REGS.slice(0, arity)
+
+      val sr = XReg.NORMAL_REGS_SET --
+               safeRegsMap.getOrElse(callee,
+                 if (avoidCallerSaveThreshold == 0) XReg.NORMAL_REGS_SET
+                 else throw new SpillError(s"unsafe function $callee")
+               )
+
+      if (sr.sizeIs <= avoidCallerSaveThreshold) {
+        g(v) ++= sr
       }
     }
     g.toMap
@@ -247,23 +253,30 @@ final class RegisterAllocator {
     )
   }
 
-  def apply(program: Program, liveness: analyze.Liveness.Info): Program = {
-    this.liveness = liveness
+  def apply(program: Program): Program = {
     this.program = program
     safeRegsMap.clear()
     regCntMax = 0
     regCntSum = 0
 
+    LinkRegisterSaver(program)
+    liveness = analyze.Liveness.analyzeProgram(program)
+
     val res = Program(
       program.gcSize,
       program.tyEnv,
       program.functions.mapInReversedOrder { f =>
-        val regEnv = try {
-          allocateInFun(f, interferenceGraph(f, avoidCallerSave = true))
-        } catch {
-          case e: SpillError =>
-            Logger.log("RA", s"${f.name}: ${e.getMessage}")
-            allocateInFun(f, interferenceGraph(f, avoidCallerSave = false))
+        var regEnv: Map[XID, XReg] = null
+
+        (60 to 0 by -10).exists { th =>
+          try {
+            regEnv = allocateInFun(f, interferenceGraph(f, th))
+            true
+          } catch {
+            case e: SpillError =>
+              Logger.log("RA", s"${f.name}[$th]: ${e.getMessage}")
+              false
+          }
         }
 
         val regCnt = regEnv.flatMap {

@@ -2,8 +2,6 @@ package net.akouryy.anscaml
 package knorm
 package optimize
 
-import base._
-
 object Optimizer {
   def apply(iterationCount: Int, kNorm0: KNorm): KNorm = {
     var kNorm = kNorm0

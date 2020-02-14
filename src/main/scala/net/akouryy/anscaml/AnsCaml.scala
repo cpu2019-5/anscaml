@@ -95,7 +95,7 @@ object AnsCaml {
       }
     }
 
-    val reg = new arch.tig.RegisterAllocator()(asm, arch.tig.analyze.Liveness.analyzeProgram(asm))
+    val reg = new arch.tig.RegisterAllocator()(asm)
 
     val lo = arch.tig.emit.LastOptimizer(reg)
 
