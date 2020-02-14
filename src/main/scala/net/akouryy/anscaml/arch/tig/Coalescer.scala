@@ -18,6 +18,8 @@ class Coalescer(
   availableRegs: immutable.SortedSet[XReg],
 ) {
   private[this] val ALPHA = 0.1
+  private[this] val MAX_DEQUEUE_ITER = 100
+  private[this] val MAX_RECOLOR_NODE_COUNT = 20
 
   private[this] val queue = mutable.PriorityQueue[Chunk]()
   private[this] val tempColors = mutable.Map[XID, XReg]()
@@ -76,9 +78,11 @@ class Coalescer(
   def coalesce: Map[XID, XReg] = {
     queue.clear()
     queue ++= createInitialChunks().filter(_.elems.sizeIs >= 2)
-    while (queue.nonEmpty) {
+    var cnt = 0
+    while (cnt < MAX_DEQUEUE_ITER && queue.nonEmpty) {
       val chunk = queue.dequeue()
       queue ++= recolorChunk(chunk).filter(_.elems.sizeIs >= 2)
+      cnt += 1
     }
     colors.toMap
   }
@@ -236,11 +240,15 @@ class Coalescer(
     availableRegs.toSeq.filter(prio(_) > 0.0).sortBy(prio)(Ordering.Double.IeeeOrdering).reverse
   }
 
+  private[this] var recolorNodeCount = 0
+
   /** [5.3] recolorNode */
   private[this] def recolorNode(
-    node: XID, colorList: Seq[XReg], changed: mutable.Stack[XID], depth: Int
+    node: XID, colorList: Seq[XReg], changed: mutable.Stack[XID]
   ): Boolean =
-    depth < 4 && {
+    recolorNodeCount < MAX_RECOLOR_NODE_COUNT && {
+      recolorNodeCount += 1
+
       val gauge = changed.size
 
       colorList.exists { color =>
@@ -248,7 +256,7 @@ class Coalescer(
         changed.push(node)
         val success = intf(node).forall { neigh =>
           getColor(neigh) != color ||
-          isLoose(neigh) && recolorNode(neigh, makeAvoidList(neigh, color), changed, depth + 1)
+          isLoose(neigh) && recolorNode(neigh, makeAvoidList(neigh, color), changed)
         }
         if (!success) {
           rollback(changed, gauge)
@@ -264,7 +272,8 @@ class Coalescer(
       true
     } else if (isLoose(node) && adm(node).contains(targetColor)) {
       val changed = mutable.Stack[XID]()
-      if (recolorNode(node, List(targetColor), changed, depth = 0)) {
+      recolorNodeCount = 0
+      if (recolorNode(node, List(targetColor), changed)) {
         commit(changed)
         true
       } else {
