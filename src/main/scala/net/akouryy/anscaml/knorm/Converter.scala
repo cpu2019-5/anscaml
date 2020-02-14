@@ -37,7 +37,7 @@ object Converter {
 
   private[this] def insertMulti(subjects: List[Syntax], env: Env) =
     Mapper[(List[ID], Env), TypedK, TypedK] { kont =>
-      val extraInfo = subjects.map(convert(env, _) match {
+      val extraInfo = subjects.map(convert(env, _, isTail = false) match {
         case (_, KNorm.Var(x)) => Left(x)
         case (t, e) => Right(ID.generate(), t, e)
       })
@@ -64,7 +64,7 @@ object Converter {
 
   private[this] def convertEntry(entry: Entry) = Entry(entry.name, convertTyp(entry.typ))
 
-  private[this] def convert(env: Env, ast: Syntax): TypedK = {
+  private[this] def convert(env: Env, ast: Syntax, isTail: Boolean): TypedK = {
     import Syntax._
 
     ast match {
@@ -73,24 +73,24 @@ object Converter {
         (Typ.IntList(i), KNorm.KInt(i))
       case LitInt(i) => (Typ.IntList(i), KNorm.KInt(i))
       case LitFloat(f) => (Typ.FloatList(f), KNorm.KFloat(f))
-      case Not(s) => convert(env, BinOpTree(BinOp.Sub, LitInt(-1), s))
+      case Not(s) => convert(env, BinOpTree(BinOp.Sub, LitInt(-1), s), isTail = false)
       case BinOpTree(op, left, right) =>
         for {
-          (x, env2) <- insert(convert(env, left), env)
-          (y, _) <- insert(convert(env2, right), env2)
+          (x, env2) <- insert(convert(env, left, isTail = false), env)
+          (y, _) <- insert(convert(env2, right, isTail = false), env2)
         } yield {
           (op.retTyp, KNorm.BinOpTree(op, x, y))
         }
       case cmp: CmpOpTree => /* Ifで拾われなかった場合 */
-        convert(env, If(cmp, LitBool(true), LitBool(false)))
-      case If(Not(cond), tru, fls) => convert(env, If(cond, fls, tru))
+        convert(env, If(cmp, LitBool(true), LitBool(false)), isTail)
+      case If(Not(cond), tru, fls) => convert(env, If(cond, fls, tru), isTail)
       case If(CmpOpTree(op, left, right), tru, fls) =>
         for {
-          (l, env2) <- insert(convert(env, left), env)
-          (r, env3) <- insert(convert(env2, right), env2)
+          (l, env2) <- insert(convert(env, left, isTail = false), env)
+          (r, env3) <- insert(convert(env2, right, isTail = false), env2)
         } yield {
-          val (tt, te) = convert(env3, tru)
-          val (ft, fe) = convert(env3, fls)
+          val (tt, te) = convert(env3, tru, isTail)
+          val (ft, fe) = convert(env3, fls, isTail)
           try {
             (tt | ft, KNorm.IfCmp(op, l, r, KNorm(te), KNorm(fe)))
           } catch {
@@ -98,11 +98,11 @@ object Converter {
           }
         }
       case If(cond, tru, fls) =>
-        convert(env, If(CmpOpTree(CmpOp.Le, cond, LitInt(-1)), tru, fls))
+        convert(env, If(CmpOpTree(CmpOp.Le, cond, LitInt(-1)), tru, fls), isTail)
       case Let(entry, bound, kont) =>
         val newEntry = convertEntry(entry)
-        val (_, be) = convert(env, bound)
-        val (kt, ke) = convert(env + newEntry, kont)
+        val (_, be) = convert(env, bound, isTail = false)
+        val (kt, ke) = convert(env + newEntry, kont, isTail)
         (kt, KNorm.Let(newEntry, KNorm(be), KNorm(ke)))
       case Var(x) =>
         (env.typs(x), KNorm.Var(x)) // TODO?: external function
@@ -112,8 +112,8 @@ object Converter {
         val envWithFn = env + newEntry
         val envBody =
           (envWithFn ++ newArgs).copy(scopeFns = entry.name :: env.scopeFns)
-        val (_, be) = convert(envBody, body)
-        val (kt, ke) = convert(envWithFn, kont)
+        val (_, be) = convert(envBody, body, isTail)
+        val (kt, ke) = convert(envWithFn, kont, isTail)
 
         val Typ.TFun(argsTyp, retTyp) = newEntry.typ
         val kEntry = newEntry.copy(typ = Typ.TFun(argsTyp.filter(_ != Typ.TUnit), retTyp))
@@ -127,14 +127,17 @@ object Converter {
           (retTyp, KNorm.ApplyExternal(fn, xs.filter(x => env2.typs(x) != Typ.TUnit)))
         }
       case Apply(fn, args) =>
-        val fnr @ (Typ.TFun(_, retTyp), _) = convert(env, fn): @unchecked
+        val fnr @ (Typ.TFun(_, retTyp), _) = convert(env, fn, isTail = false): @unchecked
         for {
           (x, env2) <- insert(fnr, env)
           (ys, env3) <- insertMulti(args, env2)
         } yield {
           (
             retTyp,
-            KNorm.Apply(x, ys.filter(y => env3.typs(y) != Typ.TUnit), env.scopeFns.contains(x)),
+            KNorm.Apply(
+              x, ys.filter(y => env3.typs(y) != Typ.TUnit),
+              KNorm.ApplyInfo(env.scopeFns.contains(x), isTail),
+            ),
           )
         }
       case Tuple(es) =>
@@ -143,37 +146,37 @@ object Converter {
           KNorm.KTuple(xs)
         )
       case LetTuple(elems, bound, kont) =>
-        for ((x, env2) <- insert(convert(env, bound), env)) yield {
+        for ((x, env2) <- insert(convert(env, bound, isTail = false), env)) yield {
           if (elems.isEmpty) {
-            convert(env2, kont) // xは副作用のために束縛されるが使用はされない
+            convert(env2, kont, isTail) // xは副作用のために束縛されるが使用はされない
           } else {
             val newElems = elems.map(convertEntry)
-            val (kt, ke) = convert(env2 ++ newElems, kont)
+            val (kt, ke) = convert(env2 ++ newElems, kont, isTail)
             (kt, KNorm.LetTuple(newElems, x, KNorm(ke)))
           }
         }
       case Array(length, elem) =>
         for {
-          (x, env2) <- insert(convert(env, length), env)
+          (x, env2) <- insert(convert(env, length, isTail = false), env)
         } yield {
-          val er @ (et, _) = convert(env2, elem)
+          val er @ (et, _) = convert(env2, elem, isTail = false)
           for {(y, _) <- insert(er, env2)} yield {
             (Typ.TArray(et), KNorm.KArray(x, y))
           }
         }
       case Get(array, index) =>
-        val ar @ (Typ.TArray(elemTyp), _) = convert(env, array)
+        val ar @ (Typ.TArray(elemTyp), _) = convert(env, array, isTail = false)
         for {
           (x, env2) <- insert(ar, env)
-          (y, _) <- insert(convert(env2, index), env2)
+          (y, _) <- insert(convert(env2, index, isTail = false), env2)
         } yield {
           (elemTyp, KNorm.Get(x, y))
         }
       case Put(array, index, value) =>
         for {
-          (x, env2) <- insert(convert(env, array), env)
-          (y, env3) <- insert(convert(env2, index), env2)
-          (z, _) <- insert(convert(env3, value), env3)
+          (x, env2) <- insert(convert(env, array, isTail = false), env)
+          (y, env3) <- insert(convert(env2, index, isTail = false), env2)
+          (z, _) <- insert(convert(env3, value, isTail = false), env3)
         } yield {
           (Typ.TUnit, KNorm.Put(x, y, z))
         }
@@ -182,6 +185,6 @@ object Converter {
 
   def apply(ast: Syntax): KNorm = {
     Logger.log("KV", "Start")
-    KNorm(convert(Env(Map(), Nil), ast)._2)
+    KNorm(convert(Env(Map(), Nil), ast, isTail = true)._2)
   }
 }

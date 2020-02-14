@@ -58,7 +58,7 @@ class Inliner {
       }*/
       kn.copy(raw = LetRec(newFDef, embed(scopeFn, kont)))
 
-    case Apply(fn, args, isRecCall) =>
+    case Apply(fn, args, ApplyInfo(isRecCall, isTail)) =>
       bodyEnv.get(fn) match {
         case Some((size, fDef)) if size <= AnsCaml.config.inlineLimit / (
           if (isRecCall) 5 * (optimizerIterationCount + 1) else 1

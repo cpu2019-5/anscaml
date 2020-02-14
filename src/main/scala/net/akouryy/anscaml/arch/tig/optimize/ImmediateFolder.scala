@@ -107,8 +107,8 @@ class ImmediateFolder(prog: Program) {
         case Mv(Fixed(w)) =>
           addImm(line.dest, w)
           inst
-        case Mv(Selection(sel)) =>
-          for (v <- line.dest.asXVar) selectEnv(v) = Select.tupled(sel)
+        case Mv(Selection(cond, t, f)) =>
+          for (v <- line.dest.asXVar) selectEnv(v) = Select(cond, t, f)
           inst
         case Mv(_) => inst
 

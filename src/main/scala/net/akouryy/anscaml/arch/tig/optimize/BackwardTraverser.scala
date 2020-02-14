@@ -16,7 +16,7 @@ class BackwardTraverser {
     useSets.clear()
 
     for (f <- prog.functions) {
-      f.body.blocks.values.toSeq.reverseIterator.foreach(traverseBlock(f.body)) // TODO: reverse
+      f.body.blocks.values.toSeq.reverseIterator.foreach(traverseBlock(f.body))
       val free = useSets(f.body.blocks.firstKey) -- f.args.flatMap(_.asXVar)
       if (free.nonEmpty) {
         Logger.log("TO-BT", s"free variables $free found.")

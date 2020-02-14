@@ -70,7 +70,9 @@ object KNorm {
 
   final case class Put(array: ID, index: ID, value: ID) extends KRaw with KCRaw
 
-  final case class Apply(fn: ID, args: List[ID], isRecCall: Boolean) extends KRaw
+  final case class Apply(fn: ID, args: List[ID], info: ApplyInfo) extends KRaw
+
+  final case class ApplyInfo(isRec: Boolean, isTail: Boolean)
 
   final case class ApplyExternal(fn: ID, args: List[ID]) extends KRaw
 

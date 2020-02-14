@@ -56,15 +56,11 @@ final class RegisterAllocator {
       if callee != ID.Special.ASM_EXIT_FUN
       v <- liveIn & liveOut
     } {
-      /* TODO: unit; TODO: 末尾再帰をどうやって避けてるか確認 */
+      /* TODO: unit */
       val arity = program.functions.find(_.name == callee).getOrElse(!!!!(callee)).typ.args.length
       g(v) ++= Seq(XReg.RETURN) ++ XReg.NORMAL_REGS.slice(0, arity)
 
-      val sr = XReg.NORMAL_REGS_SET --
-               safeRegsMap.getOrElse(callee,
-                 if (avoidCallerSaveThreshold == 0) XReg.NORMAL_REGS_SET
-                 else throw new SpillError(s"unsafe function $callee")
-               )
+      val sr = XReg.NORMAL_REGS_SET -- safeRegsMap.getOrElse(callee, XReg.NORMAL_REGS_SET)
 
       if (sr.sizeIs <= avoidCallerSaveThreshold) {
         g(v) ++= sr

@@ -52,6 +52,7 @@ let rec fsqr x = x *. x in
   is preserved.
   ====================================================
 *)
+let stdlib__pi2 = 3.141592653589793238462643383279 *. 2.0 in
 let rec stdlib__mod_2pi_loop1 a p =
   if a <. p then p
   else stdlib__mod_2pi_loop1 a (p *. 2.0) in
@@ -59,11 +60,13 @@ let rec stdlib__mod_2pi_loop2 a p pi2 =
   if a <. pi2 then a
   else stdlib__mod_2pi_loop2 (if a >=. p then a -. p else a) (p *. 0.5) pi2 in
 let rec stdlib__mod_2pi a =
-  let pi2 = 3.141592653589793238462643383279 *. 2.0 in
-  stdlib__mod_2pi_loop2 a (stdlib__mod_2pi_loop1 a pi2) pi2 in
-let rec stdlib__kcos x y =
-  if x <. 0.0 then stdlib__kcos (0.0 -. x) (0.0 -. y) else
+  let pi2 = stdlib__pi2 in
+  if a <. pi2 then a
+  else stdlib__mod_2pi_loop2 a (stdlib__mod_2pi_loop1 a pi2) pi2 in
+let rec stdlib__kcos xx yy =
+  let x = fabs xx in
   if x <. 0.000000007450580596923828 (* 2^-27 *) then 1.0 else
+  let y = if x <. 0.0 then 0.0 -. yy else yy in
   let c1 =  0.0416666666666666019037 in
   let c2 = -0.00138888888888741095749 in
   let c3 =  0.0000248015872894767294178 in
@@ -76,8 +79,7 @@ let rec stdlib__kcos x y =
   let hz = 0.5 *. z -. qx in
   let a = 1.0 -. qx in
   a -. (hz -. (z *. r -. x *. y)) in
-let rec stdlib__ksin x y iy0 =
-  if x <. 0.0 then 0.0 -. (stdlib__ksin (0.0 -. x) (0.0 -. y) iy0) else
+let rec stdlib__ksin_pos x y iy0 =
   if x <. 0.000000007450580596923828 (* 2^-27 *) then x else
   let s1 = -0.166666666666666324348 in
   let s2 =  0.00833333333332248946124 in
@@ -90,9 +92,11 @@ let rec stdlib__ksin x y iy0 =
   let r = s2 +. z *. (s3 +. z *. (s4 +. z *. (s5 +. z *. s6))) in
   if iy0 then x +. v *. (s1 +. z *. r)
   else       x -. ((z *. (0.5 *. y -. v *. r) -. y) -. v *. s1) in
-let rec cos x =
+let rec stdlib__ksin x y iy0 =
+  if x <. 0.0 then 0.0 -. (stdlib__ksin_pos (0.0 -. x) (0.0 -. y) iy0) else
+  stdlib__ksin_pos x y iy0 in
+let rec cos [@no_inline] x =
   let pi = 3.141592653589793238462643383279 in
-  let pi2 = pi *. 2.0 in
   let piq = pi *. 0.25 in
   let x = fabs x in
   if x <. piq then stdlib__kcos x 0.0 else
@@ -109,7 +113,6 @@ let rec cos x =
     stdlib__kcos (y -. piq *. 8.0) 0.0 in
 let rec stdlib_sin_pos x =
   let pi = 3.141592653589793238462643383279 in
-  let pi2 = pi *. 2.0 in
   let piq = pi *. 0.25 in
   if x <. piq then stdlib__ksin x 0.0 true else
   let y = stdlib__mod_2pi x in
@@ -123,9 +126,9 @@ let rec stdlib_sin_pos x =
     0.0 -. (stdlib__kcos (y -. piq *. 6.0) 0.0)
   else
     stdlib__ksin (y -. piq *. 8.0) 0.0 false in
-let rec sin x =
-  if x <. 0.0 then 0.0 -. stdlib_sin_pos (0.0 -. x) else
-  stdlib_sin_pos x in
+let rec sin [@no_inline] x =
+  if x <. 0.0 then 0.0 -. stdlib_sin_pos (0.0 -. x)
+  else stdlib_sin_pos x in
 
 let rec stdlib_atan_base x =
   let x2 = x *. x in
