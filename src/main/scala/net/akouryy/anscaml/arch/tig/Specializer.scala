@@ -47,6 +47,7 @@ class Specializer {
 
   private[this] var cx: TigContext = _
   private[this] var kSwarmIndices: Map[ID, SwarmIndex] = _
+  private[this] var kLoadTimeConstants: Set[SwarmIndex] = _
 
   private[this] def loadGConstsInfo(gcs: List[(Entry, KClosed)]): Unit = {
     gConsts.clear()
@@ -54,17 +55,30 @@ class Specializer {
     gConstsSumSize = 0
 
     for ((entry, cl) <- gcs) {
-      val (gc, size) = cl.raw match {
-        case KNorm.KInt(i) => (GCInt(i), 0)
-        case KNorm.KFloat(f) => (GCFloat(f), 0)
+      val defaultTy = Ty(entry.typ)
+      val (gc, newTy, size) = cl.raw match {
+        case KNorm.KInt(i) => (GCInt(i), defaultTy, 0)
+        case KNorm.KFloat(f) => (GCFloat(f), defaultTy, 0)
         case KNorm.KArray(len, elem) =>
           gConsts.get(XVar(len.str)) match {
-            case Some((_, GCInt(len))) => (GCArrayImm(gConstsSumSize, len, elem), len)
-            case _ => (GCOther(gConstsSumSize, cl), 1) // 即値かポインタなのでサイズ1
+            case Some((_, GCInt(len))) =>
+              defaultTy match {
+                case asm.TyPointer(asm.TyArray(asm.TyPointer(asm.TyTuple(elemTys))))
+                  if kLoadTimeConstants contains kSwarmIndices(entry.name) =>
+                  (
+                    GCArrayImm(gConstsSumSize, len, elem),
+                    asm.TyArray(asm.TyTuple(elemTys)), /* Pointer2つとも消去 */
+                    len << Util.log2Ceil(elemTys.length),
+                  )
+                case asm.TyPointer(arr) =>
+                  (GCArrayImm(gConstsSumSize, len, elem), arr, len)
+                case _ => !!!!(defaultTy)
+              }
+            case _ => (GCOther(gConstsSumSize, cl), defaultTy, 1) /* 即値かポインタなのでサイズ1 */
           }
-        case _ => (GCOther(gConstsSumSize, cl), 1)
+        case _ => (GCOther(gConstsSumSize, cl), defaultTy, 1)
       }
-      gConsts(XVar(entry.name.str)) = (Ty(entry.typ), gc)
+      gConsts(XVar(entry.name.str)) = (newTy, gc)
       gConstsListRev ::= entry.name
       gConstsSumSize += size
     }
@@ -99,8 +113,21 @@ class Specializer {
     )
 
     gConstsListRev.reverseIterator.foreach { gConst =>
-      gConsts(XVar(gConst.str)) match {
+      val gConstX = XVar(gConst.str)
+      gConsts(gConstX) match {
         case (_, _: GCInt | _: GCFloat) | (asm.TyArray(asm.TyUnit), _: GCArrayImm) => // no store
+        case (asm.TyArray(asm.TyTuple(elemTys)), GCArrayImm(addr, len, elem)) =>
+          val e = wrapVar(elem)
+          val shift = Util.log2Ceil(elemTys.length)
+          for (i <- 0 until len) {
+            val orig = asm.MIArray(kSwarmIndices(gConst), i)
+            for (j <- elemTys.indices) {
+              val elemValue = XVar.generate(gConst.str + ID.Special.SPECIALIZE_LTC_ELEM)
+              currentLines += Line(NC, elemValue, asm.Load(e, C.int(j), orig)) // LTCなのでorigは適当
+              currentLines += Line(CM(s"[SP] def LTC gConst ${gConst.str}"), XReg.DUMMY,
+                asm.Store(XReg.ZERO, C.int(addr + (i << shift) + j), elemValue, orig))
+            }
+          }
         case (_, GCArrayImm(addr, len, elem)) =>
           val e = wrapVar(elem)
           for (i <- 0 until len) {
@@ -219,22 +246,47 @@ class Specializer {
       case KNorm.Get(array, index) =>
         val a = wrapVar(array)
         val i = wrapVar(index)
-        if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
-          val _ = currentLines += Line(cm, dest, asm.Load(a, V(i),
-            asm.MIArray(kSwarmIndices(array), mviEnv.get(i).map(_.value.int))))
+        val si = kSwarmIndices(array)
+        tyEnv(a) match {
+          case asm.TyArray(asm.TyUnit) => // ignore
+          case asm.TyArray(asm.TyTuple(elems)) =>
+            val ix = XVar.generate(array.str + ID.Special.SPECIALIZE_LTC_INDEX)
+            val shift = Util.log2Ceil(elems.length)
+            currentLines += Line(cm, ix, asm.BinOpVCTree(asm.Sha, i, C.int(shift)))
+            currentLines += Line(cm, dest, asm.BinOpVCTree(asm.Add, a, V(ix)))
+            ()
+          case _ =>
+            currentLines += Line(cm, dest,
+              asm.Load(a, V(i), asm.MIArray(si, mviEnv.get(i).map(_.value.int))))
+            ()
         }
       case KNorm.Put(array, index, value) =>
         assert(dest == XReg.DUMMY)
         val a = wrapVar(array)
         val i = wrapVar(index)
         val v = wrapVar(value)
-        if (tyEnv(a) != asm.TyArray(asm.TyUnit)) {
-          val addr = XVar.generate(array.str + ID.Special.SPECIALIZE_ADDR)
-          // TODO: swarm for addr
-          currentLines += Line(NC, addr, asm.BinOpVCTree(asm.Add, a, V(i)))
-          currentLines += Line(cm, XReg.DUMMY, asm.Store(addr, C.int(0), v,
-            asm.MIArray(kSwarmIndices(array), mviEnv.get(i).map(_.value.int))))
-          ()
+        val si = kSwarmIndices(array)
+        val orig = asm.MIArray(si, mviEnv.get(i).map(_.value.int))
+        tyEnv(a) match {
+          case asm.TyArray(asm.TyUnit) => // ignore
+          case asm.TyArray(asm.TyTuple(elemTys)) =>
+            val ix = XVar.generate(array.str + ID.Special.SPECIALIZE_LTC_INDEX)
+            val shift = Util.log2Ceil(elemTys.length)
+            currentLines += Line(cm, ix, asm.BinOpVCTree(asm.Sha, i, C.int(shift)))
+            for (j <- elemTys.indices) {
+              val addr = XVar.generate(array.str + ID.Special.SPECIALIZE_ADDR)
+              val elemValue = XVar.generate(array.str + ID.Special.SPECIALIZE_LTC_ELEM)
+              currentLines += Line(NC, elemValue, asm.Load(v, C.int(j), orig)) // LTCなのでorigは適当
+              currentLines += Line(NC, addr, asm.BinOpVCTree(asm.Add, a, V(ix)))
+              currentLines += Line(NC, XReg.DUMMY, asm.Store(addr, C.int(j), elemValue, orig))
+            }
+            ()
+          case _ =>
+            val addr = XVar.generate(array.str + ID.Special.SPECIALIZE_ADDR)
+            /* TODO: swarm for addr ? */
+            currentLines += Line(NC, addr, asm.BinOpVCTree(asm.Add, a, V(i)))
+            currentLines += Line(cm, XReg.DUMMY, asm.Store(addr, C.int(0), v, orig))
+            ()
         }
       case KNorm.ApplyDirect(fn, args) =>
         val Typ.TFun(_, retTyp) =
@@ -475,6 +527,9 @@ class Specializer {
 
   def apply(cl: KCProgram, sw: Map[ID, swarm.SwarmIndex]): (asm.Program, TigContext) = {
     kSwarmIndices = sw
+    kLoadTimeConstants = new knorm.analyze.LoadTimeConstantDetector(sw).detect(cl)
+    println(kLoadTimeConstants)
+    kLoadTimeConstants.foreach(si => println(si, kSwarmIndices.filter(_._2 == si).keySet))
     /*util.Using.resource(new java.io.PrintWriter("../temp/sg-2.txt")) {
       base.PPrinter.writeTo(_, sw)
     }*/
