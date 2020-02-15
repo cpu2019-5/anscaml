@@ -21,7 +21,7 @@ class Coalescer(
   private[this] val MAX_DEQUEUE_ITER = 100
   private[this] val MAX_RECOLOR_NODE_COUNT = 20
 
-  private[this] val queue = mutable.PriorityQueue[Chunk]()
+  private[this] val availableRegsSeq = availableRegs.toIndexedSeq
   private[this] val tempColors = mutable.Map[XID, XReg]()
 
   private[this] val colors: mutable.Map[XID, XReg] = {
@@ -38,12 +38,7 @@ class Coalescer(
       (x, rawAffs.getOrElse(x, Map()).filter(colors contains _._1))
     }).toMap
 
-  private[this] val isFixated: mutable.Map[XID, Boolean] = {
-    val m = mutable.Map[XID, Boolean]()
-    for (Util.The(xv: XVar) <- colors.keysIterator) m(xv) = false
-    for (xr <- availableRegs) m(xr) = true
-    m
-  }
+  private[this] val fixatedNodes: mutable.Set[XID] = mutable.Set() ++ availableRegs
 
   private[this] val intf: Interferences = {
     val m = mutable.Map[XID, Set[XID]]()
@@ -76,12 +71,10 @@ class Coalescer(
     * [5.0] main
     */
   def coalesce: Map[XID, XReg] = {
-    queue.clear()
-    queue ++= createInitialChunks().filter(_.elems.sizeIs >= 2)
+    ChunkManager.initialize(createInitialChunks().filter(_.elems.size >= 2))
     var cnt = 0
-    while (cnt < MAX_DEQUEUE_ITER && queue.nonEmpty) {
-      val chunk = queue.dequeue()
-      queue ++= recolorChunk(chunk).filter(_.elems.sizeIs >= 2)
+    while (cnt < MAX_DEQUEUE_ITER && ChunkManager.nonEmpty) {
+      ChunkManager.dequeueAndReplace(chunk => recolorChunk(chunk).filter(_.elems.size >= 2))
       cnt += 1
     }
     colors.toMap
@@ -95,7 +88,7 @@ class Coalescer(
     for ((v, w, _) <- flatAfs.sortBy { case (_, _, gain) => -gain }) {
       val vc = chunks.find(_.elems contains v).get
       val wc = chunks.find(_.elems contains w).get
-      if ((vc ne wc) && !(vc interferesWith wc)) {
+      if ((vc ne wc) && !(vc interferesWithRaw wc)) {
         chunks --= Seq(vc, wc)
         chunks += new Chunk(vc.elems ++ wc.elems)
       }
@@ -118,34 +111,28 @@ class Coalescer(
   private[this] def recolorChunk(chunk: Chunk): Seq[Chunk] = {
     var best = Option.empty[(XReg, Chunk)]
     val chunkSize = chunk.elems.size
-    Breaks.breakable {
-      for (color <- chunk.computeColorOrder) {
-        var nSuccessful = 0
-        for (node <- chunk.elems) {
-          if (changeTo(node, color)) {
-            nSuccessful += 1
-            isFixated(node) = true
-          }
-        }
-        for (node <- chunk.elems) {
-          isFixated(node) = false
-        }
-        if (nSuccessful > 1) {
-          val localBest = fragmentChunk(chunk, color)
-          if (best.forall(_._2.totalGain < localBest.totalGain)) {
-            best = Some((color, localBest))
-          }
-          if (nSuccessful == chunkSize) {
-            Breaks.break()
-          }
+    chunk.computeColorOrder.exists { color =>
+      var nSuccessful = 0
+      for (node <- chunk.elems) {
+        if (changeTo(node, color)) {
+          nSuccessful += 1
+          fixatedNodes += node
         }
       }
+      fixatedNodes --= chunk.elems
+      if (nSuccessful > 1) {
+        val localBest = fragmentChunk(chunk, color)
+        if (best.forall(_._2.totalGain < localBest.totalGain)) {
+          best = Some((color, localBest))
+        }
+      }
+      nSuccessful == chunkSize
     }
     best match {
       case Some((bestColor, bestChunk)) =>
         for (node <- bestChunk.elems) {
           changeTo(node, bestColor)
-          isFixated(node) = true
+          fixatedNodes += node
         }
         getNewChunks(chunk, bestChunk)
       case None =>
@@ -209,7 +196,7 @@ class Coalescer(
   }
 
   /** [5.3] isLoose */
-  private[this] def isLoose(node: XID) = !isFixated(node) && !tempColors.contains(node)
+  private[this] def isLoose(node: XID) = !fixatedNodes(node) && !tempColors.contains(node)
 
   /** [5.3] getColor */
   private[this] def getColor(node: XID) = tempColors.getOrElse(node, colors(node))
@@ -218,12 +205,10 @@ class Coalescer(
     * [5.3] makeAvoidList
     */
   private[this] def makeAvoidList(node: XID, avoidColor: XReg): Seq[XReg] = {
-    val prio = mutable.Map[XReg, Double]()
-    val neighCol = mutable.Map[XReg, Int]()
-    for (xr <- availableRegs) {
-      prio(xr) = nodeColorPreference(node, xr)
-      neighCol(xr) = 0
-    }
+    val prio = availableRegsSeq.map(xr =>
+      (xr, nodeColorPreference(node, xr))
+    ).to(mutable.Map)
+    val neighCol = mutable.Map[XReg, Int]().withDefaultValue(0)
     for (neigh <- intf(node)) {
       if (isLoose(neigh)) {
         neighCol(colors(neigh)) += 1
@@ -237,7 +222,7 @@ class Coalescer(
     }
     prio(avoidColor) = 0.0
 
-    availableRegs.toSeq.filter(prio(_) > 0.0).sortBy(prio)(Ordering.Double.IeeeOrdering).reverse
+    availableRegsSeq.filter(prio(_) > 0.0).sortBy(prio)(Ordering.Double.IeeeOrdering).reverse
   }
 
   private[this] var recolorNodeCount = 0
@@ -286,11 +271,45 @@ class Coalescer(
 
   private[this] var chunkCnt = 0
 
+  private[this] object ChunkManager {
+    private[this] val pq = mutable.PriorityQueue[Chunk]()
+
+    private[this] val intfChunks =
+      mutable.Map[Chunk, mutable.Set[Chunk]]().withDefault(_ => mutable.Set())
+
+    def nonEmpty: Boolean = pq.nonEmpty
+
+    def initialize(chunks: Iterable[Chunk]): Unit = {
+      pq.clear()
+      intfChunks.clear()
+      pq ++= chunks
+      for (c <- chunks) {
+        intfChunks(c) ++= chunks.filter(c.interferesWithRaw)
+      }
+    }
+
+    def dequeueAndReplace(fn: Chunk => Iterable[Chunk]): Unit = {
+      val old = pq.dequeue()
+      val res = fn(old)
+      pq ++= res
+      for (c <- intfChunks(old)) {
+        intfChunks(c) -= old
+        for (r <- res if c interferesWithRaw r) {
+          intfChunks(c) += r
+          intfChunks(r) += c
+        }
+      }
+      intfChunks -= old
+    }
+
+    def chunksInterferingWith(c: Chunk): collection.Set[Chunk] = intfChunks(c)
+  }
+
   private[this] final class Chunk(val elems: Set[XID]) extends Ordered[Chunk] {
     private val chunkUID = chunkCnt
     chunkCnt += 1
 
-    def interferesWith(that: Chunk): Boolean = {
+    def interferesWithRaw(that: Chunk): Boolean = {
       elems.exists(e => (intf(e) & that.elems).nonEmpty)
     }
 
@@ -298,13 +317,13 @@ class Coalescer(
       * [5.2] p(C, c)
       */
     private val colorPreference: Map[XReg, Double] =
-      availableRegs.toSet[XReg].map(c => (c, elems.map(nodeColorPreference(_, c)).sum)).toMap
+      availableRegsSeq.map(c => (c, elems.map(nodeColorPreference(_, c)).sum)).toMap
 
     /**
       * [5.2] d(C, c)
       */
     private[this] def colorDislike(color: XReg): Double = {
-      val X = queue.toSeq.filter(this.interferesWith)
+      val X = ChunkManager.chunksInterferingWith(this)
       1.0 - X.map(_.colorPreference(color)).sum / X.size
     }
 
@@ -312,7 +331,7 @@ class Coalescer(
       * [5.2] computeColorOrder
       */
     def computeColorOrder: IndexedSeq[XReg] = {
-      availableRegs.toIndexedSeq.sortBy(
+      availableRegsSeq.sortBy(
         c => (1 - ALPHA) * colorPreference(c) + ALPHA * colorDislike(c)
       )(Ordering.Double.IeeeOrdering).reverse
     }
@@ -331,6 +350,15 @@ class Coalescer(
     override def compare(that: Chunk): Int = {
       Ordering.Tuple2[Int, Int].compare((totalGain, chunkUID), (that.totalGain, that.chunkUID))
     }
+
+    def canEqual(that: Any): Boolean = that.isInstanceOf[Chunk]
+
+    override def equals(that: Any): Boolean = that match {
+      case that: Chunk => chunkUID == that.chunkUID
+      case _ => false
+    }
+
+    override def hashCode: Int = chunkUID
   }
 
 }
