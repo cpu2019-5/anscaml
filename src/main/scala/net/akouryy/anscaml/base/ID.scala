@@ -49,6 +49,7 @@ object ID {
     ID(s"${str}${suffix(c, allowEmptySuffix)}")
   }
 
+  //noinspection SpellCheckingInspection
   object Special {
     val SPECIALIZE_ADDR = "$addr"
     val EMIT_ARRAY_BODY = "$arb"
@@ -62,6 +63,8 @@ object ID {
     val ASM_F_INV = "$inv"
     val RA_LINK_REG = "$lr"
     val KO_LOOP_VAR = "$loop"
+    val SPECIALIZE_LTC_ELEM = "$ltce"
+    val SPECIALIZE_LTC_INDEX = "$ltci"
     val KO_UPD_VAR = "$lup"
     val MAIN = "$main"
     val ASM_NOT = "not"

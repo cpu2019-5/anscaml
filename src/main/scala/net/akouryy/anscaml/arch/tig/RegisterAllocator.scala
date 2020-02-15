@@ -162,7 +162,7 @@ final class RegisterAllocator {
         val used = interference.getOrElse(v, Set()).flatMap(_.fold(regEnv.get, Some(_)))
 
         regEnv(v) = fixPreference(preferencesBase, regEnv, v).find(r => !used.contains(r))
-          .getOrElse(throw new SpillError(s"Spill: $v vs ${interference(v)}"))
+          .getOrElse(throw new SpillError(s"Spill: $v"))
         regEnv(v)
     }
 

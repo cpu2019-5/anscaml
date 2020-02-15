@@ -219,7 +219,7 @@ object ComplexFolder {
       val livIndex = if (livT) tru else fls
       val livBlock = fun.body.blocks(livIndex)
       fun.body.blocks(livIndex) = livBlock.copy(lines = line +: livBlock.lines)
-      Logger.log("CF-EPUL", s"partially eliminated $line in ${fun.name}")
+      // Logger.log("CF-EPUL", s"partially eliminated $line in ${fun.name}")
     }
   }
 

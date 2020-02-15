@@ -38,5 +38,5 @@ object PPrinter {
     writer.println()
   }
 
-  def pprintln(x: Any): Unit = pprinter.pprintln(x, height = 1000)
+  def pprintln(x: Any): Unit = pprinter.pprintln(x, height = 10)
 }

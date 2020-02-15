@@ -6,7 +6,6 @@ import base._
 import Coalescer._
 
 import scala.collection.{immutable, mutable}
-import scala.util.control.Breaks
 
 /**
   * @see Sebastian Hack and Gerhard Goos. 2008. Copy coalescing by graph recoloring.
