@@ -33,7 +33,7 @@ object Liveness {
     */
   type Info = Map[BlockIndex, List[LiveSet]]
 
-  private[this] def useInInst(inst: Instruction): Iterable[XVar] = inst match {
+  def useInInst(inst: Instruction): Iterable[XVar] = inst match {
     case Mv(value) =>
       value.asXVar
     case _: Mvi | Nop | Read =>
@@ -97,5 +97,10 @@ object Liveness {
     } analyzeBlock(info, f.body, a)
 
     info.toMap
+  }
+
+  def analyzeFunction(fun: FDef): Info = {
+    /* gcSize and tyEnv is not used in analyzeProgram */
+    analyzeProgram(Program(0, Map(), List(fun)))
   }
 }

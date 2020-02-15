@@ -2,6 +2,7 @@ package net.akouryy.anscaml
 package arch.tig
 package optimize
 
+import analyze.Liveness
 import asm._
 import Branch.{Cond, CondVC}
 import base._
@@ -188,6 +189,40 @@ object ComplexFolder {
     }
   }
 
+  /**
+    * {{{let v = Load(...) in (A; if B then C else D(v)) # v is not used in A,B,C. A is pure. }}}
+    * ↓
+    * {{{A; if B then C else let v = Load(...) in D(v)}}}
+    */
+  private[this] def eliminatePartiallyUnusedLoad(fun: FDef) = {
+    val liveness = Liveness.analyzeFunction(fun)
+
+    for {
+      block <- fun.body.blocks.values.toSeq
+      Branch(_, _, Cond(_, cLeft, cRight), _, tru, fls) <- Some(fun.body.jumps(block.output))
+      (
+        line @ Line(_, v: XVar, Mv(XID.Immutable(_)) | Load(XID.Immutable(_), VC.Immutable(_), _)),
+        lineIndex
+        ) <- block.lines.zipWithIndex
+      if block eq fun.body.blocks(block.i)
+      if cLeft != v && cRight != V(v) /* v is not used in B */
+      livT = liveness(tru).head contains v
+      livF = liveness(fls).head contains v
+      if livT ^ livF /* v is not used in C (but is in D) */
+      followingLines = block.lines.drop(lineIndex + 1)
+      if followingLines.forall {
+        case Line(_, _, _: Store | _: CallDir) => false /* A is pure */
+        case line => !Liveness.useInInst(line.inst).toSet.contains(v) /* v is not used in A */
+      }
+    } {
+      fun.body.blocks(block.i) = block.copy(lines = block.lines.take(lineIndex) ++ followingLines)
+      val livIndex = if (livT) tru else fls
+      val livBlock = fun.body.blocks(livIndex)
+      fun.body.blocks(livIndex) = livBlock.copy(lines = line +: livBlock.lines)
+      Logger.log("CF-EPUL", s"partially eliminated $line in ${fun.name}")
+    }
+  }
+
   def apply(program: Program): Boolean = {
     var changed = false
 
@@ -201,6 +236,7 @@ object ComplexFolder {
       foldCommonInstAfterBranch(f)
       foldSingleMerge(f)
       foldEmptyBranch(f)
+      eliminatePartiallyUnusedLoad(f)
 
       changed ||= oldBlocks != f.blocks || oldJumps != f.jumps
     }

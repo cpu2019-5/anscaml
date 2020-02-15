@@ -19,6 +19,18 @@ sealed trait VC {
   final def mapV(ifV: XID => XID): VC = fold(v => V(ifV(v)), C)
 }
 
+object VC {
+
+  object Immutable {
+    def unapply(vc: VC): Option[VC] = vc match {
+      case V(XID.Immutable(_)) | C(_) => Some(vc)
+      case _ => None
+    }
+  }
+
+}
+
+
 final case class V(v: XID) extends VC
 
 final case class C(c: Word) extends VC

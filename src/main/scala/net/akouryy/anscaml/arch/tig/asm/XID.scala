@@ -33,6 +33,17 @@ sealed trait XID extends Any with Ordered[XID] {
   }
 }
 
+object XID {
+
+  object Immutable {
+    def unapply(xid: XID): Option[XID] = xid match {
+      case _: XVar => Some(xid)
+      case xr: XReg => Option.when(XReg.toConstants contains xr)(xr)
+    }
+  }
+
+}
+
 final case class XVar(idStr: String) extends AnyVal with XID {
   override def toString: String = idStr
 }
