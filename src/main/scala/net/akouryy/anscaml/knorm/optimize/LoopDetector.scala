@@ -31,7 +31,7 @@ import scala.annotation.tailrec
   */
 class LoopDetector {
   def apply(kn: KNorm): KNorm = {
-    detect(kn)
+    detectGeneralLoop(detectForLoop(kn))
   }
 
   /**
@@ -86,7 +86,7 @@ class LoopDetector {
     }
   }
 
-  private[this] def detectInFun(fDef: FDef, negated: Boolean): Option[KNorm] = {
+  private[this] def detectFLInFun(fDef: FDef, negated: Boolean): Option[KNorm] = {
     val fnName = fDef.entry.name
     for {
       (xGen, (op, left, right), tru, fls) <- digExprX(fDef.body)
@@ -117,7 +117,7 @@ class LoopDetector {
           op, i2l.getOrElse(left, left), i2l.getOrElse(right, right), negated, loopVars, initVars,
           yGen(
             xGen(
-              KNorm(CM("[KO-LD] update vars"), ForUpdater(updateVars))
+              KNorm(CM("[KO-LD] update vars"), LoopUpdater(updateVars))
             ).replaceVars(initVars.zipStrict(updateVars).toMap)
           ).replaceVars(i2l),
           z.replaceVars(i2l),
@@ -126,22 +126,58 @@ class LoopDetector {
     }
   }
 
-  private[this] def detect(kn: KNorm): KNorm = {
+  private[this] def detectGLInFun(fDef: FDef): Option[KNorm] = {
+    var found = false
+
+    def glRec(kn: KNorm): KNorm = kn.copy(raw = kn.raw match {
+      case _: KInt | _: KFloat | _: BinOpTree | _: Var | _: KTuple | _: LoopUpdater | _: KArray |
+           _: Get | _: Put | _: ApplyExternal => kn.raw
+      case IfCmp(op, left, right, tru, fls) =>
+        IfCmp(op, left, right, glRec(tru), glRec(fls))
+      case kr: HasKont => kr.copyWithKont(glRec(kr.kont)) /* convert tail only */
+      case a @ Apply(fn, args, _) =>
+        if (fn == fDef.entry.name) {
+          found = true
+          LoopUpdater(args)
+        } else {
+          a
+        }
+      case _: GeneralLoop => !!!!(kn)
+    })
+
+    val result = glRec(fDef.body)
+    Option.when(found) {
+      val loopVars = fDef.args.map(arg =>
+        arg.name -> ID.generate(arg.name.str + ID.Special.KO_GENERAL_LOOP_VAR)
+      )
+      KNorm(
+        NC,
+        GeneralLoop(loopVars.map(_._2), loopVars.map(_._1), result.replaceVars(loopVars.toMap)),
+      )
+    }
+  }
+
+  private[this] def detectLoop(inFun: FDef => Option[KNorm])(kn: KNorm): KNorm = {
     kn.copy(raw = kn.raw match {
       case raw: IfCmp =>
-        raw.copy(tru = detect(raw.tru), fls = detect(raw.fls))
+        raw.copy(tru = detectLoop(inFun)(raw.tru), fls = detectLoop(inFun)(raw.fls))
       case raw: ForCmp =>
-        raw.copy(body = detect(raw.body), kont = detect(raw.kont))
+        raw.copy(body = detectLoop(inFun)(raw.body), kont = detectLoop(inFun)(raw.kont))
       case raw: Let =>
-        raw.copy(bound = detect(raw.bound), kont = detect(raw.kont))
+        raw.copy(bound = detectLoop(inFun)(raw.bound), kont = detectLoop(inFun)(raw.kont))
       case raw: LetTuple =>
-        raw.copy(kont = detect(raw.kont))
+        raw.copy(kont = detectLoop(inFun)(raw.kont))
       case LetRec(fDef, kont) =>
-        detectInFun(fDef, negated = false).orElse(detectInFun(fDef, negated = true)) match {
-          case Some(body) => LetRec(fDef.copy(body = body), detect(kont))
-          case None => LetRec(fDef, detect(kont))
+        inFun(fDef) match {
+          case Some(body) => LetRec(fDef.copy(body = body), detectLoop(inFun)(kont))
+          case None => LetRec(fDef, detectLoop(inFun)(kont))
         }
       case raw => raw
     })
   }
+
+  private[this] def detectForLoop =
+    detectLoop(f => detectFLInFun(f, negated = false).orElse(detectFLInFun(f, negated = true))) _
+
+  private[this] def detectGeneralLoop = detectLoop(detectGLInFun) _
 }

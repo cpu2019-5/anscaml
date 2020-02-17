@@ -127,7 +127,7 @@ class SwarmAnalyzer {
         typEnv(res) = Typ.TTuple(elems.map(typEnv))
         tupleResEnv(kt) = res
         createSingletonSwarm(res)
-      case ForUpdater(elems) =>
+      case LoopUpdater(elems) =>
         val res = ID.generate("$tuple")
         typEnv(res) = Typ.TTuple(elems.map(typEnv))
         tupleResEnv(KTuple(elems)) = res
@@ -184,7 +184,7 @@ class SwarmAnalyzer {
           //              println(s"${entry.name.str}<$i> ~ ${elem.str}")
         }
         Option.when(doesSwarm(res))(res -> None).toList
-      case ForUpdater(elems) =>
+      case LoopUpdater(elems) =>
         val res = tupleResEnv(KTuple(elems))
         for ((elem, i) <- elems.zipWithIndex if doesSwarm(elem)) {
           relate(elem, res -> Some(SRTuple(i)))

@@ -26,7 +26,7 @@ object Alpha {
         case Var(v) => Var(find(v))
         case Apply(fn, args, isRecCall) => Apply(find(fn), args.map(find), isRecCall)
         case KTuple(elems) => KTuple(elems.map(find))
-        case ForUpdater(elems) => ForUpdater(elems.map(find))
+        case LoopUpdater(elems) => LoopUpdater(elems.map(find))
         case KArray(len, elem) => KArray(find(len), find(elem))
         case Get(array, index) => Get(find(array), find(index))
         case Put(array, index, value) => Put(find(array), find(index), find(value))
@@ -41,6 +41,10 @@ object Alpha {
             negated, newLVs.map(_._2), initVars.map(find),
             convert(body, newEnv), convert(kont, newEnv),
           )
+        case GeneralLoop(loopVars, initVars, body) =>
+          val newLVs = loopVars.map(lv => lv -> ID.generate(lv.str))
+          val newEnv = env ++ newLVs
+          GeneralLoop(newLVs.map(_._2), initVars.map(find), convert(body, newEnv))
         case Let(Entry(v, typ), bound, kont) =>
           val v2 = ID.generate(v.str)
           Let(Entry(v2, typ), convert(bound, env), convert(kont, env + (v -> v2)))

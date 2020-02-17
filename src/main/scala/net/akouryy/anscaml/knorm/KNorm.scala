@@ -62,7 +62,7 @@ object KNorm {
 
   final case class KTuple(elems: List[ID]) extends KRaw with KCRaw
 
-  final case class ForUpdater(elems: List[ID]) extends KRaw with KCRaw
+  final case class LoopUpdater(elems: List[ID]) extends KRaw with KCRaw
 
   final case class KArray(len: ID, elem: ID) extends KRaw with KCRaw
 
@@ -90,13 +90,17 @@ object KNorm {
     */
   final case class ForCmp(
     op: CmpOp, left: ID, right: ID, negated: Boolean,
-    loopVars: List[ID], initVars: List[ID], body: KNorm, kont: KNorm
+    loopVars: List[ID], initVars: List[ID], body: KNorm, kont: KNorm,
   ) extends KRaw with HasKont {
     override def copyWithKont(kont: KNorm): KRaw = copy(kont = kont)
 
     def mapBodyKont(b: KNorm => KNorm)(k: KNorm => KNorm): ForCmp =
       copy(body = b(body), kont = k(kont))
   }
+
+  final case class GeneralLoop(
+    loopVars: List[ID], initVars: List[ID], body: KNorm,
+  ) extends KRaw
 
   final case class Let(entry: Entry, bound: KNorm, kont: KNorm) extends KRaw with HasKont {
     override def copyWithKont(kont: KNorm): KRaw = copy(kont = kont)
@@ -115,7 +119,11 @@ object KNorm {
 
   final case class CForCmp(
     op: CmpOp, left: ID, right: ID, negated: Boolean,
-    loopVars: List[ID], initVars: List[ID], body: KClosed, kont: KClosed
+    loopVars: List[ID], initVars: List[ID], body: KClosed, kont: KClosed,
+  ) extends KCRaw
+
+  final case class CGeneralLoop(
+    loopVars: List[ID], initVars: List[ID], body: KClosed,
   ) extends KCRaw
 
   final case class CLet(entry: Entry, bound: KClosed, kont: KClosed) extends KCRaw

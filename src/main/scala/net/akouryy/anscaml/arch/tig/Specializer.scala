@@ -41,7 +41,7 @@ class Specializer {
   private[this] var currentInputJumpIndex: asm.JumpIndex = _
   private[this] var currentLines = mutable.ListBuffer[asm.Line]()
   private[this] var currentFunIsLeaf: Boolean = _
-  private[this] var currentForUpdater = Option.empty[KNorm.ForUpdater]
+  private[this] var currentForUpdater = Option.empty[KNorm.LoopUpdater]
 
   private[this] val mviEnv = mutable.Map[XVar, asm.Mvi]()
 
@@ -208,7 +208,7 @@ class Specializer {
           Line(NC, XReg.HEAP, asm.BinOpVCTree(asm.Add, XReg.HEAP, asm.C(Word(i)))),
         )
         ()
-      case raw: KNorm.ForUpdater =>
+      case raw: KNorm.LoopUpdater =>
         assert(currentForUpdater.isEmpty)
         currentForUpdater = Some(raw)
       case KNorm.KArray(len, elem) =>
@@ -385,7 +385,7 @@ class Specializer {
         val bodyBottomBlockIndex = currentBlockIndex
         val bodyBottomBlockInputIndex = currentInputJumpIndex
         val updXVars = currentForUpdater match {
-          case Some(KNorm.ForUpdater(elems)) =>
+          case Some(KNorm.LoopUpdater(elems)) =>
             currentForUpdater = None
             elems.map(wrapVar)
           case None => !!!!(body)
@@ -419,6 +419,18 @@ class Specializer {
         currentChart.jumps(forBottomJumpIndex) = asm.ForLoopBottom(
           NC, forBottomJumpIndex, bodyBottomBlockIndex, forTopJumpIndex,
         )
+
+      case KNorm.CGeneralLoop(loopVars, initVars, body) =>
+        /*
+          1. GeneralLoopTop
+          2. body top
+          3. ...body...
+          4. body bottom
+          5. GeneralLoopBottomNext
+          6. GeneralLoopBottomEnd
+          7. kont
+         */
+        loopVars
     }
   }
 

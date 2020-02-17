@@ -353,7 +353,7 @@ class Coalescer(
     def canEqual(that: Any): Boolean = that.isInstanceOf[Chunk]
 
     override def equals(that: Any): Boolean = that match {
-      case that: Chunk => chunkUID == that.chunkUID
+      case that: Chunk if that.isInstanceOf[Chunk] => chunkUID == that.chunkUID
       case _ => false
     }
 

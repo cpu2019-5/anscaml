@@ -176,3 +176,19 @@ final case class ForLoopBottom(
 ) extends Jump
 
 final case class ForLoopVar(in: XID, upd: XID, loop: XID)
+
+final case class GeneralLoopTop(
+  comment: Comment, i: JumpIndex, initVars: List[XID], loopVars: List[XID],
+  input: BlockIndex, loopBottomNext: JumpIndex, loopBottomEnd: JumpIndex, body: BlockIndex,
+) extends Jump
+
+final case class GeneralLoopBottomNext(
+  comment: Comment, i: JumpIndex, inputs: List[GLBNInput], loopTop: JumpIndex,
+)
+
+final case class GLBNInput(bi: BlockIndex, updateVars: List[XID])
+
+final case class GeneralLoopBottomEnd(
+  comment: Comment, i: JumpIndex, inputs: List[MergeInput], outputXID: XID, output: BlockIndex,
+  loopTop: JumpIndex,
+) extends Jump

@@ -58,6 +58,7 @@ object ID {
     val EXTERNAL_PREFIX = "$ext_"
     val KN_FLOAT = "$f"
     val GC_INSTANCE = "$gci"
+    val KO_GENERAL_LOOP_VAR = "$gl"
     val GC_VAL = "$gcv"
     val KN_INT = "$i"
     val ASM_F_INV = "$inv"

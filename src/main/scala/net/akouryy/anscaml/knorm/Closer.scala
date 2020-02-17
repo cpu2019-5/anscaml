@@ -36,7 +36,7 @@ class Closer {
       case BinOpTree(_, x, y) => Set(x, y)
       case Var(v) => Set(v)
       case KTuple(elems) => elems.toSet
-      case ForUpdater(elems) => elems.toSet
+      case LoopUpdater(elems) => elems.toSet
       case KArray(x, y) => Set(x, y)
       case Get(x, y) => Set(x, y)
       case Put(x, y, z) => Set(x, y, z)
@@ -47,6 +47,8 @@ class Closer {
       case ForCmp(_, l, r, _, loopVars, initVars, body, kont) =>
         ((Set(l, r) | indirectFVs(body, localFns) | indirectFVs(kont, localFns)) -- loopVars.toSet
           ) | initVars.toSet
+      case GeneralLoop(loopVars, initVars, body) =>
+        (indirectFVs(body, localFns) -- loopVars.toSet) | initVars.toSet
       case Let(entry, bound, kont) =>
         indirectFVsCache.getOrElseUpdate(entry.name,
           indirectFVs(kont, localFns) - entry.name | indirectFVs(bound, localFns)
@@ -78,6 +80,8 @@ class Closer {
         KClosed(norm.comment, CForCmp(op, left, right, negated, loopVars, initVars,
           close(body, Local), close(kont, Local)
         ))
+      case GeneralLoop(loopVars, initVars, body) =>
+        KClosed(norm.comment, CGeneralLoop(loopVars, initVars, close(body, Local)))
       case Let(entry, bound, kont) =>
         if (scope == Global && !bound.raw.mayHaveEffect) {
           globalConstsRev ::= (entry, close(bound, Local))
