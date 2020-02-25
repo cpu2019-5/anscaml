@@ -180,6 +180,7 @@ final class RegisterAllocator {
       }
     }
 
+    Logger.log("RA", s"${f.name}\t\t${regEnv.size}")
     if (regEnv.sizeIs < 2000) {
       /* TODO: tune parameter */
       Logger.log("RA", s"${f.name}: begin coalescing")

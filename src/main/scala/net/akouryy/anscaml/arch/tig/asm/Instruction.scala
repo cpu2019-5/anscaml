@@ -18,6 +18,31 @@ sealed trait Instruction {
     res
   }
 
+  final def usedXID: Seq[XID] = this match {
+    case Mv(value) =>
+      Seq(value)
+    case _: Mvi | Nop | Read =>
+      Seq()
+    case NewArray(len, elem) =>
+      Seq(elem) ++ len.asV
+    case Store(addr, index, value, _) =>
+      Seq(addr, value) ++ index.asV
+    case Load(addr, index, _) =>
+      Seq(addr) ++ index.asV
+    case UnOpTree(_, value) =>
+      Seq(value)
+    case BinOpVCTree(_, left, right) =>
+      Seq(left) ++ right.asV
+    case BinOpVTree(_, left, right) =>
+      Seq(left, right)
+    case Select(cond, tru, fls) =>
+      Seq(cond.left, tru, fls) ++ cond.rightVC.asV
+    case Write(value) =>
+      Seq(value)
+    case CallDir(_, args, None) =>
+      args
+  }
+
   def toBriefString: String = toString
 }
 

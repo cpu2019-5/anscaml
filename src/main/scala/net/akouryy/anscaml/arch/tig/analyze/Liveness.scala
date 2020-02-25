@@ -33,31 +33,7 @@ object Liveness {
     */
   type Info = Map[BlockIndex, List[LiveSet]]
 
-  def useInInst(inst: Instruction): Iterable[XVar] = inst match {
-    case Mv(value) =>
-      value.asXVar
-    case _: Mvi | Nop | Read =>
-      Set()
-    case NewArray(len, elem) =>
-      len.asVXVar ++ elem.asXVar
-    case Store(addr, index, value, _) =>
-      addr.asXVar ++ index.asVXVar ++ value.asXVar
-    case Load(addr, index, _) =>
-      addr.asXVar ++ index.asVXVar
-    case UnOpTree(_, value) =>
-      value.asXVar
-    case BinOpVCTree(_, left, right) =>
-      left.asXVar ++ right.asVXVar
-    case BinOpVTree(_, left, right) =>
-      left.asXVar ++ right.asXVar
-    case Select(cond, tru, fls) =>
-      cond.left.asXVar ++ cond.rightVC.asVXVar ++ tru.asXVar ++ fls.asXVar
-    case Write(value) =>
-      value.asXVar
-    case CallDir(_, args, None) =>
-      args.flatMap(_.asXVar)
-    case _ => !!!!(inst)
-  }
+  def useInInst(inst: Instruction): Iterable[XVar] = inst.usedXID.flatMap(_.asXVar)
 
   private[this] def analyzeBlock(info: MutableInfo, c: Chart, b: Block): Unit = {
     var live: LiveSet = c.jumps(b.output) match {

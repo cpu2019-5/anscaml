@@ -18,6 +18,8 @@ final case class Graph(destss: Array[Set[Int]]) {
 
   import Graph._
 
+  def apply(i: Int): Set[Int] = destss(i)
+
   def reversed: Graph = {
     val revDestss = Array.fill(nv)(Set[Int]())
     for (

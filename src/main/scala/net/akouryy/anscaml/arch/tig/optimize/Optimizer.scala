@@ -6,6 +6,11 @@ import asm.Program
 
 object Optimizer {
   def apply(iterationCount: Int, asm: Program): Unit = {
+    optimize(iterationCount, asm)
+    new Scheduler(asm).schedule()
+  }
+
+  private[this] def optimize(iterationCount: Int, asm: Program): Unit = {
     for (i <- 0 until iterationCount) {
       Logger.log("TO", s"iteration $i")
       var changed = false
