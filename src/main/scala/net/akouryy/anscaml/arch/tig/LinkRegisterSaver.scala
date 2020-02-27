@@ -11,9 +11,13 @@ object LinkRegisterSaver {
       locally {
         val sbi = f.body.blocks.firstKey
         val sb = f.body.blocks(sbi)
-        f.body.blocks(sbi) = sb.copy(
-          lines = Line(CM("[LRS] save LR"), lrVar, Mv(XReg.LINK)) +: sb.lines
-        )
+        val saver = Line(CM("[LRS] save LR"), lrVar, Mv(XReg.LINK))
+        f.body.blocks(sbi) = sb.copy(lines = sb.lines match {
+          case (car @ Line(_, _: XVar, _: Load)) :: cdr =>
+            car :: saver :: cdr
+          case _ =>
+            saver :: sb.lines
+        })
       }
       for (ret @ Return(_, ji, _, None, rbi) <- f.body.jumps.valuesIterator) {
         val rb = f.body.blocks(rbi)

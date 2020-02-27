@@ -75,7 +75,7 @@ let rec stdlib__kcos xx yy =
   let c6 = -0.0000000000113596475577881948265 in
   let z = x *. x in
   let r = z *. (c1 +. z *. (c2 +. z *. (c3 +. z *. (c4 +. z *. (c5 +. z *. c6))))) in
-  let qx = if x >. 0.78125 then 0.28125 else x /. 4.0 in
+  let qx = if x >. 0.78125 then 0.28125 else x *. 0.25 in
   let hz = 0.5 *. z -. qx in
   let a = 1.0 -. qx in
   a -. (hz -. (z *. r -. x *. y)) in
